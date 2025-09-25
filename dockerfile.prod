@@ -12,6 +12,7 @@ RUN npm ci --legacy-peer-deps
 
 # Build Stage - docker build -t qrcode-service .
 FROM node:24-alpine3.22 AS builder
+RUN apk add --no-cache curl
 # Set working directory
 WORKDIR /usr/src/app
 # Copy the dependencies from the deps stage
@@ -25,6 +26,7 @@ RUN npm prune --production
 RUN npm ci --only --production && npm cache clean --force
 # Create the application image
 FROM node:24-alpine3.22 AS production
+RUN apk add --no-cache curl
 # Set working directory
 WORKDIR /usr/src/app
 # Copy the built application from the builder stage
