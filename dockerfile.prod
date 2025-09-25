@@ -1,6 +1,7 @@
 # Dependencies Stage - docker build -t qrcode-service .
 # This stage installs the dependencies for the application
 FROM node:24-alpine3.22 AS deps
+RUN apk add --no-cache curl
 # Set working directory
 WORKDIR /usr/src/app
 # Copy package.json and package-lock.json
