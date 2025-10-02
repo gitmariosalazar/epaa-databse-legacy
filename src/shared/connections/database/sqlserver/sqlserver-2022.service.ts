@@ -1,3 +1,4 @@
+/*
 import { ConnectionPool, IResult, config, Transaction } from 'mssql';
 import { DatabaseAbstract } from '../abstract/abstract.database';
 import { environments } from 'src/settings/environments/environments';
@@ -169,3 +170,4 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
     return this.isConnected;
   }
 }
+*/
