@@ -40,15 +40,15 @@ ENV ODBCINI=/etc/odbc.ini
 ENV ODBCSYSINI=/etc
 # Set working directory
 WORKDIR /usr/src/app
-# Copy package.json and package-lock.json
-COPY package.json ./
-COPY package-lock.json ./
-# Install dependencies without modifying package-lock.json
-RUN npm ci --legacy-peer-deps
+# Copiar package.json y package-lock.json
+COPY package.json package-lock.json ./
+# Instalar dependencias incluyendo recompilación de odbc
+RUN npm ci --legacy-peer-deps && npm rebuild odbc
 
-# Build Stage - docker build -t qrcode-service .
-FROM node:24-alpine3.22 AS builder
-# Set working directory
+# --------------------------------------------
+# Build Stage - Compilación de la aplicación
+# --------------------------------------------
+FROM node:24-bullseye AS builder
 WORKDIR /usr/src/app
 # Copiar dependencias compiladas
 COPY --from=deps /usr/src/app/node_modules ./node_modules
@@ -58,9 +58,27 @@ COPY . .
 RUN npm run build
 # Limpiar devDependencies
 RUN npm prune --production
-RUN npm ci --only --production && npm cache clean --force
-# Create the application image
-FROM node:24-alpine3.22 AS production
+
+# --------------------------------------------
+# Production Stage - Imagen final
+# --------------------------------------------
+FROM node:24-bullseye AS production
+# Instalar dependencias del sistema necesarias para ODBC
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    unixodbc \
+    freetds-bin \
+    tdsodbc \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/lib/x86_64-linux-gnu/libodbc.so.2.0.0 /usr/lib/libodbc.so.2
+# Copiar configuraciones de ODBC desde la etapa deps
+COPY --from=deps /etc/odbc.ini /etc/odbc.ini
+COPY --from=deps /etc/odbcinst.ini /etc/odbcinst.ini
+COPY --from=deps /etc/freetds/freetds.conf /etc/freetds/freetds.conf
+# Variables de entorno
+ENV NODE_ENV=production
+ENV ODBCINI=/etc/odbc.ini
+ENV ODBCSYSINI=/etc
 # Set working directory
 WORKDIR /usr/src/app
 # Copiar aplicación compilada y dependencias
