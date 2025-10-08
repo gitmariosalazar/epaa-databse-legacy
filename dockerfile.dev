@@ -1,6 +1,35 @@
-FROM node:24-alpine3.22 AS deps
+FROM node:24-bullseye AS deps
 
-RUN apk add --no-cache curl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    nano \
+    unixodbc \
+    unixodbc-dev \
+    freetds-dev \
+    freetds-bin \
+    tdsodbc \
+    python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/lib/x86_64-linux-gnu/libodbc.so.2.0.0 /usr/lib/libodbc.so.2
+# Crear directorios de configuración
+RUN mkdir -p /etc/freetds /etc/odbc
+# Configurar FreeTDS
+RUN echo "[SQLServer2000]\n\
+host = 172.16.102.11\n\
+port = 1433\n\
+tds version = 8.0\n" > /etc/freetds/freetds.conf
+# Configurar ODBC DSN
+RUN echo "[SQLServer2000]\n\
+Description = SQL Server 2000\n\
+Driver = FreeTDS\n\
+Servername = SQLServer2000\n\
+Database = Bdd21julio2025\n" > /etc/odbc.ini
+# Configurar driver ODBC
+RUN echo "[FreeTDS]\n\
+Description = FreeTDS Driver\n\
+Driver = /usr/lib/x86_64-linux-gnu/odbc/libtdsodbc.so\n\
+Setup =\n" > /etc/odbcinst.ini
 
 WORKDIR /usr/src/app
 
