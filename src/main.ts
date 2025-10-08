@@ -4,8 +4,8 @@ import { Logger } from '@nestjs/common';
 import { Transport } from '@nestjs/microservices';
 import { environments } from './settings/environments/environments';
 import * as morgan from 'morgan';
-//import { DatabaseServiceSQLServer2022 } from './shared/connections/database/sqlserver/sqlserver-2022.service';
-import { DatabaseServiceSQLServer2000 } from './shared/connections/database/sqlserver/sqlserver-2000.service';
+import { DatabaseServiceSQLServer2022 } from './shared/connections/database/sqlserver/sqlserver-2022.service';
+//import { DatabaseServiceSQLServer2000 } from './shared/connections/database/sqlserver/sqlserver-2000.service';
 
 async function bootstrap() {
   const logger: Logger = new Logger('Epaa-Database-Legacy-Main');
@@ -16,7 +16,7 @@ async function bootstrap() {
   app.use(morgan('dev'));
 
 
-  const postgresqlService: DatabaseServiceSQLServer2000 = app.get(DatabaseServiceSQLServer2000);
+  const postgresqlService: DatabaseServiceSQLServer2022 = app.get(DatabaseServiceSQLServer2022);
 
   logger.log(await postgresqlService.connect())
   logger.log(
