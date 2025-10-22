@@ -72,7 +72,7 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       return;
     }
 
-    const connectionString = `DSN=SQLServer2000;UID=${environments.DATABASE_USER};PWD=${environments.DATABASE_PASSWORD};`;
+    const connectionString = `DSN=SQLServer2000;UID=${environments.DATABASE_USER};PWD=${environments.DATABASE_PASSWORD};DATABASE=${environments.DATABASE_NAME};`;
     console.log(connectionString);
     for (let attempt = 1; attempt <= this.maxConnectionRetries; attempt++) {
       try {

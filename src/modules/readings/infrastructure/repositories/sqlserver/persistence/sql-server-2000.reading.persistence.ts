@@ -19,11 +19,10 @@ class DatabaseError extends Error {
 
 @Injectable()
 export class ReadingSQLServer2000Persistence
-  implements InterfaceReadingsRepository
-{
+  implements InterfaceReadingsRepository {
   constructor(
     private readonly sqlServerService: DatabaseServiceSQLServer2000,
-  ) {}
+  ) { }
 
   private validateReading(reading: ReadingModel): void {
     const requiredFields = [
@@ -144,7 +143,6 @@ export class ReadingSQLServer2000Persistence
           '${String(reading.getMonth())}',
           ${Number(reading.getPreviousReading())},
           ${Number(reading.getCurrentReading())},
-          ${Number(reading.getRentalIncomeCode())},
           '${String(reading.getNovelty())}',
           ${reading.getReadingValue() != null ? parseFloat(reading.getReadingValue()!.toFixed(8)) : null},
           ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : null},

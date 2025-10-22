@@ -87,6 +87,6 @@ COPY --from=builder /usr/src/app/dist ./dist
 # Usar usuario no-root
 USER node
 # Exponer puerto
-EXPOSE 3007
+EXPOSE 3009
 # Comando de inicio
 CMD ["node", "dist/main.js"]
