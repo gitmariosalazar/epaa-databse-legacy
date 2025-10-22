@@ -12,7 +12,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  await app.listen(3009);
+  await app.listen(environments.NODE_ENV === 'production' ? 3009 : 4009);
   app.use(morgan('dev'));
 
 
@@ -20,7 +20,7 @@ async function bootstrap() {
 
   logger.log(await postgresqlService.connect())
   logger.log(
-    `🚀🎉 The Epaa Database Legacy microservice is running: http://localhost:${3009}✅`,
+    `🚀🎉 The Epaa Database Legacy microservice is running: http://localhost:${environments.NODE_ENV === 'production' ? 3009 : 4009}✅`,
   );
 
   const microservice = await NestFactory.createMicroservice(AppModule, {
