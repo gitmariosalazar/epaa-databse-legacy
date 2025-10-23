@@ -5,7 +5,7 @@ import { Transport } from '@nestjs/microservices';
 import { environments } from './settings/environments/environments';
 import * as morgan from 'morgan';
 //import { DatabaseServiceSQLServer2022 } from './shared/connections/database/sqlserver/sqlserver-2022.service';
-import { DatabaseServiceSQLServer2000 } from './shared/connections/database/sqlserver/sqlserver-2000.service';
+//import { DatabaseServiceSQLServer2000 } from './shared/connections/database/sqlserver/sqlserver-2000.service';
 
 async function bootstrap() {
   const logger: Logger = new Logger('Epaa-Database-Legacy-Main');
@@ -16,9 +16,9 @@ async function bootstrap() {
   app.use(morgan('dev'));
 
 
-  const postgresqlService: DatabaseServiceSQLServer2000 = app.get(DatabaseServiceSQLServer2000);
+  //const postgresqlService: DatabaseServiceSQLServer2000 = app.get(DatabaseServiceSQLServer2000);
 
-  logger.log(await postgresqlService.connect())
+  //logger.log(await postgresqlService.connect())
   logger.log(
     `🚀🎉 The Epaa Database Legacy microservice is running: http://localhost:${environments.NODE_ENV === 'production' ? 3009 : 4009}✅`,
   );
