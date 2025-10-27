@@ -1,6 +1,8 @@
 import { Pool, PoolConfig, QueryResult, PoolClient } from 'pg';
 import { environments } from 'src/settings/environments/environments';
 import { DatabaseAbstract } from '../abstract/abstract.database';
+import { statusCode } from 'src/settings/environments/status-code';
+import { RpcException } from '@nestjs/microservices/exceptions/rpc-exception';
 
 class DatabaseError extends Error {
   constructor(message: string, public readonly code?: string) {
@@ -57,7 +59,10 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
 
     for (const [key, value] of Object.entries(requiredConfigs)) {
       if (!value) {
-        throw new DatabaseError(`Missing required configuration: ${key}`);
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: `Database configuration error: Missing ${key}`,
+        });
       }
     }
   }
@@ -87,7 +92,10 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
         console.error(errorMessage);
 
         if (attempt === this.maxRetries) {
-          throw new DatabaseError('Database connection failed after maximum retries', error.code);
+          throw new RpcException({
+            statusCode: statusCode.INTERNAL_SERVER_ERROR,
+            message: 'Could not connect to PostgreSQL after multiple attempts: ' + error.message,
+          });
         }
 
         await new Promise(resolve => setTimeout(resolve, this.retryDelayMs * Math.pow(2, attempt)));
@@ -100,7 +108,10 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
     isolationLevel: string = 'READ COMMITTED'
   ): Promise<T> {
     if (!this.isConnected) {
-      throw new DatabaseError('Database is not connected');
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: 'Database is not connected',
+      });
     }
     const client = await this.pool.connect();
     try {
@@ -110,7 +121,10 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
       const result = await operations(client); // Run operations directly
       // Implement timeout using a separate mechanism
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new DatabaseError('Transaction timeout')), this.queryTimeoutMs)
+        setTimeout(() => reject(new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'Transaction timeout',
+        })), this.queryTimeoutMs)
       );
       const resultWithTimeout = await Promise.race([
         Promise.resolve(result), // Wrap result to ensure type T
@@ -123,7 +137,10 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
       await client.query('ROLLBACK');
       const errorMessage = `Transaction failed: ${error.message}`;
       console.error(errorMessage);
-      throw new DatabaseError(errorMessage, error.code || 'UNKNOWN');
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: errorMessage,
+      });
     } finally {
       client.release();
     }
@@ -131,14 +148,20 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
 
   public async query<T>(sql: string, params: any[] = []): Promise<T[]> {
     if (!this.isConnected) {
-      throw new DatabaseError('Database is not connected');
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: 'Database is not connected',
+      });
     }
 
     try {
       const result: QueryResult<T> = await Promise.race([
         this.pool.query<T>(sql, params),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new DatabaseError('Query timeout')), this.queryTimeoutMs)
+          setTimeout(() => reject(new RpcException({
+            statusCode: statusCode.INTERNAL_SERVER_ERROR,
+            message: 'Query timeout',
+          })), this.queryTimeoutMs)
         )
       ]) as QueryResult<T>;
 
@@ -147,7 +170,10 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
     } catch (error) {
       const errorMessage = `Database query failed: ${error.message}`;
       console.error(errorMessage, { sql, params });
-      throw new DatabaseError(errorMessage, error.code);
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: errorMessage,
+      });
     }
   }
 
@@ -163,7 +189,10 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
       console.log('Database connection closed successfully');
     } catch (error) {
       console.error(`Failed to close database connection: ${error.message}`);
-      throw new DatabaseError('Failed to close database connection', error.code);
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: 'Failed to close database connection',
+      });
     }
   }
 

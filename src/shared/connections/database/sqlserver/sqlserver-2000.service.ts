@@ -1,6 +1,8 @@
 import * as odbc from 'odbc';
 import { DatabaseAbstract } from '../abstract/abstract.database';
 import { environments } from 'src/settings/environments/environments';
+import { RpcException } from '@nestjs/microservices';
+import { statusCode } from 'src/settings/environments/status-code';
 
 class DatabaseError extends Error {
   constructor(
@@ -51,7 +53,10 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
 
     for (const [key, value] of Object.entries(requiredConfigs)) {
       if (!value) {
-        throw new DatabaseError(`Missing required configuration: ${key}`);
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: `Missing database configuration: ${key}`,
+        });
       }
     }
   }
@@ -94,10 +99,10 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
           `Attempt ${attempt}/${this.maxConnectionRetries} failed: ${err.message}`,
         );
         if (attempt === this.maxConnectionRetries)
-          throw new DatabaseError(
-            'Database connection failed after retries',
-            err.code,
-          );
+          throw new RpcException({
+            statusCode: statusCode.INTERNAL_SERVER_ERROR,
+            message: 'Could not connect to SQL Server 2000 after multiple attempts: ' + err.message,
+          });
         await new Promise((r) =>
           setTimeout(r, this.connectionRetryDelayMs * Math.pow(2, attempt)),
         );
@@ -108,15 +113,19 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
   private validateQueryParams(sql: string, params: any[]): void {
     const placeholderCount = (sql.match(/\?/g) || []).length;
     if (placeholderCount !== params.length) {
-      throw new DatabaseError(
-        `Mismatched parameter count. Expected ${placeholderCount}, got ${params.length}`,
-      );
+      throw new RpcException({
+        statusCode: statusCode.BAD_REQUEST,
+        message: `Mismatched parameter count. Expected ${placeholderCount}, got ${params.length}`,
+      });
     }
   }
 
   public async query<T>(sql: string): Promise<T[]> {
     if (!DatabaseServiceSQLServer2000.pool) {
-      throw new DatabaseError('Database is not connected');
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: 'Database is not connected',
+      });
     }
 
     for (let attempt = 1; attempt <= this.maxQueryRetries; attempt++) {
@@ -126,8 +135,10 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
           conn.query<T>(sql, []),
           new Promise<T[]>((_, reject) =>
             setTimeout(
-              () => reject(new DatabaseError('Query timeout')),
-              this.queryTimeoutMs,
+              () => reject(new RpcException({
+                statusCode: statusCode.INTERNAL_SERVER_ERROR,
+                message: 'Query timeout',
+              })), this.queryTimeoutMs,
             ),
           ),
         ]);
@@ -143,24 +154,30 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
         });
         await conn.close();
         if (attempt === this.maxQueryRetries) {
-          throw new DatabaseError(
-            `Failed to execute query: ${err.message}`,
-            err.sqlState || err.code,
-          );
+          throw new RpcException({
+            statusCode: statusCode.INTERNAL_SERVER_ERROR,
+            message: `Failed to execute query: ${err.message}`,
+          });
         }
         await new Promise((r) =>
           setTimeout(r, this.queryRetryDelayMs * Math.pow(2, attempt)),
         );
       }
     }
-    throw new DatabaseError('Query failed after maximum retries');
+    throw new RpcException({
+      statusCode: statusCode.INTERNAL_SERVER_ERROR,
+      message: 'Query failed after maximum retries',
+    });
   }
 
   public async transaction<T>(
     operations: (conn: odbc.Connection) => Promise<T>,
   ): Promise<T> {
     if (!DatabaseServiceSQLServer2000.pool)
-      throw new DatabaseError('Database is not connected');
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: 'Database is not connected',
+      });
     for (let attempt = 1; attempt <= this.maxQueryRetries; attempt++) {
       const conn = await DatabaseServiceSQLServer2000.pool.connect();
       try {
@@ -177,13 +194,19 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
         }
         await conn.close();
         if (attempt === this.maxQueryRetries)
-          throw new DatabaseError(err.message, err.code);
+          throw new RpcException({
+            statusCode: statusCode.INTERNAL_SERVER_ERROR,
+            message: `Database error: ${err.message}`,
+          });
         await new Promise((r) =>
           setTimeout(r, this.queryRetryDelayMs * Math.pow(2, attempt)),
         );
       }
     }
-    throw new DatabaseError('Transaction failed after maximum retries');
+    throw new RpcException({
+      statusCode: statusCode.INTERNAL_SERVER_ERROR,
+      message: 'Transaction failed after maximum retries',
+    });
   }
 
   /** Cierra el pool global */

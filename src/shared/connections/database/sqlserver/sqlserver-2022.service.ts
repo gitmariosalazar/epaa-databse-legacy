@@ -1,6 +1,8 @@
 import { ConnectionPool, IResult, config, Transaction } from 'mssql';
 import { DatabaseAbstract } from '../abstract/abstract.database';
 import { environments } from 'src/settings/environments/environments';
+import { RpcException } from '@nestjs/microservices';
+import { statusCode } from 'src/settings/environments/status-code';
 
 class DatabaseError extends Error {
   constructor(message: string, public readonly code?: string) {
@@ -64,7 +66,10 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
 
     for (const [key, value] of Object.entries(requiredConfigs)) {
       if (!value) {
-        throw new DatabaseError(`Missing required configuration: ${key}`);
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: `Database configuration error: Missing ${key}`,
+        });
       }
     }
   }
@@ -95,7 +100,10 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
         console.error(errorMessage);
 
         if (attempt === this.maxRetries) {
-          throw new DatabaseError('Database connection failed after maximum retries', error.code);
+          throw new RpcException({
+            statusCode: statusCode.INTERNAL_SERVER_ERROR,
+            message: 'Database connection failed after maximum retries: ' + error.message,
+          });
         }
 
         await new Promise(resolve => setTimeout(resolve, this.retryDelayMs * Math.pow(2, attempt)));
@@ -104,7 +112,10 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
   }
 
   public async transaction<T>(operations: (request: Request) => Promise<T>): Promise<T> {
-    if (!this.isConnected) throw new DatabaseError('Database is not connected');
+    if (!this.isConnected) throw new RpcException({
+      statusCode: statusCode.INTERNAL_SERVER_ERROR,
+      message: 'Database is not connected',
+    });
     const transaction = new Transaction(this.pool);
     await transaction.begin();
 
@@ -117,13 +128,19 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
       await transaction.rollback();
       const errorMessage = `Transaction failed: ${error.message}`;
       console.error(errorMessage);
-      throw new DatabaseError(errorMessage, error.code);
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: errorMessage,
+      });
     }
   }
 
   public async query<T>(sql: string, params: { name: string; value: any }[] = []): Promise<T[]> {
     if (!this.isConnected) {
-      throw new DatabaseError('Database is not connected');
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: 'Database is not connected',
+      });
     }
 
     try {
@@ -135,7 +152,10 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
       const result: IResult<T> = await Promise.race([
         request.query<T>(sql),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new DatabaseError('Query timeout')), this.queryTimeoutMs)
+          setTimeout(() => reject(new RpcException({
+            statusCode: statusCode.INTERNAL_SERVER_ERROR,
+            message: 'Query timeout',
+          })), this.queryTimeoutMs)
         )
       ]) as IResult<T>;
 
@@ -144,7 +164,10 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
     } catch (error) {
       const errorMessage = `Database query failed: ${error.message}`;
       console.error(errorMessage, { sql, params });
-      throw new DatabaseError(errorMessage, error.code);
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: errorMessage,
+      });
     }
   }
 
@@ -161,7 +184,10 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
       console.log('Database connection closed successfully');
     } catch (error) {
       console.error(`Failed to close database connection: ${error.message}`);
-      throw new DatabaseError('Failed to close database connection', error.code);
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: 'Failed to close database connection: ' + error.message,
+      });
     }
   }
 
