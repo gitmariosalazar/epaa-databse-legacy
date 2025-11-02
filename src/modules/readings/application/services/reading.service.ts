@@ -5,10 +5,10 @@ import { ReadingResponse } from "../../domain/schemas/dto/response/readings.resp
 import { InterfaceReadingsRepository } from "../../domain/contracts/readings.interface.repository";
 import { ReadingModel } from "../../domain/schemas/model/sqlserver/reading.model";
 import { ReadingMapper } from "../mappers/readings.mapper";
-import { validateFields } from "src/shared/validators/fields.validators";
 import { RpcException } from "@nestjs/microservices/exceptions/rpc-exception";
-import { statusCode } from "src/settings/environments/status-code";
-import { MONTHS } from "src/shared/consts/months";
+import { validateFields } from "../../../../shared/validators/fields.validators";
+import { statusCode } from "../../../../settings/environments/status-code";
+import { MONTHS } from "../../../../shared/consts/months";
 
 @Injectable()
 export class ReadingService implements InterfaceReadingUseCase {

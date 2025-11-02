@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common";
 import { ReadingService } from "../../application/services/reading.service";
-import { DatabaseServiceSQLServer2022 } from "src/shared/connections/database/sqlserver/sqlserver-2022.service";
 import { ReadingController } from "../controllers/reading.controller";
 import { ClientsModule, Transport } from "@nestjs/microservices";
-import { environments } from "src/settings/environments/environments";
 import { ReadingSQLServer2022Persistence } from "../repositories/sqlserver/persistence/sql-server.reading.persistence";
+import { environments } from "../../../../settings/environments/environments";
+import { DatabaseServiceSQLServer2022 } from "../../../../shared/connections/database/sqlserver/sqlserver-2022.service";
 
 @Module({
   imports: [

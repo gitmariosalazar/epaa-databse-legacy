@@ -1,8 +1,8 @@
 import { Pool, PoolConfig, QueryResult, PoolClient } from 'pg';
-import { environments } from 'src/settings/environments/environments';
 import { DatabaseAbstract } from '../abstract/abstract.database';
-import { statusCode } from 'src/settings/environments/status-code';
 import { RpcException } from '@nestjs/microservices/exceptions/rpc-exception';
+import { environments } from '../../../../settings/environments/environments';
+import { statusCode } from '../../../../settings/environments/status-code';
 
 class DatabaseError extends Error {
   constructor(message: string, public readonly code?: string) {
@@ -22,7 +22,6 @@ export class DatabaseServicePostgreSQL extends DatabaseAbstract {
   public constructor() {
     super();
     this.validateConfig();
-    console.log(environments.DATABASE_HOST, environments.DATABASE_NAME, environments.DATABASE_PASSWORD, environments.DATABASE_PORT, environments.DATABASE_USER)
     const poolConfig: PoolConfig = {
       user: environments.DATABASE_USER,
       host: environments.DATABASE_HOST,

@@ -1,6 +1,5 @@
-import { ReadingResponse } from "src/modules/readings/domain/schemas/dto/response/readings.response";
+import { ReadingResponse } from "../../../../domain/schemas/dto/response/readings.response";
 import { ReadingSQLResult } from "../../../interfaces/reading.sql.response";
-
 
 export class SQLServerReadingAdapter {
   static toDomain(data: ReadingSQLResult): ReadingResponse {

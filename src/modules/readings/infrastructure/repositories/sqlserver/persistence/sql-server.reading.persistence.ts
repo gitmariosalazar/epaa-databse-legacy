@@ -1,12 +1,11 @@
 
 import { Injectable } from "@nestjs/common";
-import { InterfaceReadingsRepository } from "src/modules/readings/domain/contracts/readings.interface.repository";
-import { ReadingResponse } from "src/modules/readings/domain/schemas/dto/response/readings.response";
-import { ReadingModel } from "src/modules/readings/domain/schemas/model/sqlserver/reading.model";
-import { DatabaseServiceSQLServer2022 } from "src/shared/connections/database/sqlserver/sqlserver-2022.service";
 import { SQLServerReadingAdapter } from "../adapters/sql-server.reading.adapter";
 import { ReadingSQLResult } from "../../../interfaces/reading.sql.response";
-import { DatabaseServiceSQLServer2000 } from "src/shared/connections/database/sqlserver/sqlserver-2000.service";
+import { InterfaceReadingsRepository } from "../../../../domain/contracts/readings.interface.repository";
+import { DatabaseServiceSQLServer2022 } from "../../../../../../shared/connections/database/sqlserver/sqlserver-2022.service";
+import { ReadingResponse } from "../../../../domain/schemas/dto/response/readings.response";
+import { ReadingModel } from "../../../../domain/schemas/model/sqlserver/reading.model";
 
 @Injectable()
 export class ReadingSQLServer2022Persistence implements InterfaceReadingsRepository {

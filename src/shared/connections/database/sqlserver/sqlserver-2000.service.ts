@@ -1,8 +1,8 @@
 import * as odbc from 'odbc';
 import { DatabaseAbstract } from '../abstract/abstract.database';
-import { environments } from 'src/settings/environments/environments';
 import { RpcException } from '@nestjs/microservices';
-import { statusCode } from 'src/settings/environments/status-code';
+import { environments } from '../../../../settings/environments/environments';
+import { statusCode } from '../../../../settings/environments/status-code';
 
 class DatabaseError extends Error {
   constructor(

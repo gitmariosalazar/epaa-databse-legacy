@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { InterfaceReadingsRepository } from 'src/modules/readings/domain/contracts/readings.interface.repository';
-import { ReadingResponse } from 'src/modules/readings/domain/schemas/dto/response/readings.response';
-import { ReadingModel } from 'src/modules/readings/domain/schemas/model/sqlserver/reading.model';
 import { SQLServerReadingAdapter } from '../adapters/sql-server.reading.adapter';
 import { ReadingSQLResult } from '../../../interfaces/reading.sql.response';
-import { DatabaseServiceSQLServer2000 } from 'src/shared/connections/database/sqlserver/sqlserver-2000.service';
-import { formatDateForSQLServer } from 'src/shared/utils/format-date';
+import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
+import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
+import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading.model';
+import { ReadingResponse } from '../../../../domain/schemas/dto/response/readings.response';
+import { formatDateForSQLServer } from '../../../../../../shared/utils/format-date';
 
 class DatabaseError extends Error {
   constructor(

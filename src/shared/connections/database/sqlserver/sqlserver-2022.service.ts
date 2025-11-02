@@ -1,8 +1,8 @@
 import { ConnectionPool, IResult, config, Transaction } from 'mssql';
 import { DatabaseAbstract } from '../abstract/abstract.database';
-import { environments } from 'src/settings/environments/environments';
 import { RpcException } from '@nestjs/microservices';
-import { statusCode } from 'src/settings/environments/status-code';
+import { environments } from '../../../../settings/environments/environments';
+import { statusCode } from '../../../../settings/environments/status-code';
 
 class DatabaseError extends Error {
   constructor(message: string, public readonly code?: string) {
@@ -22,7 +22,6 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
   public constructor() {
     super();
     this.validateConfig();
-    console.log(environments.DATABASE_HOST, environments.DATABASE_NAME, environments.DATABASE_PASSWORD, environments.DATABASE_PORT, environments.DATABASE_USER)
     const poolConfig: config = {
       user: environments.DATABASE_USER,
       password: environments.DATABASE_PASSWORD,

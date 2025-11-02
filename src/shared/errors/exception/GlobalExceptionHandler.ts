@@ -6,12 +6,11 @@ import {
 } from '@nestjs/common';
 import { Observable, throwError } from 'rxjs';
 import { RpcException } from '@nestjs/microservices';
-import { statusCode } from 'src/settings/environments/status-code';
+import { statusCode } from '../../../settings/environments/status-code';
 
 @Catch()
 export class RpcCustomExceptionFilterMicoserviceSecurity
-  implements RpcExceptionFilter
-{
+  implements RpcExceptionFilter {
   private readonly logger = new Logger(
     RpcCustomExceptionFilterMicoserviceSecurity.name,
   );
