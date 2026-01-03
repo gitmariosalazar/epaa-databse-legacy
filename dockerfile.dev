@@ -3,6 +3,7 @@ FROM node:24-bullseye AS deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
+    netcat-traditional \
     nano \
     unixodbc \
     unixodbc-dev \
@@ -42,6 +43,6 @@ COPY . .
 
 ENV NODE_ENV=development
 
-EXPOSE 4009
+#EXPOSE 4009
 
 CMD ["npm", "run", "start:dev"]
