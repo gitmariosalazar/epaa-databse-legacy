@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { SQLServerReadingAdapter } from '../adapters/sql-server.reading.adapter';
-import { ReadingSQLResult } from '../../../interfaces/reading.sql.response';
+import {
+  ReadingSQL2000Result,
+  ReadingSQLResult,
+} from '../../../interfaces/reading.sql.response';
 import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
 import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
 import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading.model';
@@ -179,8 +182,8 @@ export class ReadingSQLServer2000Persistence
         `;
           lastQuery = selectQuery;
           //const selectParams = [reading.getSector(), reading.getAccount()];
-          const selectResult: ReadingSQLResult[] =
-            await conn.query<ReadingSQLResult>(selectQuery);
+          const selectResult: ReadingSQL2000Result[] =
+            await conn.query<ReadingSQL2000Result>(selectQuery);
 
           if (!selectResult[0]) {
             throw new DatabaseError('Failed to retrieve inserted reading');
@@ -189,7 +192,7 @@ export class ReadingSQLServer2000Persistence
           console.log(
             `Successfully created reading for sector ${reading.getSector()}, account ${reading.getAccount()}`,
           );
-          return SQLServerReadingAdapter.toDomain(selectResult[0]);
+          return SQLServerReadingAdapter.toDomain2000(selectResult[0]);
         },
       );
     } catch (error: any) {
@@ -236,14 +239,14 @@ export class ReadingSQLServer2000Persistence
       ORDER BY FechaCaptura DESC
     `;
 
-      const result: ReadingSQLResult[] =
-        await this.sqlServerService.query<ReadingSQLResult>(query);
+      const result: ReadingSQL2000Result[] =
+        await this.sqlServerService.query<ReadingSQL2000Result>(query);
 
       if (result.length === 0) {
         return null;
       }
 
-      return SQLServerReadingAdapter.toDomain(result[0]);
+      return SQLServerReadingAdapter.toDomain2000(result[0]);
     } catch (error) {
       throw error;
     }
@@ -317,14 +320,14 @@ export class ReadingSQLServer2000Persistence
         `;
 
           lastQuery = selectQuery;
-          const selectResult: ReadingSQLResult[] =
-            await conn.query<ReadingSQLResult>(selectQuery);
+          const selectResult: ReadingSQL2000Result[] =
+            await conn.query<ReadingSQL2000Result>(selectQuery);
 
           if (!selectResult || selectResult.length === 0) {
             throw new DatabaseError('Failed to retrieve updated reading');
           }
 
-          return SQLServerReadingAdapter.toDomain(selectResult[0]);
+          return SQLServerReadingAdapter.toDomain2000(selectResult[0]);
         },
       );
     } catch (error: any) {
