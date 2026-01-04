@@ -10,6 +10,7 @@ import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading
 import { ReadingResponse } from '../../../../domain/schemas/dto/response/readings.response';
 import { formatDateForSQLServer } from '../../../../../../shared/utils/format-date';
 import { FindCurrentReadingParams } from '../../../../domain/schemas/dto/request/find-current-reading.paramss';
+import { MONTHS, MONTHS_REVERSE } from '../../../../../../shared/consts/months';
 
 class DatabaseError extends Error {
   constructor(
@@ -259,7 +260,6 @@ export class ReadingSQLServer2000Persistence
     try {
       return await this.sqlServerService.transaction<ReadingResponse>(
         async (conn) => {
-
           const updateQuery = `
           UPDATE AP_LECTURAS
           SET
@@ -270,7 +270,9 @@ export class ReadingSQLServer2000Persistence
             Reconexion = ${reading.getReconnection() != null ? Number(reading.getReconnection()) : null},
             FechaCaptura = '${formatDateForSQLServer(reading.getReadingDate())}',
             HoraCaptura = '${String(reading.getReadingTime() || '')}',
-            ClaveCatastral = '${String(reading.getCadastralKey() || '')}'
+            ClaveCatastral = '${String(reading.getCadastralKey() || '')}',
+            -- Es el numero del mes la siguiente actualizacion
+            LecturaSugerida = ${Number(MONTHS_REVERSE[String(reading.getMonth())])} -- numero de mes actual de lectura
           WHERE
             Sector = ${Number(params.sector)}
             AND Cuenta = ${Number(params.account)}
@@ -280,16 +282,13 @@ export class ReadingSQLServer2000Persistence
             AND FechaCaptura IS NULL
         `;
 
-
           //console.log('Here AM i Last Query: ', updateQuery);
 
           lastQuery = updateQuery;
           const updateResult = await conn.query(updateQuery);
 
           console.log('Here AM i: ', lastQuery, updateResult);
-
-          console.log('Here AM i: ---> ', updateResult);
-/*
+          /*
           if (updateResult.length === 0) {
             throw new DatabaseError(
               'No reading found to update (or already captured)',
