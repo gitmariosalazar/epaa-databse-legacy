@@ -12,7 +12,7 @@ export interface ReadingSQLResult {
   reconnection: number | null;
   incomeCode: number | null;
   readingDate: Date;
-  readingTime: string;
+  readingTime: string | null;
   cadastralKey: string;
 }
 
@@ -30,6 +30,6 @@ export interface ReadingSQL2000Result {
   reconnection: number | null;
   incomeCode: number | null;
   readingDate: Date;
-  readingTime: string;
+  readingTime: string | null;
   cadastralKey: string;
 }

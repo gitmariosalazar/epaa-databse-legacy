@@ -75,7 +75,6 @@ export class ReadingService implements InterfaceReadingUseCase {
       const validateParameters: string[] = [
         'sector',
         'account',
-        'incomeCode',
         'year',
         'month',
         'previousReading',
@@ -129,7 +128,6 @@ export class ReadingService implements InterfaceReadingUseCase {
       const requiredParamsToFind: string[] = [
         'sector',
         'account',
-        'incomeCode',
         'year',
         'month',
         'previousReading',
@@ -158,10 +156,12 @@ export class ReadingService implements InterfaceReadingUseCase {
       }
 
       if (
-        existingReading.readingDate ||
-        existingReading.readingTime ||
+        existingReading.readingDate !== null ||
+        existingReading.readingTime !== null ||
         existingReading.currentReading !== null
       ) {
+        console.log('Checking: ', existingReading.readingDate, 
+          existingReading.readingTime, existingReading.currentReading)
         throw new RpcException({
           statusCode: statusCode.CONFLICT,
           message: 'Reading has already been recorded and cannot be updated',

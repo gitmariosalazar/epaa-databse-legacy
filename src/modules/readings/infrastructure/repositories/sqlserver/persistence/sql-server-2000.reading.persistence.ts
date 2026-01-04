@@ -231,7 +231,6 @@ export class ReadingSQLServer2000Persistence
       FROM AP_LECTURAS
       WHERE Sector = ${Number(params.sector)}
         AND Cuenta = ${Number(params.account)}
-        AND Cod_ingreso = ${Number(params.incomeCode)}
         AND Anio = '${Number(params.year)}'
         AND Mes = '${String(params.month)}'
         AND LecturaAnterior = ${Number(params.previousReading)}
@@ -260,7 +259,7 @@ export class ReadingSQLServer2000Persistence
     try {
       return await this.sqlServerService.transaction<ReadingResponse>(
         async (conn) => {
-          // 1. UPDATE sin OUTPUT (no soportado en SQL Server 2000)
+
           const updateQuery = `
           UPDATE AP_LECTURAS
           SET
@@ -275,21 +274,28 @@ export class ReadingSQLServer2000Persistence
           WHERE
             Sector = ${Number(params.sector)}
             AND Cuenta = ${Number(params.account)}
-            AND Cod_ingreso = ${Number(params.incomeCode)}
             AND Anio = '${Number(params.year)}'
             AND Mes = '${String(params.month)}'
             AND LecturaAnterior = ${Number(params.previousReading)}
             AND FechaCaptura IS NULL
         `;
 
+
+          //console.log('Here AM i Last Query: ', updateQuery);
+
           lastQuery = updateQuery;
           const updateResult = await conn.query(updateQuery);
 
+          console.log('Here AM i: ', lastQuery, updateResult);
+
+          console.log('Here AM i: ---> ', updateResult);
+/*
           if (updateResult.length === 0) {
             throw new DatabaseError(
               'No reading found to update (or already captured)',
             );
           }
+            */
 
           // 2. SELECT del registro recién actualizado
           const selectQuery = `
@@ -312,7 +318,6 @@ export class ReadingSQLServer2000Persistence
           FROM AP_LECTURAS
           WHERE Sector = ${Number(params.sector)}
             AND Cuenta = ${Number(params.account)}
-            AND Cod_ingreso = ${Number(params.incomeCode)}
             AND Anio = '${Number(params.year)}'
             AND Mes = '${String(params.month)}'
             AND LecturaAnterior = ${Number(params.previousReading)}

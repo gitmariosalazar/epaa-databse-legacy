@@ -31,7 +31,7 @@ export class SQLServerReadingAdapter {
       previousReading:
         data.previousReading != null ? Number(data.previousReading) : 0,
       currentReading:
-        data.currentReading != null ? Number(data.currentReading) : 0,
+        data.currentReading != null ? Number(data.currentReading) : null,
       rentalIncomeCode:
         data.rentalIncomeCode != null ? Number(data.rentalIncomeCode) : null,
       novelty: data.novelty ? String(data.novelty).trim() : null,
@@ -42,7 +42,7 @@ export class SQLServerReadingAdapter {
         data.reconnection != null ? Number(data.reconnection) : null,
       incomeCode: Number(data.incomeCode),
       readingDate: data.readingDate || null,
-      readingTime: data.readingTime ? String(data.readingTime).trim() : '',
+      readingTime: data.readingTime ? String(data.readingTime).trim() : null,
       cadastralKey: data.cadastralKey ? String(data.cadastralKey).trim() : '',
     };
   }

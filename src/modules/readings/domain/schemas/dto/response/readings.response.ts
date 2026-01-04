@@ -4,7 +4,7 @@ export interface ReadingResponse {
   year: number
   month: string
   previousReading: number
-  currentReading: number
+  currentReading: number | null
   rentalIncomeCode: number | null
   novelty: string | null
   readingValue: number | null
@@ -12,6 +12,6 @@ export interface ReadingResponse {
   reconnection: number | null
   incomeCode: number | null
   readingDate: Date
-  readingTime: string
+  readingTime: string | null
   cadastralKey: string
 }
