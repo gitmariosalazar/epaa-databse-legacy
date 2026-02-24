@@ -1,5 +1,12 @@
-import 'dotenv/config';
+import * as dotenv from 'dotenv';
 import * as Joi from 'joi';
+
+dotenv.config({
+  path:
+    process.env.NODE_ENV === 'production'
+      ? '.env.production'
+      : '.env.development',
+});
 
 interface EnvironmentsVariables {
   NODE_ENV: 'development' | 'production' | 'test' | 'provision';
@@ -38,7 +45,7 @@ const environmentsSchema = Joi.object<EnvironmentsVariables>({
   EPAA_LEGACY_READINGS_KAFKA_GROUP_ID: Joi.string().required(),
   EPAA_LEGACY_READINGS_KAFKA_CLIENT: Joi.string().required(),
   KAFKA_BROKER_INTERNAL: Joi.string().required(),
-  KAFKA_BROKER_EXTERNAL: Joi.string().required()
+  KAFKA_BROKER_EXTERNAL: Joi.string().required(),
 }).unknown(true);
 
 const { error, value: envVars } = environmentsSchema.validate(process.env);
@@ -57,11 +64,14 @@ export const environments: EnvironmentsVariables = {
   DEBUG: envVars.DEBUG === true,
   ALLOWED_HOSTS: envVars.ALLOWED_HOSTS,
   SECRET_KEY: envVars.SECRET_KEY,
-  KAFKA_BROKER_URL: envVars.KAFKA_BROKER_INTERNAL || envVars.KAFKA_BROKER_EXTERNAL,
+  KAFKA_BROKER_URL:
+    envVars.KAFKA_BROKER_INTERNAL || envVars.KAFKA_BROKER_EXTERNAL,
   KAFKA_TOPIC: envVars.KAFKA_TOPIC,
-  EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID: envVars.EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID,
-  EPAA_LEGACY_READINGS_KAFKA_GROUP_ID: envVars.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
+  EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID:
+    envVars.EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID,
+  EPAA_LEGACY_READINGS_KAFKA_GROUP_ID:
+    envVars.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
   EPAA_LEGACY_READINGS_KAFKA_CLIENT: envVars.EPAA_LEGACY_READINGS_KAFKA_CLIENT,
   KAFKA_BROKER_EXTERNAL: envVars.KAFKA_BROKER_EXTERNAL,
-  KAFKA_BROKER_INTERNAL: envVars.KAFKA_BROKER_INTERNAL
+  KAFKA_BROKER_INTERNAL: envVars.KAFKA_BROKER_INTERNAL,
 };

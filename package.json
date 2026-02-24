@@ -9,9 +9,9 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:dev": "nodemon --legacy-watch --polling --watch src --ext ts,js,json --exec \"ts-node -r tsconfig-paths/register src/main.ts\"",
+    "start:dev": "cross-env NODE_ENV=development nodemon --legacy-watch --polling --watch src --ext ts,js,json --exec \"ts-node -r tsconfig-paths/register src/main.ts\"",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "cross-env NODE_ENV=production node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -27,7 +27,6 @@
     "@nestjs/serve-static": "^5.0.3",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
-    "dotenv": "^17.2.2",
     "joi": "^18.0.1",
     "kafkajs": "^2.2.4",
     "morgan": "^1.10.1",
@@ -38,7 +37,8 @@
     "rxjs": "^7.8.2",
     "tedious": "^6.7.1",
     "uuid": "^13.0.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "dotenv": "^17.2.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -52,6 +52,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.3.1",
     "@types/supertest": "^6.0.3",
+    "cross-env": "^10.1.0",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",

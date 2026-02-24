@@ -1,5 +1,8 @@
 import { FindCurrentReadingParams } from '../schemas/dto/request/find-current-reading.paramss';
-import { ReadingResponse } from '../schemas/dto/response/readings.response';
+import {
+  PendingReadingResponse,
+  ReadingResponse,
+} from '../schemas/dto/response/readings.response';
 import { ReadingModel } from '../schemas/model/sqlserver/reading.model';
 
 export interface InterfaceReadingsRepository {
@@ -15,4 +18,25 @@ export interface InterfaceReadingsRepository {
   //deleteReading(id: string): Promise<void>
   //getReadingById(id: string): Promise<ReadingResponse>
   //getAllReadings(): Promise<ReadingResponse[]>
+  calculateReadingValue(
+    cadastralKey: string,
+    consumptionM3: number,
+  ): Promise<number>;
+  // Consultar Planillas Pendientes
+  findPendingReadingsByCadastralKey(
+    cadastralKey: string,
+  ): Promise<PendingReadingResponse[]>;
+
+  // Consultar Planillas Pendientes
+  findPendingReadingsByCardId(
+    cardId: string,
+  ): Promise<PendingReadingResponse[]>;
+
+  // Consultar Planillas Pendientes
+  findPendingReadingsByCadastralKeyOrCardId(
+    searchValue: string,
+  ): Promise<PendingReadingResponse[]>;
+
+  // VErify if the reading exists for a given cadastral key and date
+  verifyReadingExists(searchValue: string): Promise<boolean>;
 }

@@ -1,10 +1,11 @@
-import { Module } from "@nestjs/common";
-import { ReadingService } from "../../application/services/reading.service";
-import { ReadingController } from "../controllers/reading.controller";
-import { ClientsModule, Transport } from "@nestjs/microservices";
-import { ReadingSQLServer2022Persistence } from "../repositories/sqlserver/persistence/sql-server.reading.persistence";
-import { environments } from "../../../../settings/environments/environments";
-import { DatabaseServiceSQLServer2022 } from "../../../../shared/connections/database/sqlserver/sqlserver-2022.service";
+import { Module } from '@nestjs/common';
+import { ReadingService } from '../../application/services/reading.service';
+import { ReadingController } from '../controllers/reading.controller';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ReadingSQLServer2022Persistence } from '../repositories/sqlserver/persistence/sql-server.reading.persistence';
+import { environments } from '../../../../settings/environments/environments';
+import { DatabaseServiceSQLServer2022 } from '../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
+import { ExternalPayrollPersistence } from '../repositories/http/persistence/external-payroll.persistence';
 
 @Module({
   imports: [
@@ -20,8 +21,8 @@ import { DatabaseServiceSQLServer2022 } from "../../../../shared/connections/dat
           consumer: {
             groupId: environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
           },
-        }
-      }
+        },
+      },
     ]),
   ],
   controllers: [ReadingController],
@@ -31,9 +32,13 @@ import { DatabaseServiceSQLServer2022 } from "../../../../shared/connections/dat
     DatabaseServiceSQLServer2022,
     {
       provide: 'ReadingsRepository',
-      useClass: ReadingSQLServer2022Persistence
-    }
+      useClass: ReadingSQLServer2022Persistence,
+    },
+    {
+      provide: 'ExternalPayrollRepository',
+      useClass: ExternalPayrollPersistence,
+    },
   ],
-  exports: []
+  exports: [],
 })
-export class ReadingModuleUsingSQLServer2022 { }
+export class ReadingModuleUsingSQLServer2022 {}

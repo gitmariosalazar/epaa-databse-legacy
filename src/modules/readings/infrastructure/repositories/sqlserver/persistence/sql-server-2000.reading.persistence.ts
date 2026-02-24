@@ -3,11 +3,17 @@ import { SQLServerReadingAdapter } from '../adapters/sql-server.reading.adapter'
 import {
   ReadingSQL2000Result,
   ReadingSQLResult,
+  RangoTarifaSQLResult,
+  TarifaSQLResult,
+  PendingReadingSQLResult,
 } from '../../../interfaces/reading.sql.response';
 import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
 import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
 import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading.model';
-import { ReadingResponse } from '../../../../domain/schemas/dto/response/readings.response';
+import {
+  PendingReadingResponse,
+  ReadingResponse,
+} from '../../../../domain/schemas/dto/response/readings.response';
 import { formatDateForSQLServer } from '../../../../../../shared/utils/format-date';
 import { FindCurrentReadingParams } from '../../../../domain/schemas/dto/request/find-current-reading.paramss';
 import { MONTHS, MONTHS_REVERSE } from '../../../../../../shared/consts/months';
@@ -141,22 +147,14 @@ export class ReadingSQLServer2000Persistence
       this.validateReading(reading);
       return await this.sqlServerService.transaction<ReadingResponse>(
         async (conn) => {
-          const insertQuery = `
-  EXEC spInsertLectura 
-          ${Number(reading.getSector())},
-          ${Number(reading.getAccount())},
-          '${String(reading.getYear())}',
-          '${String(reading.getMonth())}',
-          ${Number(reading.getPreviousReading())},
-          ${Number(reading.getCurrentReading())},
-          '${String(reading.getNovelty())}',
-          ${reading.getReadingValue() != null ? parseFloat(reading.getReadingValue()!.toFixed(8)) : null},
-          ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : null},
-          ${reading.getReconnection() != null ? parseFloat(reading.getReconnection()?.toFixed(8)!) : null},
-          '${formatDateForSQLServer(reading.getReadingDate())}',
-          '${String(reading.getReadingTime())}',
-          '${String(reading.getCadastralKey())}'
-`;
+          const formattedDate = formatDateForSQLServer(
+            reading.getReadingDate(),
+          ).replace(/-/g, ''); // YYYYMMDD HH:mm:ss
+          const insertQuery = `INSERT INTO AP_LECTURAS (Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, Novedad, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral) VALUES (${Number(reading.getSector())}, ${Number(reading.getAccount())}, '${String(reading.getYear())}', '${String(reading.getMonth())}', ${Number(reading.getPreviousReading())}, ${Number(reading.getCurrentReading())}, '${String(reading.getNovelty())}', ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : 'NULL'}, ${reading.getReconnection() != null ? parseFloat(reading.getReconnection()?.toFixed(8)!) : 'NULL'}, '${formattedDate}', '${String(reading.getReadingTime())}', '${String(reading.getCadastralKey())}')`;
+
+          lastQuery = insertQuery;
+          console.log('Executing Insert Query:', lastQuery);
+
           const inserted = await conn.query(insertQuery);
 
           const selectQuery = `
@@ -167,7 +165,7 @@ export class ReadingSQLServer2000Persistence
             Mes AS month,
             LecturaAnterior AS previousReading,
             LecturaActual AS currentReading,
-            CodigoIngresoARentas AS rentalIncomeCode,
+            -- CodigoIngresoARentas AS rentalIncomeCode,
             Novedad AS novelty,
             ValorAPagar AS readingValue,
             TasaAlcantarillado AS sewerRate,
@@ -268,8 +266,8 @@ export class ReadingSQLServer2000Persistence
             ValorAPagar = ${reading.getReadingValue() != null ? Number(reading.getReadingValue()) : null},
             TasaAlcantarillado = ${reading.getSewerRate() != null ? Number(reading.getSewerRate()) : null},
             Reconexion = ${reading.getReconnection() != null ? Number(reading.getReconnection()) : null},
-            FechaCaptura = '${formatDateForSQLServer(reading.getReadingDate())}',
-            HoraCaptura = '${String(reading.getReadingTime() || '')}',
+            --FechaCaptura = '${formatDateForSQLServer(reading.getReadingDate())}',
+            --HoraCaptura = '${String(reading.getReadingTime() || '')}',
             ClaveCatastral = '${String(reading.getCadastralKey() || '')}',
             -- Es el numero del mes la siguiente actualizacion
             LecturaSugerida = ${Number(MONTHS_REVERSE[String(reading.getMonth())])} -- numero de mes actual de lectura
@@ -279,7 +277,7 @@ export class ReadingSQLServer2000Persistence
             AND Anio = '${Number(params.year)}'
             AND Mes = '${String(params.month)}'
             AND LecturaAnterior = ${Number(params.previousReading)}
-            AND FechaCaptura IS NULL
+            --AND FechaCaptura IS NULL
         `;
 
           //console.log('Here AM i Last Query: ', updateQuery);
@@ -343,6 +341,524 @@ export class ReadingSQLServer2000Persistence
         `Failed to update reading: ${error.message}`,
         error.code,
       );
+    }
+  }
+
+  async calculateReadingValue(
+    cadastralKey: string,
+    consumptionM3: number,
+  ): Promise<number> {
+    try {
+      const vSector = cadastralKey.split('-')[0];
+      const vCuenta = cadastralKey.split('-')[1];
+
+      // 1. Obtener la tarifa de la acometida
+      const queryAcometida = `
+      SELECT Tarifa
+      FROM AP_ACOMETIDAS
+      WHERE Cuenta = ${Number(vCuenta)} AND Sector = ${Number(vSector)}
+    `;
+
+      const resultAcometida =
+        await this.sqlServerService.query<TarifaSQLResult>(queryAcometida);
+
+      if (!resultAcometida || resultAcometida.length === 0) {
+        console.warn(
+          `No se encontró acometida para cuenta: ${vCuenta} - sector: ${vSector}`,
+        );
+        return 0;
+      }
+
+      const tarifa: string = resultAcometida[0].Tarifa.trim();
+
+      // 2. Obtener los rangos de tarifas
+      const queryTarifas = `
+      SELECT Minimo, Maximo, Base, Adicional
+      FROM AP_TARIFAS
+      WHERE Nombre = '${String(tarifa)}'
+      ORDER BY Minimo ASC
+    `;
+
+      const resultTarifas =
+        await this.sqlServerService.query<RangoTarifaSQLResult>(queryTarifas);
+
+      if (!resultTarifas || resultTarifas.length === 0) {
+        console.warn(`No se encontraron rangos para la tarifa: ${tarifa}`);
+        return 0;
+      }
+
+      let min = 0;
+      let max = 0;
+      let bas = 0;
+      let adic = 0;
+      let bMinimo = 0;
+      let bMaximo = 0;
+
+      // Tomamos el primer y último para mensajes de error
+      bMinimo = resultTarifas[0].Minimo;
+      bMaximo = resultTarifas[resultTarifas.length - 1].Maximo;
+
+      // Buscar el rango correspondiente
+      for (const row of resultTarifas) {
+        const minimo = Number(row.Minimo);
+        const maximo = Number(row.Maximo);
+
+        if (consumptionM3 >= minimo && consumptionM3 <= maximo) {
+          min = minimo;
+          max = maximo;
+          bas = Number(row.Base);
+          adic = Number(row.Adicional);
+          break; // encontrado → salimos
+        }
+      }
+
+      // Si no encontró ningún rango válido
+      if (bas === 0) {
+        console.warn(
+          `Consumo ${consumptionM3} m³ fuera de rango para cuenta '${vCuenta.trim()}' ` +
+            `sector '${vSector.trim()}' - Tarifa '${tarifa}'. ` +
+            `Rango permitido: ${bMinimo} a ${bMaximo} m³. Consulte el pliego tarifario.`,
+        );
+        return 0;
+      }
+
+      // Cálculo final
+      let valorPagar: number;
+
+      if (consumptionM3 >= 0 && consumptionM3 <= 10) {
+        valorPagar = bas;
+      } else {
+        // valor base + adicional por m³ extras (a partir de min - 1)
+        const m3Adicionales = consumptionM3 - (min - 1);
+        valorPagar = bas + m3Adicionales * adic;
+      }
+
+      return valorPagar;
+    } catch (error) {
+      console.error('Error al calcular ValorPagarConsumo:', error);
+      throw error;
+    }
+  }
+
+  async findPendingReadingsByCadastralKey(
+    cadastralKey: string,
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      const query = `
+        SET NOCOUNT ON
+
+        DECLARE @searchParam VARCHAR(50)
+        SET @searchParam = '${String(cadastralKey)}'
+
+        SELECT
+            c.CED_IDENT_CIUDADANO           AS card_id,
+            c.NOMBRES_CIUDADANO             AS name,
+            c.APELLIDOS_CIUDADANO           AS last_name,
+            di.ClaveCatastral               AS cadastral_key,
+            di.Direccion                    AS address,
+            a.Tarifa                        AS rate,
+            l.Mes                           AS month,
+            l.Anio                          AS year,
+            l.LecturaActual                 AS current_reading,
+            l.LecturaAnterior               AS previous_reading,
+            l.ValorAPagar                   AS reading_value,
+            CASE 
+                WHEN l.LecturaActual IS NOT NULL 
+                THEN (l.LecturaActual - l.LecturaAnterior) 
+                ELSE NULL 
+            END                             AS consumption,
+
+            CASE MONTH(di.Fecha_Venc_Interes)
+                WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+                WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+                WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+                WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+            END                             AS month_due,
+            
+            YEAR(di.Fecha_Venc_Interes)     AS year_due,
+
+            CASE
+                WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE() 
+                    THEN 'Pendiente de lectura (período actual/futuro)'
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE() 
+                    THEN 'Lectura no registrada o pendiente'
+                ELSE 'No disponible'
+            END                             AS reading_status,
+
+            di.Fecha_Pago                   AS payment_date,
+            
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura      ELSE NULL END AS trash_rate,
+            CASE WHEN l.LecturaActual IS NOT NULL THEN (di.Valor_Titulo + di.Recargo)    ELSE NULL END AS epaa_value,
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros    ELSE NULL END AS third_party_value,
+            
+            CASE WHEN l.LecturaActual IS NOT NULL 
+                THEN COALESCE(di.Valor_Titulo, 0) + 
+                      COALESCE(di.ValorTerceros, 0) + 
+                      COALESCE(di.tasa_basura, 0) + COALESCE(di.Recargo, 0)
+                ELSE NULL 
+            END                             AS total,
+
+            di.Fecha_Venc_Interes           AS due_date,
+            di.Estado_Ingreso               AS income_status,
+            di.Fecha_Ingreso                AS income_date
+
+        FROM Datos_ingreso di
+        INNER JOIN CIUDADANO c 
+            ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
+
+        INNER JOIN AP_ACOMETIDAS a
+            ON a.Sector = 
+                CASE 
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+                        AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
+                        AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
+                    THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
+                    ELSE -1
+                END
+            AND a.Cuenta = 
+                CASE 
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+                        AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
+                    THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
+                    ELSE -1
+                END
+
+        LEFT JOIN AP_LECTURAS l
+            ON l.ClaveCatastral = di.ClaveCatastral
+          AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
+          AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(
+                CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))
+                    WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+                    WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+                    WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+                    WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+                END
+            )
+
+        WHERE 
+            (
+                (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)
+                OR
+                (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
+            )
+            AND di.Fecha_Pago IS NULL
+            AND di.convenio   IS NULL
+            AND di.Estado_Ingreso IS NULL
+
+        ORDER BY 
+            di.ClaveCatastral,
+            di.Fecha_Venc_Interes DESC;
+      `;
+
+      const result =
+        await this.sqlServerService.query<PendingReadingSQLResult>(query);
+
+      //await this.sqlServerService.query(`SET NOCOUNT OFF;`);
+      //await this.sqlServerService.close();
+      return result.map(SQLServerReadingAdapter.toDomainPending);
+    } catch (error) {
+      console.error('Error al obtener lecturas pendientes:', error);
+      throw error;
+    }
+  }
+
+  async findPendingReadingsByCardId(
+    cardId: string,
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      const query = `
+      SET NOCOUNT ON
+
+      DECLARE @searchParam VARCHAR(50)
+      SET @searchParam = '${String(cardId)}'
+
+      SELECT
+          c.CED_IDENT_CIUDADANO           AS card_id,
+          c.NOMBRES_CIUDADANO             AS name,
+          c.APELLIDOS_CIUDADANO           AS last_name,
+          di.ClaveCatastral               AS cadastral_key,
+          di.Direccion                    AS address,
+          a.Tarifa                        AS rate,
+          l.Mes                           AS month,
+          l.Anio                          AS year,
+          l.LecturaActual                 AS current_reading,
+          l.LecturaAnterior               AS previous_reading,
+          l.ValorAPagar                   AS reading_value,
+          CASE 
+              WHEN l.LecturaActual IS NOT NULL 
+              THEN (l.LecturaActual - l.LecturaAnterior) 
+              ELSE NULL 
+          END                             AS consumption,
+
+          CASE MONTH(di.Fecha_Venc_Interes)
+              WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+              WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+              WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+              WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+          END                             AS month_due,
+          
+          YEAR(di.Fecha_Venc_Interes)     AS year_due,
+
+          CASE
+              WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
+              WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE() 
+                  THEN 'Pendiente de lectura (período actual/futuro)'
+              WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE() 
+                  THEN 'Lectura no registrada o pendiente'
+              ELSE 'No disponible'
+          END                             AS reading_status,
+
+          di.Fecha_Pago                   AS payment_date,
+          
+          CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura      ELSE NULL END AS trash_rate,
+          CASE WHEN l.LecturaActual IS NOT NULL THEN (di.Valor_Titulo + di.Recargo)     ELSE NULL END AS epaa_value,
+          CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros    ELSE NULL END AS third_party_value,
+          
+          CASE WHEN l.LecturaActual IS NOT NULL 
+              THEN COALESCE(di.Valor_Titulo, 0) + 
+                    COALESCE(di.ValorTerceros, 0) + 
+                    COALESCE(di.tasa_basura, 0) + COALESCE(di.Recargo, 0)
+              ELSE NULL 
+          END                             AS total,
+
+          di.Fecha_Venc_Interes           AS due_date,
+          di.Estado_Ingreso               AS income_status,
+          di.Fecha_Ingreso                AS income_date
+
+      FROM Datos_ingreso di
+      INNER JOIN CIUDADANO c 
+          ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
+
+      INNER JOIN AP_ACOMETIDAS a
+          ON a.Sector = 
+              CASE 
+                  WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+                      AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
+                      AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
+                  THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
+                  ELSE -1
+              END
+          AND a.Cuenta = 
+              CASE 
+                  WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+                      AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
+                  THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
+                  ELSE -1
+              END
+
+      LEFT JOIN AP_LECTURAS l
+          ON l.ClaveCatastral = di.ClaveCatastral
+        AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
+        AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(
+              CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))
+                  WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+                  WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+                  WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+                  WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+              END
+          )
+
+      WHERE 
+          (
+              (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)
+              OR
+              (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
+          )
+          AND di.Fecha_Pago IS NULL
+          AND di.convenio   IS NULL
+          AND di.Estado_Ingreso IS NULL
+
+      ORDER BY 
+          di.ClaveCatastral,
+          di.Fecha_Venc_Interes DESC;
+    `;
+
+      const result =
+        await this.sqlServerService.query<PendingReadingSQLResult>(query);
+
+      //await this.sqlServerService.query(`SET NOCOUNT OFF;`);
+      //await this.sqlServerService.close();
+
+      return result.map(SQLServerReadingAdapter.toDomainPending);
+    } catch (error) {
+      console.error('Error al obtener lecturas pendientes:', error);
+      throw error;
+    }
+  }
+
+  async findPendingReadingsByCadastralKeyOrCardId(
+    searchValue: string,
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      const query = `
+      SET NOCOUNT ON
+
+      DECLARE @searchParam VARCHAR(50)
+      SET @searchParam = '${String(searchValue.trim())}'
+
+      SELECT
+          c.CED_IDENT_CIUDADANO           AS card_id,
+          c.NOMBRES_CIUDADANO             AS name,
+          c.APELLIDOS_CIUDADANO           AS last_name,
+          di.ClaveCatastral               AS cadastral_key,
+          di.Direccion                    AS address,
+          a.Tarifa                        AS rate,
+          l.Mes                           AS month,
+          l.Anio                          AS year,
+          l.LecturaActual                 AS current_reading,
+          l.LecturaAnterior               AS previous_reading,
+          l.ValorAPagar                   AS reading_value,
+          CASE 
+              WHEN l.LecturaActual IS NOT NULL 
+              THEN (l.LecturaActual - l.LecturaAnterior) 
+              ELSE NULL 
+          END                             AS consumption,
+
+          CASE MONTH(di.Fecha_Venc_Interes)
+              WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+              WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+              WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+              WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+          END                             AS month_due,
+          
+          YEAR(di.Fecha_Venc_Interes)     AS year_due,
+
+          CASE
+              WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
+              WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE() 
+                  THEN 'Pendiente de lectura (período actual/futuro)'
+              WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE() 
+                  THEN 'Lectura no registrada o pendiente'
+              ELSE 'No disponible'
+          END                             AS reading_status,
+
+          di.Fecha_Pago                   AS payment_date,
+          
+          CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura      ELSE NULL END AS trash_rate,
+          CASE WHEN l.LecturaActual IS NOT NULL THEN (di.Valor_Titulo + di.Recargo)     ELSE NULL END AS epaa_value,
+          CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros    ELSE NULL END AS third_party_value,
+          
+          CASE WHEN l.LecturaActual IS NOT NULL 
+              THEN COALESCE(di.Valor_Titulo, 0) + 
+                    COALESCE(di.ValorTerceros, 0) + 
+                    COALESCE(di.tasa_basura, 0) + COALESCE(di.Recargo, 0)
+              ELSE NULL 
+          END                             AS total,
+
+          di.Fecha_Venc_Interes           AS due_date,
+          di.Estado_Ingreso               AS income_status,
+          di.Fecha_Ingreso                AS income_date
+
+      FROM Datos_ingreso di
+      INNER JOIN CIUDADANO c 
+          ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
+
+      INNER JOIN AP_ACOMETIDAS a
+          ON a.Sector = 
+              CASE 
+                  WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+                      AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
+                      AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
+                  THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
+                  ELSE -1
+              END
+          AND a.Cuenta = 
+              CASE 
+                  WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+                      AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
+                  THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
+                  ELSE -1
+              END
+
+      LEFT JOIN AP_LECTURAS l
+          ON l.ClaveCatastral = di.ClaveCatastral
+        AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
+        AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(
+              CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))
+                  WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+                  WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+                  WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+                  WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+              END
+          )
+
+      WHERE 
+          (
+              (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)
+              OR
+              (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
+          )
+          AND di.Fecha_Pago IS NULL
+          AND di.convenio   IS NULL
+          AND di.Estado_Ingreso IS NULL
+
+      ORDER BY 
+          di.ClaveCatastral,
+          di.Fecha_Venc_Interes DESC;
+    `;
+
+      const result =
+        await this.sqlServerService.query<PendingReadingSQLResult>(query);
+
+      //await this.sqlServerService.query(`SET NOCOUNT OFF;`);
+      //await this.sqlServerService.close();
+
+      return result.map(SQLServerReadingAdapter.toDomainPending);
+    } catch (error) {
+      console.error(
+        'Error al obtener lecturas pendientes por clave catastral o número de tarjeta:',
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async verifyReadingExists(searchValue: string): Promise<boolean> {
+    try {
+      const query = `
+SET NOCOUNT ON;
+DECLARE @searchParam VARCHAR(50)
+SET @searchParam = '${String(searchValue.trim())}'
+
+SELECT 
+    CASE 
+        WHEN EXISTS (
+            SELECT 1
+            FROM Datos_ingreso di
+            INNER JOIN AP_ACOMETIDAS a
+                ON a.Sector = 
+                    CASE 
+                        WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+                             AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
+                             AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
+                        THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
+                        ELSE -1
+                    END
+                AND a.Cuenta = 
+                    CASE 
+                        WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+                             AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
+                        THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
+                        ELSE -1
+                    END
+            WHERE 
+                (
+                    (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)
+                    OR
+                    (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
+                )
+        ) THEN 1 ELSE 0 
+    END AS hasConnection
+    `;
+
+      const result = await this.sqlServerService.query<{
+        hasConnection: number;
+      }>(query);
+      return result.length > 0 && result[0].hasConnection === 1;
+    } catch (error) {
+      console.error('Error al verificar existencia de lectura:', error);
+      throw error;
     }
   }
 }

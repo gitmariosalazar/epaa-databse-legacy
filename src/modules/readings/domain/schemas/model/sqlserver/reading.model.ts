@@ -1,19 +1,19 @@
 export class ReadingModel {
-  private sector: number
-  private account: number
-  private year: number
-  private month: string
-  private previousReading: number
-  private currentReading: number
-  private rentalIncomeCode: number | null
-  private novelty: string | null
-  private readingValue: number | null
-  private sewerRate: number | null
-  private reconnection: number | null
-  //private incomeCode: number | null
-  private readingDate: Date
-  private readingTime: string
-  private cadastralKey: string
+  private sector: number;
+  private account: number;
+  private year: number;
+  private month: string;
+  private previousReading: number;
+  private currentReading: number;
+  private rentalIncomeCode: number | null;
+  private novelty: string | null;
+  private readingValue: number | null;
+  private sewerRate: number | null;
+  private reconnection: number | null;
+  private incomeCode: number | null;
+  private readingDate: Date;
+  private readingTime: string;
+  private cadastralKey: string;
 
   constructor(
     sector: number,
@@ -27,137 +27,133 @@ export class ReadingModel {
     readingValue: number | null,
     sewerRate: number | null,
     reconnection: number | null,
-    //incomeCode: number | null,
     readingDate: Date,
     readingTime: string,
-    cadastralKey: string
+    cadastralKey: string,
+    incomeCode: number | null = null,
   ) {
-    this.sector = sector
-    this.account = account
-    this.year = year
-    this.month = month
-    this.previousReading = previousReading
-    this.currentReading = currentReading
-    this.rentalIncomeCode = rentalIncomeCode
-    this.novelty = novelty
-    this.readingValue = readingValue
-    this.sewerRate = sewerRate
-    this.reconnection = reconnection
-    //this.incomeCode = incomeCode
-    this.readingDate = readingDate
-    this.readingTime = readingTime
-    this.cadastralKey = cadastralKey
+    this.sector = sector;
+    this.account = account;
+    this.year = year;
+    this.month = month;
+    this.previousReading = previousReading;
+    this.currentReading = currentReading;
+    this.rentalIncomeCode = rentalIncomeCode;
+    this.novelty = novelty;
+    this.readingValue = readingValue;
+    this.sewerRate = sewerRate;
+    this.reconnection = reconnection;
+    this.incomeCode = incomeCode;
+    this.readingDate = readingDate;
+    this.readingTime = readingTime;
+    this.cadastralKey = cadastralKey;
   }
 
   getSector(): number {
-    return this.sector
+    return this.sector;
   }
 
   getAccount(): number {
-    return this.account
+    return this.account;
   }
 
   getYear(): number {
-    return this.year
+    return this.year;
   }
 
   getMonth(): string {
-    return this.month
+    return this.month;
   }
 
   getPreviousReading(): number {
-    return this.previousReading
+    return this.previousReading;
   }
 
   getCurrentReading(): number {
-    return this.currentReading
+    return this.currentReading;
   }
 
   getRentalIncomeCode(): number | null {
-    return this.rentalIncomeCode
+    return this.rentalIncomeCode;
   }
 
   getNovelty(): string | null {
-    return this.novelty
+    return this.novelty;
   }
 
   getReadingValue(): number | null {
-    return this.readingValue
+    return this.readingValue;
   }
 
   getSewerRate(): number | null {
-    return this.sewerRate
+    return this.sewerRate;
   }
 
   getReconnection(): number | null {
-    return this.reconnection
+    return this.reconnection;
   }
 
-  /*
   getIncomeCode(): number | null {
-    return this.incomeCode
+    return this.incomeCode;
   }
-  */
 
   getReadingDate(): Date {
-    return this.readingDate
+    return this.readingDate;
   }
 
   getReadingTime(): string {
-    return this.readingTime
+    return this.readingTime;
   }
 
   getCadastralKey(): string {
-    return this.cadastralKey
+    return this.cadastralKey;
   }
 
   setReadingValue(readingValue: number | null): void {
-    this.readingValue = readingValue
+    this.readingValue = readingValue;
   }
 
   setSewerRate(sewerRate: number | null): void {
-    this.sewerRate = sewerRate
+    this.sewerRate = sewerRate;
   }
 
   setReconnection(reconnection: number | null): void {
-    this.reconnection = reconnection
+    this.reconnection = reconnection;
   }
 
-  /*
   setIncomeCode(incomeCode: number | null): void {
-    this.incomeCode = incomeCode
+    this.incomeCode = incomeCode;
   }
-  */
 
   setNovelty(novelty: string | null): void {
-    this.novelty = novelty
+    this.novelty = novelty;
   }
   setCurrentReading(currentReading: number): void {
-    this.currentReading = currentReading
+    this.currentReading = currentReading;
   }
 
   setPreviousReading(previousReading: number): void {
-    this.previousReading = previousReading
+    this.previousReading = previousReading;
   }
 
   setRentalIncomeCode(rentalIncomeCode: number | null): void {
-    this.rentalIncomeCode = rentalIncomeCode
+    this.rentalIncomeCode = rentalIncomeCode;
   }
 
   setReadingDate(readingDate: Date): void {
-    this.readingDate = readingDate
+    this.readingDate = readingDate;
   }
 
   setReadingTime(readingTime: string): void {
-    this.readingTime = readingTime
+    this.readingTime = readingTime;
   }
 
   setCadastralKey(cadastralKey: string): void {
-    this.cadastralKey = cadastralKey
+    this.cadastralKey = cadastralKey;
   }
 
   setMonth(month: string): void {
-    this.month = month
+    this.month = month;
   }
 
   toJSON() {
@@ -173,10 +169,10 @@ export class ReadingModel {
       readingValue: this.readingValue,
       sewerRate: this.sewerRate,
       reconnection: this.reconnection,
-      //incomeCode: this.incomeCode,
+      incomeCode: this.incomeCode,
       readingDate: this.readingDate,
       readingTime: this.readingTime,
-      cadastralKey: this.cadastralKey
-    }
+      cadastralKey: this.cadastralKey,
+    };
   }
 }

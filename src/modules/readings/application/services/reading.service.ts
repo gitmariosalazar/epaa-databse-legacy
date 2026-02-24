@@ -1,22 +1,29 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InterfaceReadingUseCase } from '../usecases/reading.use-case.interface';
 import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/create.reading.request';
-import { ReadingResponse } from '../../domain/schemas/dto/response/readings.response';
+import {
+  PendingReadingResponse,
+  ReadingResponse,
+} from '../../domain/schemas/dto/response/readings.response';
 import { InterfaceReadingsRepository } from '../../domain/contracts/readings.interface.repository';
 import { ReadingModel } from '../../domain/schemas/model/sqlserver/reading.model';
 import { ReadingMapper } from '../mappers/readings.mapper';
-import { RpcException } from '@nestjs/microservices/exceptions/rpc-exception';
 import { validateFields } from '../../../../shared/validators/fields.validators';
 import { statusCode } from '../../../../settings/environments/status-code';
 import { MONTHS } from '../../../../shared/consts/months';
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
+import { ReadingNotFoundException } from '../../domain/exceptions/reading-not-found.exception';
+import { RpcException } from '@nestjs/microservices';
+import { InterfaceExternalPayrollRepository } from '../../domain/contracts/external-payroll.interface.repository';
 
 @Injectable()
 export class ReadingService implements InterfaceReadingUseCase {
   constructor(
     @Inject('ReadingsRepository')
     private readonly readingsRepository: InterfaceReadingsRepository,
+    @Inject('ExternalPayrollRepository')
+    private readonly externalPayrollRepository: InterfaceExternalPayrollRepository,
   ) {}
 
   createReading(request: CreateReadingLegacyRequest): Promise<ReadingResponse> {
@@ -33,10 +40,7 @@ export class ReadingService implements InterfaceReadingUseCase {
         requiredFields,
       );
       if (missingFieldsMessages.length > 0) {
-        throw new RpcException({
-          statusCode: statusCode.BAD_REQUEST,
-          message: missingFieldsMessages,
-        });
+        throw new Error(JSON.stringify(missingFieldsMessages));
       }
 
       const now: Date = new Date();
@@ -85,10 +89,7 @@ export class ReadingService implements InterfaceReadingUseCase {
         validateParameters,
       );
       if (missingParametersMessages.length > 0) {
-        throw new RpcException({
-          statusCode: statusCode.BAD_REQUEST,
-          message: missingParametersMessages,
-        });
+        throw new Error(JSON.stringify(missingParametersMessages));
       }
 
       const result = await this.readingsRepository.findCurrentReading(params);
@@ -106,11 +107,10 @@ export class ReadingService implements InterfaceReadingUseCase {
     request: UpdateReadingRequest,
   ): Promise<ReadingResponse> {
     try {
+      console.log('Received updateCurrentReading request in Service:', request);
       const requiredFieldsToUpdate: string[] = [
         'currentReading',
         'novelty',
-        'readingDate',
-        'readingTime',
         'cadastralKey',
       ];
 
@@ -119,10 +119,7 @@ export class ReadingService implements InterfaceReadingUseCase {
         requiredFieldsToUpdate,
       );
       if (missingFieldsMessages.length > 0) {
-        throw new RpcException({
-          statusCode: statusCode.BAD_REQUEST,
-          message: missingFieldsMessages,
-        });
+        throw new Error(JSON.stringify(missingFieldsMessages));
       }
 
       const requiredParamsToFind: string[] = [
@@ -138,35 +135,32 @@ export class ReadingService implements InterfaceReadingUseCase {
         requiredParamsToFind,
       );
       if (missingParamsMessages.length > 0) {
-        throw new RpcException({
-          statusCode: statusCode.BAD_REQUEST,
-          message: missingParamsMessages,
-        });
+        throw new Error(JSON.stringify(missingParamsMessages));
       }
 
       const existingReading =
         await this.readingsRepository.findCurrentReading(params);
-      console.log('Reading to update:', existingReading);
 
       if (!existingReading) {
-        throw new RpcException({
-          statusCode: statusCode.NOT_FOUND,
-          message: 'Reading to update not found',
-        });
+        throw new ReadingNotFoundException('Reading to update not found');
       }
-
+      /*
       if (
         existingReading.readingDate !== null ||
         existingReading.readingTime !== null ||
         existingReading.currentReading !== null
       ) {
-        console.log('Checking: ', existingReading.readingDate, 
-          existingReading.readingTime, existingReading.currentReading)
-        throw new RpcException({
-          statusCode: statusCode.CONFLICT,
-          message: 'Reading has already been recorded and cannot be updated',
-        });
+        console.log(
+          'Checking: ',
+          existingReading.readingDate,
+          existingReading.readingTime,
+          existingReading.currentReading,
+        );
+        throw new Error(
+          'Reading has already been recorded and cannot be updated',
+        );
       }
+      */
 
       const updatedReadingModel: ReadingModel =
         ReadingMapper.fromUpdateReadingRequestToReadingModel(request);
@@ -179,13 +173,130 @@ export class ReadingService implements InterfaceReadingUseCase {
       console.log(updatedReading);
 
       if (!updatedReading) {
-        throw new RpcException({
-          statusCode: statusCode.INTERNAL_SERVER_ERROR,
-          message: 'Failed to update the reading',
-        });
+        throw new Error('Failed to update the reading');
       }
 
       return updatedReading;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async calculateReadingValue(
+    cadastralKey: string,
+    consumptionM3: number,
+  ): Promise<number> {
+    try {
+      const readingValue = await this.readingsRepository.calculateReadingValue(
+        cadastralKey,
+        consumptionM3,
+      );
+      return readingValue;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findPendingReadingsByCadastralKey(
+    cadastralKey: string,
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      const pendingReadings =
+        await this.readingsRepository.findPendingReadingsByCadastralKey(
+          cadastralKey,
+        );
+      return this.enrichPendingReadingsWithExternalData(pendingReadings);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findPendingReadingsByCardId(
+    cardId: string,
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      const pendingReadings =
+        await this.readingsRepository.findPendingReadingsByCardId(cardId);
+      return this.enrichPendingReadingsWithExternalData(pendingReadings);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findPendingReadingsByCadastralKeyOrCardId(
+    searchValue: string,
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      // First, verify if there are any readings for the given search value (cadastral key or card ID)
+      const verifyiFExists =
+        await this.readingsRepository.verifyReadingExists(searchValue);
+      if (!verifyiFExists) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `No Exists any reading for the given search value: ${searchValue}`,
+        });
+      }
+
+      const pendingReadings =
+        await this.readingsRepository.findPendingReadingsByCadastralKeyOrCardId(
+          searchValue,
+        );
+      return this.enrichPendingReadingsWithExternalData(pendingReadings);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async enrichPendingReadingsWithExternalData(
+    pendingReadings: PendingReadingResponse[],
+  ): Promise<PendingReadingResponse[]> {
+    if (!pendingReadings || pendingReadings.length === 0) {
+      return pendingReadings;
+    }
+
+    try {
+      const cardId = pendingReadings[0].cardId;
+      if (!cardId) {
+        return pendingReadings;
+      }
+
+      const externalPayrolls =
+        await this.externalPayrollRepository.getPayrollsByIdentification(
+          cardId,
+        );
+
+      if (!externalPayrolls || externalPayrolls.length === 0) {
+        return pendingReadings;
+      }
+
+      return pendingReadings.map((reading) => {
+        const match = externalPayrolls.find(
+          (ep) =>
+            String(ep.Mes).trim().toUpperCase() ===
+              reading.month.trim().toUpperCase() &&
+            Number(ep.Anio) === reading.year &&
+            Number(ep.Consumo) === reading.consumption &&
+            Number(ep.LecturaActual) === reading.currentReading,
+        );
+
+        if (match) {
+          reading.thirdPartyValue = match.valor_terceros;
+          reading.total =
+            reading.epaaValue + reading.trashRate + reading.thirdPartyValue;
+        }
+
+        return reading;
+      });
+    } catch (error) {
+      return pendingReadings;
+    }
+  }
+
+  async verifyReadingExists(searchValue: string): Promise<boolean> {
+    try {
+      const exists =
+        await this.readingsRepository.verifyReadingExists(searchValue);
+      return exists;
     } catch (error) {
       throw error;
     }
