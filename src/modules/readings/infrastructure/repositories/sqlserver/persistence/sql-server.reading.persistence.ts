@@ -1083,14 +1083,9 @@ export class ReadingSQLServer2022Persistence
             i.date,
             i.total_collected DESC
     `;
-      const paramsQuery: any[] = [
-        { name: 'initDateParam', value: initDate },
-        { name: 'endDateParam', value: endDate },
-      ];
       const result =
         await this.sqlServerService.query<DailyCollectorSummarySQLResult>(
           query,
-          paramsQuery,
         );
 
       const response: DailyCollectorSummary[] = result.map((item) =>
@@ -1189,15 +1184,8 @@ export class ReadingSQLServer2022Persistence
             i.title_code,
             i.payment_method
     `;
-      const paramsQuery: any[] = [
-        { name: 'initDateParam', value: initDate },
-        { name: 'endDateParam', value: endDate },
-      ];
       const result =
-        await this.sqlServerService.query<DailyGroupedReportSQLResult>(
-          query,
-          paramsQuery,
-        );
+        await this.sqlServerService.query<DailyGroupedReportSQLResult>(query);
 
       const response: DailyGroupedReport[] = result.map((item) =>
         SQLServerEntryDataAdapter.toDomainDailyGroupedReport(item),
@@ -1282,14 +1270,9 @@ export class ReadingSQLServer2022Persistence
             i.date,
             i.payment_method
     `;
-      const paramsQuery: any[] = [
-        { name: 'initDateParam', value: initDate },
-        { name: 'endDateParam', value: endDate },
-      ];
       const result =
         await this.sqlServerService.query<DailyPaymentMethodReportSQLResult>(
           query,
-          paramsQuery,
         );
 
       const response: DailyPaymentMethodReport[] = result.map((item) =>
@@ -1384,15 +1367,8 @@ export class ReadingSQLServer2022Persistence
             i.collector,
             i.title_code
     `;
-      const paramsQuery: any[] = [
-        { name: 'initDateParam', value: initDate },
-        { name: 'endDateParam', value: endDate },
-      ];
       const result =
-        await this.sqlServerService.query<FullBreakdownReportSQLResult>(
-          query,
-          paramsQuery,
-        );
+        await this.sqlServerService.query<FullBreakdownReportSQLResult>(query);
 
       const response: FullBreakdownReport[] = result.map((item) =>
         SQLServerEntryDataAdapter.toDomainFullBreakdownReport(item),
