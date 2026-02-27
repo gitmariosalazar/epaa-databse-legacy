@@ -72,3 +72,57 @@ export interface PendingReadingSQLResult {
   income_status: string;
   income_date: Date | null;
 }
+
+export interface PaymentReadingSqlResponse {
+  income_code: string;
+  card_id: string;
+  name: string;
+  last_name: string;
+  cadastral_key: string;
+  address: string;
+  rate: number;
+  month: string;
+  year: number;
+  current_reading: number;
+  previous_reading: number;
+  reading_value: number;
+  payment_user: string;
+  title_code: string;
+  consumption: number;
+  reading_status: string;
+  payment_date: string;
+  trash_rate: number;
+  epaa_value: number;
+  third_party_value: number;
+  surcharge: number;
+  total: number;
+  due_date: string;
+  income_status: string;
+  income_date: string;
+  value: number;
+  order_value: number;
+  payment_method: string;
+  comment: string;
+}
+
+export interface PaymentSqlResponse {
+  income_code: string;
+  card_id: string;
+  name: string;
+  income_date: string;
+  payment_date: string;
+  income_status: string;
+  title_code: string;
+  due_date: string;
+  title_value: number;
+  third_party_value: number;
+  surcharge: number;
+  trash_rate: number;
+  cadastral_key: string;
+  total: number;
+  payment_user: string;
+  value?: number;
+  order_value?: number;
+  payment_method: string;
+  comment: string;
+}

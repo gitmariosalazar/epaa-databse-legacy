@@ -38,6 +38,10 @@ import { ExternalPayrollPersistence } from '../repositories/http/persistence/ext
       provide: 'ExternalPayrollRepository',
       useClass: ExternalPayrollPersistence,
     },
+    {
+      provide: 'EntryDataRepository',
+      useClass: ReadingSQLServer2022Persistence,
+    },
   ],
   exports: [],
 })

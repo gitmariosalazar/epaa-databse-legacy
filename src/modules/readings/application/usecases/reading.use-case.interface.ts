@@ -2,6 +2,8 @@ import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/cre
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import {
+  PaymentReadingResponse,
+  PaymentResponse,
   PendingReadingResponse,
   ReadingResponse,
 } from '../../domain/schemas/dto/response/readings.response';
@@ -33,4 +35,22 @@ export interface InterfaceReadingUseCase {
     searchValue: string,
   ): Promise<PendingReadingResponse[]>;
   verifyReadingExists(searchValue: string): Promise<boolean>;
+
+  findAllPaymentReadingPayrollsByDate(
+    paymentDate: string,
+  ): Promise<PaymentReadingResponse[]>;
+
+  findAllPaymentByDateAndOrderValue(
+    paymentDate: string,
+    orderValue: number,
+  ): Promise<PaymentResponse[]>;
+
+  findAllPaymentByDate(paymentDate: string): Promise<PaymentResponse[]>;
+
+  findAllPaymentByInitDateAndEndDate(
+    initDate: string,
+    endDate: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<PaymentResponse[]>;
 }

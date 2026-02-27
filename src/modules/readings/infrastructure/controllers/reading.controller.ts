@@ -5,6 +5,7 @@ import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/cre
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import { ReadingNotFoundException } from '../../domain/exceptions/reading-not-found.exception';
+import { DateRangeParams } from '../../domain/schemas/dto/response/entry-data.response';
 
 @Controller('readings')
 export class ReadingController {
@@ -118,7 +119,9 @@ export class ReadingController {
   }
 
   @Get('find-pending-reading-by-cadastral-key-or-card-id')
-  @MessagePattern('epaa-legacy.reading.find-pending-reading-by-cadastral-key-or-card-id')
+  @MessagePattern(
+    'epaa-legacy.reading.find-pending-reading-by-cadastral-key-or-card-id',
+  )
   findPendingReadingByCadastralKeyOrCardId(
     @Payload()
     params: {
@@ -131,5 +134,110 @@ export class ReadingController {
     return this.readingService.findPendingReadingsByCadastralKeyOrCardId(
       params.searchValue,
     );
+  }
+
+  @Get('find-payment-readings-by-payment-date')
+  @MessagePattern('epaa-legacy.reading.find-payment-readings-by-payment-date')
+  findPaymentReadingsByPaymentDate(@Payload() paymentDate: string) {
+    console.log(
+      `Received findPaymentReadingsByPaymentDate request: ${JSON.stringify(paymentDate)}`,
+    );
+    return this.readingService.findAllPaymentReadingPayrollsByDate(paymentDate);
+  }
+
+  @Get('find-payment-by-payment-date-and-order')
+  @MessagePattern('epaa-legacy.reading.find-payment-by-payment-date-and-order')
+  findPaymentByPaymentDateAndOrder(
+    @Payload() data: { paymentDate: string; orderValue: number },
+  ) {
+    console.log(
+      `Received findPaymentByPaymentDateAndOrder request: ${JSON.stringify(data)}`,
+    );
+    return this.readingService.findAllPaymentByDateAndOrderValue(
+      data.paymentDate,
+      data.orderValue,
+    );
+  }
+
+  @Get('find-payment-by-init-date-and-end-date')
+  @MessagePattern('epaa-legacy.reading.find-payment-by-init-date-and-end-date')
+  findPaymentByInitDateAndEndDate(
+    @Payload()
+    data: {
+      initDate: string;
+      endDate: string;
+      limit?: number;
+      offset?: number;
+    },
+  ) {
+    console.log(
+      `Received findPaymentByInitDateAndEndDate request: ${JSON.stringify(data)}`,
+    );
+    return this.readingService.findAllPaymentByInitDateAndEndDate(
+      data.initDate,
+      data.endDate,
+      data.limit,
+      data.offset,
+    );
+  }
+
+  @Get('get-daily-grouped-report')
+  @MessagePattern('epaa-legacy.reading.get-daily-grouped-report')
+  getDailyGroupedReport(
+    @Payload() raw: { initDate?: string; endDate?: string; startDate?: string },
+  ) {
+    console.log(
+      `Received getDailyGroupedReport request: ${JSON.stringify(raw)}`,
+    );
+    const params = new DateRangeParams(
+      raw.startDate ?? raw.initDate ?? '',
+      raw.endDate ?? '',
+    );
+    return this.readingService.getDailyGroupedReport(params);
+  }
+
+  @Get('get-daily-collector-summary')
+  @MessagePattern('epaa-legacy.reading.get-daily-collector-summary')
+  getDailyCollectorSummary(
+    @Payload() raw: { initDate?: string; endDate?: string; startDate?: string },
+  ) {
+    console.log(
+      `Received getDailyCollectorSummary request: ${JSON.stringify(raw)}`,
+    );
+    const params = new DateRangeParams(
+      raw.startDate ?? raw.initDate ?? '',
+      raw.endDate ?? '',
+    );
+    return this.readingService.getDailyCollectorSummary(params);
+  }
+
+  @Get('get-daily-payment-method-report')
+  @MessagePattern('epaa-legacy.reading.get-daily-payment-method-report')
+  getDailyPaymentMethodReport(
+    @Payload() raw: { initDate?: string; endDate?: string; startDate?: string },
+  ) {
+    console.log(
+      `Received getDailyPaymentMethodReport request: ${JSON.stringify(raw)}`,
+    );
+    const params = new DateRangeParams(
+      raw.startDate ?? raw.initDate ?? '',
+      raw.endDate ?? '',
+    );
+    return this.readingService.getDailyPaymentMethodReport(params);
+  }
+
+  @Get('get-full-breakdown-report')
+  @MessagePattern('epaa-legacy.reading.get-full-breakdown-report')
+  getFullBreakdownReport(
+    @Payload() raw: { initDate?: string; endDate?: string; startDate?: string },
+  ) {
+    console.log(
+      `Received getFullBreakdownReport request: ${JSON.stringify(raw)}`,
+    );
+    const params = new DateRangeParams(
+      raw.startDate ?? raw.initDate ?? '',
+      raw.endDate ?? '',
+    );
+    return this.readingService.getFullBreakdownReport(params);
   }
 }

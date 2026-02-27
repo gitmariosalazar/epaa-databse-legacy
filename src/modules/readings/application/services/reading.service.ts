@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InterfaceReadingUseCase } from '../usecases/reading.use-case.interface';
 import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/create.reading.request';
 import {
+  PaymentReadingResponse,
+  PaymentResponse,
   PendingReadingResponse,
   ReadingResponse,
 } from '../../domain/schemas/dto/response/readings.response';
@@ -16,14 +18,27 @@ import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.re
 import { ReadingNotFoundException } from '../../domain/exceptions/reading-not-found.exception';
 import { RpcException } from '@nestjs/microservices';
 import { InterfaceExternalPayrollRepository } from '../../domain/contracts/external-payroll.interface.repository';
+import { InterfaceEntryDataRepository } from '../../domain/contracts/entry-data.interface.repository';
+import { InterfaceEntryDataUseCase } from '../usecases/entry-data.use-case.interface';
+import {
+  DailyCollectorSummary,
+  DailyGroupedReport,
+  DailyPaymentMethodReport,
+  DateRangeParams,
+  FullBreakdownReport,
+} from '../../domain/schemas/dto/response/entry-data.response';
 
 @Injectable()
-export class ReadingService implements InterfaceReadingUseCase {
+export class ReadingService
+  implements InterfaceReadingUseCase, InterfaceEntryDataUseCase
+{
   constructor(
     @Inject('ReadingsRepository')
     private readonly readingsRepository: InterfaceReadingsRepository,
     @Inject('ExternalPayrollRepository')
     private readonly externalPayrollRepository: InterfaceExternalPayrollRepository,
+    @Inject('EntryDataRepository')
+    private readonly entryDataRepository: InterfaceEntryDataRepository,
   ) {}
 
   createReading(request: CreateReadingLegacyRequest): Promise<ReadingResponse> {
@@ -297,6 +312,255 @@ export class ReadingService implements InterfaceReadingUseCase {
       const exists =
         await this.readingsRepository.verifyReadingExists(searchValue);
       return exists;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findAllPaymentByDateAndOrderValue(
+    paymentDate: string,
+    orderValue: number,
+  ): Promise<PaymentResponse[]> {
+    try {
+      const payments =
+        await this.readingsRepository.findAllPaymentByDateAndOrderValue(
+          paymentDate,
+          orderValue,
+        );
+      if (!payments || payments.length === 0) {
+        return [];
+      }
+      return payments;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findAllPaymentReadingPayrollsByDate(
+    paymentDate: string,
+  ): Promise<PaymentReadingResponse[]> {
+    try {
+      const payments =
+        await this.readingsRepository.findAllPaymentReadingPayrollsByDate(
+          paymentDate,
+        );
+      if (!payments || payments.length === 0) {
+        return [];
+      }
+      return payments;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async enrichPaymentReadingsWithExternalData(
+    paymentReadings: PaymentReadingResponse[],
+  ): Promise<PaymentReadingResponse[]> {
+    if (!paymentReadings || paymentReadings.length === 0) {
+      return paymentReadings;
+    }
+
+    try {
+      // Build a map of externalPayrolls per unique cardId
+      const uniqueCardIds = [
+        ...new Set(paymentReadings.map((r) => r.cardId).filter(Boolean)),
+      ];
+      const payrollsMap = new Map<string, any[]>();
+
+      for (const cardId of uniqueCardIds) {
+        const payrolls =
+          await this.externalPayrollRepository.getPayrollsByIdentification(
+            cardId,
+          );
+        if (payrolls && payrolls.length > 0) {
+          payrollsMap.set(cardId, payrolls);
+        }
+      }
+
+      if (payrollsMap.size === 0) {
+        return paymentReadings;
+      }
+
+      return paymentReadings.map((reading) => {
+        const externalPayrolls = payrollsMap.get(reading.cardId);
+        if (!externalPayrolls) return reading;
+
+        const match = externalPayrolls.find(
+          (ep) =>
+            String(ep.Mes).trim().toUpperCase() ===
+              reading.month.trim().toUpperCase() &&
+            Number(ep.Anio) === reading.year &&
+            Number(ep.Consumo) === reading.consumption &&
+            Number(ep.LecturaActual) === reading.currentReading,
+        );
+
+        if (!match) return reading;
+
+        const thirdPartyValue = match.valor_terceros;
+        return {
+          ...reading,
+          thirdPartyValue,
+          total: reading.epaaValue + reading.trashRate + thirdPartyValue,
+        };
+      });
+    } catch (error) {
+      return paymentReadings;
+    }
+  }
+
+  private async enrichPaymentsWithExternalData(
+    payments: PaymentResponse[],
+  ): Promise<PaymentResponse[]> {
+    if (!payments || payments.length === 0) {
+      return payments;
+    }
+
+    try {
+      // Build a map of externalPayrolls per unique cardId
+      const uniqueCardIds = [
+        ...new Set(payments.map((p) => p.cardId).filter(Boolean)),
+      ];
+      const payrollsMap = new Map<string, any[]>();
+
+      for (const cardId of uniqueCardIds) {
+        const payrolls =
+          await this.externalPayrollRepository.getPayrollsByIdentification(
+            cardId,
+          );
+        if (payrolls && payrolls.length > 0) {
+          payrollsMap.set(cardId, payrolls);
+        }
+      }
+
+      if (payrollsMap.size === 0) {
+        return payments;
+      }
+
+      return payments.map((payment) => {
+        const externalPayrolls = payrollsMap.get(payment.cardId);
+        if (!externalPayrolls) return payment;
+
+        const match = externalPayrolls.find(
+          (ep) => Number(ep.Cod_Ingreso) === Number(payment.incomeCode),
+        );
+
+        if (!match) return payment;
+
+        const thirdPartyValue = match.valor_terceros;
+        return {
+          ...payment,
+          thirdPartyValue,
+          total: payment.titleValue + payment.trashRate + thirdPartyValue,
+        };
+      });
+    } catch (error) {
+      return payments;
+    }
+  }
+
+  async findAllPaymentByDate(paymentDate: string): Promise<PaymentResponse[]> {
+    try {
+      const payments =
+        await this.readingsRepository.findAllPaymentByDate(paymentDate);
+      if (!payments || payments.length === 0) {
+        return [];
+      }
+      return payments;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findAllPaymentByInitDateAndEndDate(
+    initDate: string,
+    endDate: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<PaymentResponse[]> {
+    try {
+      const payments =
+        await this.readingsRepository.findAllPaymentByInitDateAndEndDate(
+          initDate,
+          endDate,
+          limit,
+          offset,
+        );
+      if (!payments || payments.length === 0) {
+        return [];
+      }
+      return payments;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getDailyGroupedReport(
+    params: DateRangeParams,
+  ): Promise<DailyGroupedReport[]> {
+    try {
+      const result =
+        await this.entryDataRepository.getDailyGroupedReport(params);
+      if (!result || result.length === 0) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `Daily grouped report not found for the given parameters: ${JSON.stringify(params)}`,
+        });
+      }
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getDailyCollectorSummary(
+    params: DateRangeParams,
+  ): Promise<DailyCollectorSummary[]> {
+    try {
+      const result =
+        await this.entryDataRepository.getDailyCollectorSummary(params);
+      if (!result || result.length === 0) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `Daily collector summary not found for the given parameters: ${JSON.stringify(params)}`,
+        });
+      }
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getDailyPaymentMethodReport(
+    params: DateRangeParams,
+  ): Promise<DailyPaymentMethodReport[]> {
+    try {
+      const result =
+        await this.entryDataRepository.getDailyPaymentMethodReport(params);
+      if (!result || result.length === 0) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `Daily payment method report not found for the given parameters: ${JSON.stringify(params)}`,
+        });
+      }
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getFullBreakdownReport(
+    params: DateRangeParams,
+  ): Promise<FullBreakdownReport[]> {
+    try {
+      const result =
+        await this.entryDataRepository.getFullBreakdownReport(params);
+      if (!result || result.length === 0) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `Full breakdown report not found for the given parameters: ${JSON.stringify(params)}`,
+        });
+      }
+      return result;
     } catch (error) {
       throw error;
     }

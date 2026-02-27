@@ -1,5 +1,7 @@
 import { FindCurrentReadingParams } from '../schemas/dto/request/find-current-reading.paramss';
 import {
+  PaymentReadingResponse,
+  PaymentResponse,
   PendingReadingResponse,
   ReadingResponse,
 } from '../schemas/dto/response/readings.response';
@@ -39,4 +41,22 @@ export interface InterfaceReadingsRepository {
 
   // VErify if the reading exists for a given cadastral key and date
   verifyReadingExists(searchValue: string): Promise<boolean>;
+
+  findAllPaymentReadingPayrollsByDate(
+    paymentDate: string,
+  ): Promise<PaymentReadingResponse[]>;
+
+  findAllPaymentByDateAndOrderValue(
+    paymentDate: string,
+    orderValue: number,
+  ): Promise<PaymentResponse[]>;
+
+  findAllPaymentByDate(paymentDate: string): Promise<PaymentResponse[]>;
+
+  findAllPaymentByInitDateAndEndDate(
+    initDate: string,
+    endDate: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<PaymentResponse[]>;
 }

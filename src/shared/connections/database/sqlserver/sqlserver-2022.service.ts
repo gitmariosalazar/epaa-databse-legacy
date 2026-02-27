@@ -5,7 +5,10 @@ import { environments } from '../../../../settings/environments/environments';
 import { statusCode } from '../../../../settings/environments/status-code';
 
 class DatabaseError extends Error {
-  constructor(message: string, public readonly code?: string) {
+  constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
     super(message);
     this.name = 'DatabaseError';
   }
@@ -17,7 +20,7 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
   private isConnected: boolean = false;
   private readonly maxRetries: number = 3;
   private readonly retryDelayMs: number = 1000;
-  private readonly queryTimeoutMs: number = 10000;
+  private readonly queryTimeoutMs: number = 60000;
 
   public constructor() {
     super();
@@ -31,13 +34,13 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
       pool: {
         max: 20,
         min: 0,
-        idleTimeoutMillis: 30000
+        idleTimeoutMillis: 30000,
       },
       options: {
         encrypt: false,
         trustServerCertificate: true,
-        requestTimeout: 2000
-      }
+        requestTimeout: 60000,
+      },
     };
 
     this.pool = new ConnectionPool(poolConfig);
@@ -49,7 +52,8 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
 
   public static getInstance(): DatabaseServiceSQLServer2022 {
     if (!DatabaseServiceSQLServer2022.instance) {
-      DatabaseServiceSQLServer2022.instance = new DatabaseServiceSQLServer2022();
+      DatabaseServiceSQLServer2022.instance =
+        new DatabaseServiceSQLServer2022();
     }
     return DatabaseServiceSQLServer2022.instance;
   }
@@ -60,7 +64,7 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
       databaseHostname: environments.DATABASE_HOST,
       databasePassword: environments.DATABASE_PASSWORD,
       databaseName: environments.DATABASE_NAME,
-      databasePort: environments.DATABASE_PORT
+      databasePort: environments.DATABASE_PORT,
     };
 
     for (const [key, value] of Object.entries(requiredConfigs)) {
@@ -101,20 +105,27 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
         if (attempt === this.maxRetries) {
           throw new RpcException({
             statusCode: statusCode.INTERNAL_SERVER_ERROR,
-            message: 'Database connection failed after maximum retries: ' + error.message,
+            message:
+              'Database connection failed after maximum retries: ' +
+              error.message,
           });
         }
 
-        await new Promise(resolve => setTimeout(resolve, this.retryDelayMs * Math.pow(2, attempt)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.retryDelayMs * Math.pow(2, attempt)),
+        );
       }
     }
   }
 
-  public async transaction<T>(operations: (request: Request) => Promise<T>): Promise<T> {
-    if (!this.isConnected) throw new RpcException({
-      statusCode: statusCode.INTERNAL_SERVER_ERROR,
-      message: 'Database is not connected',
-    });
+  public async transaction<T>(
+    operations: (request: Request) => Promise<T>,
+  ): Promise<T> {
+    if (!this.isConnected)
+      throw new RpcException({
+        statusCode: statusCode.INTERNAL_SERVER_ERROR,
+        message: 'Database is not connected',
+      });
     const transaction = new Transaction(this.pool);
     await transaction.begin();
 
@@ -134,7 +145,10 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
     }
   }
 
-  public async query<T>(sql: string, params: { name: string; value: any }[] = []): Promise<T[]> {
+  public async query<T>(
+    sql: string,
+    params: { name: string; value: any }[] = [],
+  ): Promise<T[]> {
     if (!this.isConnected) {
       throw new RpcException({
         statusCode: statusCode.INTERNAL_SERVER_ERROR,
@@ -144,19 +158,25 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
 
     try {
       const request = this.pool.request();
-      params.forEach(param => {
+      params.forEach((param) => {
         request.input(param.name, param.value);
       });
 
-      const result: IResult<T> = await Promise.race([
+      const result: IResult<T> = (await Promise.race([
         request.query<T>(sql),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new RpcException({
-            statusCode: statusCode.INTERNAL_SERVER_ERROR,
-            message: 'Query timeout',
-          })), this.queryTimeoutMs)
-        )
-      ]) as IResult<T>;
+          setTimeout(
+            () =>
+              reject(
+                new RpcException({
+                  statusCode: statusCode.INTERNAL_SERVER_ERROR,
+                  message: 'Query timeout',
+                }),
+              ),
+            this.queryTimeoutMs,
+          ),
+        ),
+      ])) as IResult<T>;
 
       console.log(`Query executed successfully: ${sql.slice(0, 50)}...`);
       return result.recordset;
@@ -169,7 +189,6 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
       });
     }
   }
-
 
   public async close(): Promise<void> {
     if (!this.isConnected) {

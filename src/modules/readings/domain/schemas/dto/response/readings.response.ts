@@ -16,28 +16,6 @@ export interface ReadingResponse {
   cadastralKey: string;
 }
 
-/*
-Cliente (solo en la primera fila):
-- CED_IDENT_CIUDADANO
-- NOMBRES_CIUDADANO
-- APELLIDOS_CIUDADANO
-Por cada suministro/planilla:
-- ClaveCatastral
-- Direccion
-- Tarifa
-- Mes
-- Anio
-- Consumo
-- LecturaAnterior
-- LecturaActual
-- valor_epaa
-- tasa_basura
-- valor_terceros
-- total
-- Fecha_Venc_Interes
-- Estado_Ingreso (usado para filtrar) pero necesito todo estos campos del codigo en php que te pase
-*/
-
 export interface PendingReadingResponse {
   // Cliente (solo en la primera fila):
   cardId: string;
@@ -64,4 +42,58 @@ export interface PendingReadingResponse {
   dueDate: Date | null;
   incomeStatus: string;
   incomeDate: Date | null;
+}
+
+export interface PaymentReadingResponse {
+  incomeCode: string;
+  cardId: string;
+  name: string;
+  lastName: string;
+  cadastralKey: string;
+  address: string;
+  rate: number;
+  month: string;
+  year: number;
+  currentReading: number;
+  previousReading: number;
+  readingValue: number;
+  paymentUser: string;
+  titleCode: string;
+  consumption: number;
+  readingStatus: string;
+  paymentDate: string;
+  trashRate: number;
+  epaaValue: number;
+  thirdPartyValue: number;
+  surcharge: number;
+  total: number;
+  dueDate: string;
+  incomeStatus: string;
+  incomeDate: string;
+  value: number;
+  orderValue: number;
+  paymentMethod: string;
+  comment: string;
+}
+
+export interface PaymentResponse {
+  incomeCode: string;
+  cardId: string;
+  name: string;
+  incomeDate: string;
+  paymentDate: string;
+  incomeStatus: string;
+  titleCode: string;
+  dueDate: string;
+  titleValue: number;
+  thirdPartyValue: number;
+  surcharge: number;
+  trashRate: number;
+  cadastralKey: string;
+  total: number;
+  paymentUser: string;
+  value?: number;
+  orderValue?: number;
+  paymentMethod: string;
+  comment: string;
 }

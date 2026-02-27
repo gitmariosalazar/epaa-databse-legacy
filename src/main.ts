@@ -33,6 +33,8 @@ async function bootstrap() {
       consumer: {
         groupId: environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
         allowAutoTopicCreation: true,
+        maxBytesPerPartition: 52428800, // 50MB
+        maxBytes: 52428800, // 50MB
       },
     },
   }); //
