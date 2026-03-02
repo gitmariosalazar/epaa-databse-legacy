@@ -1307,6 +1307,7 @@ SELECT
               i.third_party_value,
               i.surcharge_value,
               i.trash_rate_value,
+              i.discount_trash_rate_value,
               i.total_value,
               i.record_count,
               COALESCE(d.detail_value, 0)                      AS detail_value,
