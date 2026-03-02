@@ -10,6 +10,7 @@ export interface DailyGroupedReportSQLResult {
   third_party_value: number; // SUM(ValorTerceros)
   surcharge_value: number; // SUM(Recargo)
   trash_rate_value: number; // SUM(tasa_basura)
+  discount_trash_rate_value: number; // SUM(descuento) descuento de tasa de basura
   total_value: number; // SUM of all four above
   record_count: number; // COUNT(Cod_Ingreso)
   detail_value: number; // SUM(Valor) from Valor table
@@ -28,6 +29,7 @@ export interface DailyCollectorSummarySQLResult {
   third_party_value: number; // SUM(ValorTerceros)
   surcharge_value: number; // SUM(Recargo)
   trash_rate_value: number; // SUM(tasa_basura)
+  discount_trash_rate_value: number; // SUM(descuento) descuento de tasa de basura
   detail_value: number; // SUM(Valor) from Valor table
   validate: string; // 'OK' | 'DIFERENCIA'
   difference: number; // title_value - detail_value
@@ -45,6 +47,7 @@ export interface DailyPaymentMethodReportSQLResult {
   third_party_value: number; // SUM(ValorTerceros)
   surcharge_value: number; // SUM(Recargo)
   trash_rate_value: number; // SUM(tasa_basura)
+  discount_trash_rate_value: number; // SUM(descuento) descuento de tasa de basura
   detail_value: number; // SUM(Valor) from Valor table
   validate: string; // 'OK' | 'DIFERENCIA'
   difference: number; // title_value - detail_value
@@ -61,6 +64,7 @@ export interface FullBreakdownReportSQLResult {
   third_party_value: number; // SUM(ValorTerceros)
   surcharge_value: number; // SUM(Recargo)
   trash_rate_value: number; // SUM(tasa_basura)
+  discount_trash_rate_value: number; // SUM(descuento) descuento de tasa de basura
   grand_total: number; // SUM of all four main components
   income_count: number; // COUNT(DISTINCT Cod_Ingreso)
   detail_value: number; // SUM(Valor) from Valor table
