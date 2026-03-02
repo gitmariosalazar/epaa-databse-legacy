@@ -1051,14 +1051,15 @@ export class ReadingSQLServer2022Persistence
                     COALESCE(Valor_Titulo,  0) +
                     COALESCE(ValorTerceros, 0) +
                     COALESCE(Recargo,       0) +
-                    COALESCE(tasa_basura,   0)
+                    COALESCE(tasa_basura,   0) -
+                    COALESCE(descuento_tb,  0)
                 )                                          AS total_collected,
                 COUNT(Cod_Ingreso)                         AS payment_count,
                 SUM(COALESCE(Valor_Titulo,  0))            AS title_value,
                 SUM(COALESCE(ValorTerceros, 0))            AS third_party_value,
                 SUM(COALESCE(Recargo,       0))            AS surcharge_value,
                 SUM(COALESCE(tasa_basura,   0))            AS trash_rate_value,
-                SUM(COALESCE(descuento_tb,     0))              AS discount_trash_rate_value
+                SUM(COALESCE(descuento_tb,  0))            AS discount_trash_rate_value
             FROM Datos_ingreso
             WHERE Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
               AND Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
@@ -1145,13 +1146,13 @@ export class ReadingSQLServer2022Persistence
                 SUM(COALESCE(ValorTerceros, 0))            AS third_party_value,
                 SUM(COALESCE(Recargo,       0))            AS surcharge_value,
                 SUM(COALESCE(tasa_basura,   0))            AS trash_rate_value,
-                SUM(COALESCE(descuento_tb,     0))              AS discount_trash_rate_value,
+                SUM(COALESCE(descuento_tb,  0))              AS discount_trash_rate_value,
                 SUM(
                     COALESCE(Valor_Titulo,  0) +
                     COALESCE(ValorTerceros, 0) +
                     COALESCE(Recargo,       0) +
                     COALESCE(tasa_basura,   0) -
-                    COALESCE(descuento_tb,     0)
+                    COALESCE(descuento_tb,  0)
                 )                                          AS total_value,
                 COUNT(Cod_Ingreso)                         AS record_count
             FROM Datos_ingreso
@@ -1242,14 +1243,14 @@ export class ReadingSQLServer2022Persistence
                     COALESCE(ValorTerceros, 0) +
                     COALESCE(Recargo,       0) +
                     COALESCE(tasa_basura,   0) -
-                    COALESCE(descuento_tb,     0)
+                    COALESCE(descuento_tb,  0)
                 )                                          AS total,
                 COUNT(Cod_Ingreso)                         AS record_count,
                 SUM(COALESCE(Valor_Titulo,  0))            AS title_value,
                 SUM(COALESCE(ValorTerceros, 0))            AS third_party_value,
                 SUM(COALESCE(Recargo,       0))            AS surcharge_value,
                 SUM(COALESCE(tasa_basura,   0))            AS trash_rate_value,
-                SUM(COALESCE(descuento_tb,     0))              AS discount_trash_rate_value
+                SUM(COALESCE(descuento_tb,  0))            AS discount_trash_rate_value
             FROM Datos_ingreso
             WHERE Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
               AND Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
@@ -1336,13 +1337,13 @@ export class ReadingSQLServer2022Persistence
                 SUM(COALESCE(ValorTerceros, 0))            AS third_party_value,
                 SUM(COALESCE(Recargo,       0))            AS surcharge_value,
                 SUM(COALESCE(tasa_basura,   0))            AS trash_rate_value,
-                SUM(COALESCE(descuento_tb,     0))              AS discount_trash_rate_value,
+                SUM(COALESCE(descuento_tb,  0))              AS discount_trash_rate_value,
                 SUM(
                     COALESCE(Valor_Titulo,  0) +
                     COALESCE(ValorTerceros, 0) +
                     COALESCE(Recargo,       0) +
                     COALESCE(tasa_basura,   0) -
-                    COALESCE(descuento_tb,     0)
+                    COALESCE(descuento_tb,  0)
                 )                                          AS grand_total,
                 COUNT(DISTINCT Cod_Ingreso)                AS income_count
             FROM Datos_ingreso
