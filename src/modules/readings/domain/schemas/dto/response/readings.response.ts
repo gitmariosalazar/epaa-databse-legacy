@@ -48,6 +48,8 @@ export interface PendingReadingResponse {
   dueDate: Date | null;
   incomeStatus: string;
   incomeDate: Date | null;
+  totalTrashRate: number; // tasa de basura ajustada neta
+  totalEpaaValue: number; // total agua + terceros
 }
 
 export interface PaymentReadingResponse {

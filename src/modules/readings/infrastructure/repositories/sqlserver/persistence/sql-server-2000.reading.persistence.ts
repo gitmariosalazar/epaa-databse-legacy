@@ -713,135 +713,167 @@ export class ReadingSQLServer2000Persistence
   ): Promise<PendingReadingResponse[]> {
     try {
       const query = `
-      SET NOCOUNT ON
+        SET NOCOUNT ON
 
-      DECLARE @searchParam VARCHAR(50)
-      SET @searchParam = '${String(searchValue.trim())}'
+        DECLARE @searchParam VARCHAR(50)
+        SET @searchParam = '${String(searchValue.trim())}'
 
-      SELECT
-          c.CED_IDENT_CIUDADANO           AS card_id,
-          c.NOMBRES_CIUDADANO             AS name,
-          c.APELLIDOS_CIUDADANO           AS last_name,
-          di.ClaveCatastral               AS cadastral_key,
-          di.Direccion                    AS address,
-          a.Tarifa                        AS rate,
-          l.Mes                           AS month,
-          l.Anio                          AS year,
-          l.LecturaActual                 AS current_reading,
-          l.LecturaAnterior               AS previous_reading,
-          l.ValorAPagar                   AS reading_value,
-          CASE 
-              WHEN l.LecturaActual IS NOT NULL 
-              THEN (l.LecturaActual - l.LecturaAnterior) 
-              ELSE NULL 
-          END                             AS consumption,
+        SELECT
+            -- ── Identificación del cliente y suministro ──────────────────────────────────
+            c.CED_IDENT_CIUDADANO           AS card_id,
+            c.NOMBRES_CIUDADANO             AS name,
+            c.APELLIDOS_CIUDADANO           AS last_name,
+            di.ClaveCatastral               AS cadastral_key,
+            di.Direccion                    AS address,
+            a.Tarifa                        AS rate,
 
-          CASE MONTH(di.Fecha_Venc_Interes)
-              WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
-              WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
-              WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
-              WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
-          END                             AS month_due,
-          
-          YEAR(di.Fecha_Venc_Interes)     AS year_due,
+            -- ── Período de facturación ────────────────────────────────────────────────────
+            l.Mes                           AS month,
+            l.Anio                          AS year,
 
-          CASE
-              WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
-              WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE() 
-                  THEN 'Pendiente de lectura (período actual/futuro)'
-              WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE() 
-                  THEN 'Lectura no registrada o pendiente'
-              ELSE 'No disponible'
-          END                             AS reading_status,
+            CASE MONTH(di.Fecha_Venc_Interes)
+                WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+                WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+                WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+                WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+            END                             AS month_due,
 
-          di.Fecha_Pago                   AS payment_date,
-          CASE WHEN l.LecturaActual IS NOT NULL THEN (di.tasa_basura_anterior_oficial)    ELSE NULL END AS trash_rate_previous,
-          CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura      ELSE NULL END AS trash_rate,
-          CASE WHEN l.LecturaActual IS NOT NULL THEN (di.Valor_Titulo + di.Recargo)     ELSE NULL END AS epaa_value,
-          CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros    ELSE NULL END AS third_party_value,
-          CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > di.tasa_basura
+            YEAR(di.Fecha_Venc_Interes)     AS year_due,
+            di.Fecha_Venc_Interes           AS due_date,
+            di.Fecha_Pago                   AS payment_date,
+
+            -- ── Lectura del medidor ───────────────────────────────────────────────────────
+            l.LecturaActual                 AS current_reading,
+            l.LecturaAnterior               AS previous_reading,
+            CASE
+                WHEN l.LecturaActual IS NOT NULL
+                THEN (l.LecturaActual - l.LecturaAnterior)
+                ELSE NULL
+            END                             AS consumption,
+
+            CASE
+                WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE()
+                    THEN 'Pendiente de lectura (período actual/futuro)'
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE()
+                    THEN 'Lectura no registrada o pendiente'
+                ELSE 'No disponible'
+            END                             AS reading_status,
+
+            -- ── EPAA: valor del servicio de agua ─────────────────────────────────────────
+            -- Valor por consumo de agua (según lectura del medidor)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.Valor_Titulo    ELSE NULL END AS epaa_value,
+            -- Valor por servicios de terceros (alcantarillado, etc.)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros   ELSE NULL END AS third_party_value,
+            -- Valor unitario por m³ consumido
+            l.ValorAPagar                   AS reading_value,
+            -- Recargo por mora u otro concepto general
+            di.Recargo                      AS surcharge,
+            -- Total EPAA: agua + terceros (sin basura ni ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                   + COALESCE(di.ValorTerceros, 0)
+                ELSE NULL
+            END                             AS total_epaa_value,
+
+            -- ── Tasa de recolección de basura ─────────────────────────────────────────────
+            -- Tarifa de basura aplicada en este período
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura     ELSE NULL END AS trash_rate,
+            -- Tarifa oficial del período anterior (para calcular saldo)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
+            -- Saldo a favor: la tarifa bajó, el cliente pagó de más antes → se descuenta
+            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > di.tasa_basura
                 THEN (di.tasa_basura_anterior_oficial - di.tasa_basura)
                 ELSE NULL
-            END AS balance_in_favor,
+            END                             AS balance_in_favor,
+            -- Saldo en contra: la tarifa subió, el cliente pagó de menos antes → se cobra
             CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial < di.tasa_basura
                 THEN (di.tasa_basura - di.tasa_basura_anterior_oficial)
                 ELSE NULL
-            END AS balance_against,
-            COALESCE(di.descuento_tb, 0) as discount_trash_rate,
-            di.Recargo as surcharge,
+            END                             AS balance_against,
+            -- Descuento aplicado sobre la tasa de basura (solo en registros pagados, aquí siempre 0)
+            COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,
+            -- Total neto de basura = tasa actual + ajuste por cambio de tarifa (favor o contra)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.tasa_basura, 0)
+                   + (COALESCE(di.tasa_basura, 0) - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                ELSE NULL
+            END                             AS total_trash_rate,
 
-          CASE WHEN l.LecturaActual IS NOT NULL
-                THEN COALESCE(di.Valor_Titulo, 0)    -- ValorEpaa
-                  + COALESCE(di.ValorTerceros, 0)   -- ValorTerceros
-                  + COALESCE(di.tasa_basura, 0)     -- TasaBasura actual
-                  + COALESCE(di.Recargo, 0)         -- Recargos
-                -- descuento_tb does not apply: only exists on paid records (Fecha_Pago IS NOT NULL)
+            -- ── Totales de la planilla ────────────────────────────────────────────────────
+            -- Total base: EPAA + terceros + basura actual + recargo (sin ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                   + COALESCE(di.ValorTerceros, 0)
+                   + COALESCE(di.tasa_basura, 0)
+                   + COALESCE(di.Recargo, 0)
+                -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
             END                             AS total,
 
-          -- Total adjusted by trash rate balance:
-          --   Rate went down (previous > current) → credit in favor of client → difference is subtracted
-          --   Rate went up  (current > previous)  → balance against client   → difference is added
-          CASE WHEN l.LecturaActual IS NOT NULL
+            -- Total ajustado: incorpora el saldo a favor/contra por cambio de tarifa de basura
+            --   Tarifa bajó (anterior > actual) → saldo a favor del cliente → resta diferencia
+            --   Tarifa subió (actual > anterior) → saldo en contra del cliente → suma diferencia
+            CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
-                  + COALESCE(di.ValorTerceros, 0)
-                  + COALESCE(di.tasa_basura, 0)
-                  + COALESCE(di.Recargo, 0)
-                  + COALESCE(di.descuento_tb, 0)
-                  + (COALESCE(di.tasa_basura, 0) - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                   + COALESCE(di.ValorTerceros, 0)
+                   + COALESCE(di.tasa_basura, 0)
+                   + COALESCE(di.Recargo, 0)
+                   + (COALESCE(di.tasa_basura, 0) - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
             END                             AS adjusted_total,
 
-          di.Fecha_Venc_Interes           AS due_date,
-          di.Estado_Ingreso               AS income_status,
-          di.Fecha_Ingreso                AS income_date
+            -- ── Metadatos de ingreso ──────────────────────────────────────────────────────
+            di.Estado_Ingreso               AS income_status,
+            di.Fecha_Ingreso                AS income_date
 
-      FROM Datos_ingreso di
-      INNER JOIN CIUDADANO c 
-          ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
+        FROM Datos_ingreso di
+        INNER JOIN CIUDADANO c
+            ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-      INNER JOIN AP_ACOMETIDAS a
-          ON a.Sector = 
-              CASE 
-                  WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
-                      AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
-                      AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
-                  THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
-                  ELSE -1
-              END
-          AND a.Cuenta = 
-              CASE 
-                  WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
-                      AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
-                  THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
-                  ELSE -1
-              END
+        INNER JOIN AP_ACOMETIDAS a
+            ON a.Sector =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
+                        AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
+                        AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
+                    THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
+                    ELSE -1
+                END
+            AND a.Cuenta =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
+                        AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
+                    THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
+                    ELSE -1
+                END
 
-      LEFT JOIN AP_LECTURAS l
-          ON l.ClaveCatastral = di.ClaveCatastral
-        AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
-        AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(
-              CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))
-                  WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
-                  WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
-                  WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
-                  WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
-              END
-          )
+        LEFT JOIN AP_LECTURAS l
+            ON l.ClaveCatastral = di.ClaveCatastral
+          AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
+          AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(
+                CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))
+                    WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+                    WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+                    WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+                    WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+                END
+            )
 
-      WHERE 
-          (
-              (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)
-              OR
-              (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
-          )
-          AND di.Fecha_Pago IS NULL
-          AND di.convenio   IS NULL
-          AND di.Estado_Ingreso IS NULL
+        WHERE
+            (
+                (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)
+                OR
+                (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
+            )
+            AND di.Fecha_Pago IS NULL
+            AND di.convenio   IS NULL
+            AND di.Estado_Ingreso IS NULL
 
-      ORDER BY 
-          di.ClaveCatastral,
-          di.Fecha_Venc_Interes DESC;
+        ORDER BY
+            di.ClaveCatastral,
+            di.Fecha_Venc_Interes DESC;
     `;
 
       const result =

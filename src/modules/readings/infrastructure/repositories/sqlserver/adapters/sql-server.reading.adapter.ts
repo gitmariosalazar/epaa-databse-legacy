@@ -100,6 +100,8 @@ export class SQLServerReadingAdapter {
       dueDate: data.due_date ? new Date(data.due_date) : null,
       incomeStatus: data.income_status ? String(data.income_status).trim() : '',
       incomeDate: data.income_date ? new Date(data.income_date) : null,
+      totalTrashRate: data.total_trash_rate ? Number(data.total_trash_rate) : 0,
+      totalEpaaValue: data.total_epaa_value ? Number(data.total_epaa_value) : 0,
     };
   }
 

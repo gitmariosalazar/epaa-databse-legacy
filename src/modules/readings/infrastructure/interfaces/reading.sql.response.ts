@@ -77,6 +77,8 @@ export interface PendingReadingSQLResult {
   due_date: Date | null;
   income_status: string;
   income_date: Date | null;
+  total_trash_rate: number; // tasa_basura + (tasa_basura - tasa_basura_anterior_oficial)
+  total_epaa_value: number; // Valor_Titulo + ValorTerceros
 }
 
 export interface PaymentReadingSqlResponse {

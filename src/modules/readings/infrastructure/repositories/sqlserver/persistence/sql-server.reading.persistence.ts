@@ -527,22 +527,17 @@ export class ReadingSQLServer2022Persistence
         SET @searchParam = '${String(searchValue.trim())}'
 
         SELECT
+            -- ── Identificación del cliente y suministro ──────────────────────────────────
             c.CED_IDENT_CIUDADANO           AS card_id,
             c.NOMBRES_CIUDADANO             AS name,
             c.APELLIDOS_CIUDADANO           AS last_name,
             di.ClaveCatastral               AS cadastral_key,
             di.Direccion                    AS address,
             a.Tarifa                        AS rate,
+
+            -- ── Período de facturación ────────────────────────────────────────────────────
             l.Mes                           AS month,
             l.Anio                          AS year,
-            l.LecturaActual                 AS current_reading,
-            l.LecturaAnterior               AS previous_reading,
-            l.ValorAPagar                   AS reading_value,
-            CASE
-                WHEN l.LecturaActual IS NOT NULL
-                THEN (l.LecturaActual - l.LecturaAnterior)
-                ELSE NULL
-            END                             AS consumption,
 
             CASE MONTH(di.Fecha_Venc_Interes)
                 WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
@@ -552,6 +547,17 @@ export class ReadingSQLServer2022Persistence
             END                             AS month_due,
 
             YEAR(di.Fecha_Venc_Interes)     AS year_due,
+            di.Fecha_Venc_Interes           AS due_date,
+            di.Fecha_Pago                   AS payment_date,
+
+            -- ── Lectura del medidor ───────────────────────────────────────────────────────
+            l.LecturaActual                 AS current_reading,
+            l.LecturaAnterior               AS previous_reading,
+            CASE
+                WHEN l.LecturaActual IS NOT NULL
+                THEN (l.LecturaActual - l.LecturaAnterior)
+                ELSE NULL
+            END                             AS consumption,
 
             CASE
                 WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
@@ -562,45 +568,71 @@ export class ReadingSQLServer2022Persistence
                 ELSE 'No disponible'
             END                             AS reading_status,
 
-            di.Fecha_Pago                   AS payment_date,
-            CASE WHEN l.LecturaActual IS NOT NULL THEN (di.tasa_basura_anterior_oficial)    ELSE NULL END AS trash_rate_previous,
-            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura      ELSE NULL END AS trash_rate,
-            CASE WHEN l.LecturaActual IS NOT NULL THEN di.Valor_Titulo     ELSE NULL END AS epaa_value,
-            CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros    ELSE NULL END AS third_party_value,
+            -- ── EPAA: valor del servicio de agua ─────────────────────────────────────────
+            -- Valor por consumo de agua (según lectura del medidor)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.Valor_Titulo    ELSE NULL END AS epaa_value,
+            -- Valor por servicios de terceros (alcantarillado, etc.)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros   ELSE NULL END AS third_party_value,
+            -- Valor unitario por m³ consumido
+            l.ValorAPagar                   AS reading_value,
+            -- Recargo por mora u otro concepto general
+            di.Recargo                      AS surcharge,
+            -- Total EPAA: agua + terceros (sin basura ni ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                   + COALESCE(di.ValorTerceros, 0)
+                ELSE NULL
+            END                             AS total_epaa_value,
+
+            -- ── Tasa de recolección de basura ─────────────────────────────────────────────
+            -- Tarifa de basura aplicada en este período
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura     ELSE NULL END AS trash_rate,
+            -- Tarifa oficial del período anterior (para calcular saldo)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
+            -- Saldo a favor: la tarifa bajó, el cliente pagó de más antes → se descuenta
             CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > di.tasa_basura
                 THEN (di.tasa_basura_anterior_oficial - di.tasa_basura)
                 ELSE NULL
-            END AS balance_in_favor,
+            END                             AS balance_in_favor,
+            -- Saldo en contra: la tarifa subió, el cliente pagó de menos antes → se cobra
             CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial < di.tasa_basura
                 THEN (di.tasa_basura - di.tasa_basura_anterior_oficial)
                 ELSE NULL
-            END AS balance_against,
-            COALESCE(di.descuento_tb, 0) as discount_trash_rate,
-            di.Recargo as surcharge,
-
+            END                             AS balance_against,
+            -- Descuento aplicado sobre la tasa de basura (solo en registros pagados, aquí siempre 0)
+            COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,
+            -- Total neto de basura = tasa actual + ajuste por cambio de tarifa (favor o contra)
             CASE WHEN l.LecturaActual IS NOT NULL
-                THEN COALESCE(di.Valor_Titulo, 0)    -- ValorEpaa
-                  + COALESCE(di.ValorTerceros, 0)   -- ValorTerceros
-                  + COALESCE(di.tasa_basura, 0)     -- TasaBasura actual
-                  + COALESCE(di.Recargo, 0)         -- Recargos
-                -- descuento_tb does not apply: only exists on paid records (Fecha_Pago IS NOT NULL)
+                THEN COALESCE(di.tasa_basura, 0)
+                   + (COALESCE(di.tasa_basura, 0) - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                ELSE NULL
+            END                             AS total_trash_rate,
+
+            -- ── Totales de la planilla ────────────────────────────────────────────────────
+            -- Total base: EPAA + terceros + basura actual + recargo (sin ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                   + COALESCE(di.ValorTerceros, 0)
+                   + COALESCE(di.tasa_basura, 0)
+                   + COALESCE(di.Recargo, 0)
+                -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
             END                             AS total,
 
-            -- Total adjusted by trash rate balance:
-            --   Rate went down (previous > current) → credit in favor of client → difference is subtracted
-            --   Rate went up  (current > previous)  → balance against client   → difference is added
+            -- Total ajustado: incorpora el saldo a favor/contra por cambio de tarifa de basura
+            --   Tarifa bajó (anterior > actual) → saldo a favor del cliente → resta diferencia
+            --   Tarifa subió (actual > anterior) → saldo en contra del cliente → suma diferencia
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
-                  + COALESCE(di.ValorTerceros, 0)
-                  + COALESCE(di.tasa_basura, 0)
-                  + COALESCE(di.Recargo, 0)
-                  + COALESCE(di.descuento_tb, 0)
-                  + (COALESCE(di.tasa_basura, 0) - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                   + COALESCE(di.ValorTerceros, 0)
+                   + COALESCE(di.tasa_basura, 0)
+                   + COALESCE(di.Recargo, 0)
+                   + (COALESCE(di.tasa_basura, 0) - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
             END                             AS adjusted_total,
 
-            di.Fecha_Venc_Interes           AS due_date,
+            -- ── Metadatos de ingreso ──────────────────────────────────────────────────────
             di.Estado_Ingreso               AS income_status,
             di.Fecha_Ingreso                AS income_date
 
