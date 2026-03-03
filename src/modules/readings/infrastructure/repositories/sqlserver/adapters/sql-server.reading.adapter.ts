@@ -86,8 +86,12 @@ export class SQLServerReadingAdapter {
       thirdPartyValue: data.third_party_value
         ? Number(data.third_party_value)
         : 0,
-      balanceInFavor: data.balance_in_favor ? Number(data.balance_in_favor) : 0,
-      balanceAgainst: data.balance_against ? Number(data.balance_against) : 0,
+      balanceInFavorNextMonth: data.balance_in_favor_next_month
+        ? Number(data.balance_in_favor_next_month)
+        : 0,
+      balanceAgainstNextMonth: data.balance_against_next_month
+        ? Number(data.balance_against_next_month)
+        : 0,
       discountTrashRate: data.discount_trash_rate
         ? Number(data.discount_trash_rate)
         : 0,

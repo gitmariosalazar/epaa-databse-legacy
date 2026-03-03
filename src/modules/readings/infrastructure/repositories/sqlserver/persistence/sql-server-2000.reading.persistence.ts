@@ -773,6 +773,7 @@ export class ReadingSQLServer2000Persistence
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
+                   + COALESCE(di.Recargo, 0)
                 ELSE NULL
             END                             AS total_epaa_value,
 
@@ -785,14 +786,18 @@ export class ReadingSQLServer2000Persistence
             CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura
                 THEN (di.tasa_basura_anterior_oficial - di.tasa_basura)
                 ELSE NULL
-            END                             AS balance_in_favor,
-            -- Saldo en contra: Nunca hay saldo a favor de la empresa (se anula a petición)
-            NULL                            AS balance_against,
+            END                             AS balance_in_favor_next_month,
+            -- Saldo en contra: la tarifa subió, el cliente pagó de menos antes → se cobra
+            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial < di.tasa_basura
+                THEN (di.tasa_basura - di.tasa_basura_anterior_oficial)
+                ELSE NULL
+            END                             AS balance_against_next_month,
             -- Descuento aplicado sobre la tasa de basura (solo en registros pagados, aquí siempre 0)
             COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,
-            -- Total neto de basura = tasa actual - descuento por saldo a favor del cliente
+            -- Total neto de basura = tasa actual + ajuste por cambio de tarifa (favor o contra)
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.tasa_basura, 0)
+                   + CASE WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial < di.tasa_basura THEN (di.tasa_basura - di.tasa_basura_anterior_oficial) ELSE 0 END
                    - CASE WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN (di.tasa_basura_anterior_oficial - di.tasa_basura) ELSE 0 END
                 ELSE NULL
             END                             AS total_trash_rate,
@@ -808,14 +813,15 @@ export class ReadingSQLServer2000Persistence
                 ELSE NULL
             END                             AS total,
 
-            -- Total ajustado: incorpora el saldo a favor por cambio de tarifa de basura
+            -- Total ajustado: incorpora el saldo a favor/contra por cambio de tarifa de basura
             --   Tarifa bajó (anterior > actual) → saldo a favor del cliente → resta diferencia
-            --   (No se cobra saldo en contra si la tarifa subió)
+            --   Tarifa subió (actual > anterior) → saldo en contra del cliente → suma diferencia
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
                    + COALESCE(di.tasa_basura, 0)
                    + COALESCE(di.Recargo, 0)
+                   + CASE WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial < di.tasa_basura THEN (di.tasa_basura - di.tasa_basura_anterior_oficial) ELSE 0 END
                    - CASE WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN (di.tasa_basura_anterior_oficial - di.tasa_basura) ELSE 0 END
                 -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL

@@ -34,7 +34,13 @@ async function bootstrap() {
         groupId: environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
         allowAutoTopicCreation: true,
         maxBytesPerPartition: 52428800, // 50MB
-        maxBytes: 52428800, // 50MB
+        maxBytes: 52428800, // 50MB,
+        sessionTimeout: 60000, // 60 segundos (o 90000 si inserts tardan >30s)
+        heartbeatInterval: 20000, // ~1/3 del sessionTimeout (recomendado por kafkajs docs)
+        rebalanceTimeout: 120000, // Opcional, pero ayuda en rebalances
+        subscribe: {
+          fromBeginning: true,
+        },
       },
     },
   }); //

@@ -68,8 +68,8 @@ export interface PendingReadingSQLResult {
   trash_rate_previous: number;
   epaa_value: number;
   third_party_value: number;
-  balance_in_favor: number;
-  balance_against: number;
+  balance_in_favor_next_month: number;
+  balance_against_next_month: number;
   discount_trash_rate: number;
   surcharge: number;
   adjusted_total: number;

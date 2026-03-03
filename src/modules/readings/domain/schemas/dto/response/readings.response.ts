@@ -39,8 +39,8 @@ export interface PendingReadingResponse {
   trashRatePrevious: number;
   epaaValue: number;
   thirdPartyValue: number;
-  balanceInFavor: number;
-  balanceAgainst: number;
+  balanceInFavorNextMonth: number;
+  balanceAgainstNextMonth: number;
   discountTrashRate: number;
   surcharge: number;
   adjustedTotal: number;
