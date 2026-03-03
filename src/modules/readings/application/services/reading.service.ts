@@ -297,7 +297,9 @@ export class ReadingService
         if (match) {
           reading.thirdPartyValue = match.valor_terceros;
           reading.total =
-            reading.epaaValue + reading.trashRate + reading.thirdPartyValue;
+            reading.epaaValue +
+            reading.trashRateOfficial +
+            reading.thirdPartyValue;
         }
 
         return reading;
