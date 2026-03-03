@@ -44,7 +44,6 @@ export interface RangoTarifaSQLResult {
   Base: number;
   Adicional: number;
 }
-
 export interface PendingReadingSQLResult {
   // Cliente (solo en la primera fila):
   card_id: string;
@@ -64,21 +63,26 @@ export interface PendingReadingSQLResult {
   year_due: number;
   reading_status: string;
   payment_date: Date | null;
-  trash_rate: number;
-  trash_rate_previous: number;
-  epaa_value: number;
-  third_party_value: number;
-  balance_in_favor_next_month: number;
-  balance_against_next_month: number;
-  discount_trash_rate: number;
-  surcharge: number;
-  adjusted_total: number;
-  total: number;
+
+  // ▼ Campos Modificados de Basura ▼
+  trash_rate_official: number; // Tarifa de basura OFICIAL (la que vale el mes actual)
+  trash_rate_for_payment: number; // Lo que EFECTIVAMENTE paga (0 si el saldo cubre todo)
+  trash_rate_previous: number; // Crédito del pasado
+  balance_in_favor_next_month: number; // Saldo sobrante para el próx mes (Verde)
+  balance_against_next_month: number; // Saldo en contra (Rojo)
+  discount_trash_rate: number; // Descuento aplicado (siempre 0 en deudas)
+  total_trash_rate: number; // Total neto basura (tasa actual + ajuste, coincidirá con for_payment)
+
+  epaa_value: number; // Valor Titulo
+  third_party_value: number; // Valor Terceros
+  surcharge: number; // Recargo
+  total_epaa_value: number; // Agua + Terceros + Recargo
+  total: number; // Sumatoria base de todo (sin ajustes)
+  adjusted_total: number; // Sumatoria final totalizada del cliente
+
   due_date: Date | null;
   income_status: string;
   income_date: Date | null;
-  total_trash_rate: number; // tasa_basura + (tasa_basura - tasa_basura_anterior_oficial)
-  total_epaa_value: number; // Valor_Titulo + ValorTerceros
 }
 
 export interface PaymentReadingSqlResponse {

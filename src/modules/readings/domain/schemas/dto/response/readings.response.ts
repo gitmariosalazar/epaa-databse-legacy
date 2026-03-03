@@ -35,21 +35,26 @@ export interface PendingReadingResponse {
   yearDue: number;
   readingStatus: string;
   paymentDate: Date | null;
-  trashRate: number;
-  trashRatePrevious: number;
-  epaaValue: number;
-  thirdPartyValue: number;
-  balanceInFavorNextMonth: number;
-  balanceAgainstNextMonth: number;
-  discountTrashRate: number;
-  surcharge: number;
-  adjustedTotal: number;
-  total: number;
+
+  // ▼ Campos Modificados de Basura ▼
+  trashRateOfficial: number; // Mapea a trash_rate_official
+  trashRateForPayment: number; // Mapea a trash_rate_for_payment
+  trashRatePrevious: number; // Mapea a trash_rate_previous
+  balanceInFavorNextMonth: number; // Mapea a balance_in_favor_next_month
+  balanceAgainstNextMonth: number; // Mapea a balance_against_next_month
+  discountTrashRate: number; // Mapea a discount_trash_rate
+  totalTrashRate: number; // Mapea a total_trash_rate
+
+  epaaValue: number; // Mapea a epaa_value
+  thirdPartyValue: number; // Mapea a third_party_value
+  surcharge: number; // Mapea a surcharge
+  totalEpaaValue: number; // Mapea a total_epaa_value
+  total: number; // Mapea a total
+  adjustedTotal: number; // Mapea a adjusted_total
+
   dueDate: Date | null;
   incomeStatus: string;
   incomeDate: Date | null;
-  totalTrashRate: number; // tasa de basura ajustada neta
-  totalEpaaValue: number; // total agua + terceros
 }
 
 export interface PaymentReadingResponse {

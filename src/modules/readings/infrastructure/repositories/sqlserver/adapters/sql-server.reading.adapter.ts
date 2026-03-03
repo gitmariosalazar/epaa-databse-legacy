@@ -81,10 +81,14 @@ export class SQLServerReadingAdapter {
         ? String(data.reading_status).trim()
         : '',
       paymentDate: data.payment_date ? new Date(data.payment_date) : null,
-      trashRate: data.trash_rate ? Number(data.trash_rate) : 0,
-      epaaValue: data.epaa_value ? Number(data.epaa_value) : 0,
-      thirdPartyValue: data.third_party_value
-        ? Number(data.third_party_value)
+      trashRateOfficial: data.trash_rate_official
+        ? Number(data.trash_rate_official)
+        : 0,
+      trashRateForPayment: data.trash_rate_for_payment
+        ? Number(data.trash_rate_for_payment)
+        : 0,
+      trashRatePrevious: data.trash_rate_previous
+        ? Number(data.trash_rate_previous)
         : 0,
       balanceInFavorNextMonth: data.balance_in_favor_next_month
         ? Number(data.balance_in_favor_next_month)
@@ -95,17 +99,18 @@ export class SQLServerReadingAdapter {
       discountTrashRate: data.discount_trash_rate
         ? Number(data.discount_trash_rate)
         : 0,
-      surcharge: data.surcharge ? Number(data.surcharge) : 0,
-      adjustedTotal: data.adjusted_total ? Number(data.adjusted_total) : 0,
-      total: data.total ? Number(data.total) : 0,
-      trashRatePrevious: data.trash_rate_previous
-        ? Number(data.trash_rate_previous)
+      totalTrashRate: data.total_trash_rate ? Number(data.total_trash_rate) : 0,
+      epaaValue: data.epaa_value ? Number(data.epaa_value) : 0,
+      thirdPartyValue: data.third_party_value
+        ? Number(data.third_party_value)
         : 0,
+      surcharge: data.surcharge ? Number(data.surcharge) : 0,
+      totalEpaaValue: data.total_epaa_value ? Number(data.total_epaa_value) : 0,
+      total: data.total ? Number(data.total) : 0,
+      adjustedTotal: data.adjusted_total ? Number(data.adjusted_total) : 0,
       dueDate: data.due_date ? new Date(data.due_date) : null,
       incomeStatus: data.income_status ? String(data.income_status).trim() : '',
       incomeDate: data.income_date ? new Date(data.income_date) : null,
-      totalTrashRate: data.total_trash_rate ? Number(data.total_trash_rate) : 0,
-      totalEpaaValue: data.total_epaa_value ? Number(data.total_epaa_value) : 0,
     };
   }
 
