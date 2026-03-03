@@ -718,6 +718,7 @@ export class ReadingSQLServer2000Persistence
         DECLARE @searchParam VARCHAR(50)
         SET @searchParam = '${String(searchValue.trim())}'
 
+
         SELECT
             -- ── Identificación del cliente y suministro ──────────────────────────────────
             c.CED_IDENT_CIUDADANO           AS card_id,
@@ -780,42 +781,51 @@ export class ReadingSQLServer2000Persistence
             -- ── Tasa de recolección de basura ─────────────────────────────────────────────
             -- Tarifa de basura OFICIAL (para mostrar como información de la tabla)
             CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura     ELSE NULL END AS trash_rate_official,
-
-            -- Lo que EFECTIVAMENTE paga el usuario por basura este mes
-            -- (Si el saldo anterior cubre todo, paga 0)
-            CASE WHEN l.LecturaActual IS NOT NULL
-                THEN
-                    CASE
-                        WHEN di.tasa_basura_anterior_oficial >= di.tasa_basura THEN 0
-                        ELSE (di.tasa_basura - COALESCE(di.tasa_basura_anterior_oficial, 0))
+            
+            -- Lo que EFECTIVAMENTE paga el usuario por basura este mes 
+            -- (Si hay saldo a favor y cubre todo, paga 0. Si son iguales o la tarifa subió, paga normal 2.51)
+            CASE WHEN l.LecturaActual IS NOT NULL 
+                THEN 
+                    CASE 
+                        WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN 
+                            CASE 
+                                WHEN (di.tasa_basura_anterior_oficial - di.tasa_basura) >= di.tasa_basura THEN 0
+                                ELSE di.tasa_basura - (di.tasa_basura_anterior_oficial - di.tasa_basura)
+                            END
+                        ELSE COALESCE(di.tasa_basura, 0)
                     END
-                ELSE NULL
-            END                             AS trash_rate_for_payment,
+                ELSE NULL 
+            END                             AS trash_rate,
 
             -- Crédito o saldo original que arrastra del pasado (sólo informativo)
             CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
-
-            -- Saldo a favor sobrante para el PRÓXIMO MES
-            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > di.tasa_basura
-                THEN (di.tasa_basura_anterior_oficial - di.tasa_basura)
+            
+            -- Saldo a favor sobrante para el PRÓXIMO MES (ej: 16.07 - 4.37 = 11.70)
+            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura
+                THEN 
+                    CASE 
+                        WHEN (di.tasa_basura_anterior_oficial - di.tasa_basura) >= di.tasa_basura THEN (di.tasa_basura_anterior_oficial - di.tasa_basura) - di.tasa_basura
+                        ELSE 0
+                    END
                 ELSE NULL
             END                             AS balance_in_favor_next_month,
 
-            -- Saldo en contra: la tarifa subió, el cliente pagó de menos antes → se cobra
-            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial < di.tasa_basura
-                THEN (di.tasa_basura - di.tasa_basura_anterior_oficial)
-                ELSE NULL
-            END                             AS balance_against_next_month,
+            -- Saldo en contra: se anula por completo (nunca hay saldo a favor de la empresa)
+            NULL                            AS balance_against_next_month,
             -- Descuento aplicado sobre la tasa de basura (solo en registros pagados, aquí siempre 0)
             COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,
             -- Total neto de basura = lo que le toca pagar finalmente este mes
-            CASE WHEN l.LecturaActual IS NOT NULL
-                THEN
-                    CASE
-                        WHEN di.tasa_basura_anterior_oficial >= di.tasa_basura THEN 0
-                        ELSE (di.tasa_basura - COALESCE(di.tasa_basura_anterior_oficial, 0))
+            CASE WHEN l.LecturaActual IS NOT NULL 
+                THEN 
+                    CASE 
+                        WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN 
+                            CASE 
+                                WHEN (di.tasa_basura_anterior_oficial - di.tasa_basura) >= di.tasa_basura THEN 0
+                                ELSE di.tasa_basura - (di.tasa_basura_anterior_oficial - di.tasa_basura)
+                            END
+                        ELSE COALESCE(di.tasa_basura, 0)
                     END
-                ELSE NULL
+                ELSE NULL 
             END                             AS total_trash_rate,
 
             -- ── Totales de la planilla ────────────────────────────────────────────────────
@@ -834,9 +844,13 @@ export class ReadingSQLServer2000Persistence
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
                    + COALESCE(di.Recargo, 0)
-                   + CASE
-                        WHEN di.tasa_basura_anterior_oficial >= di.tasa_basura THEN 0
-                        ELSE (di.tasa_basura - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                   + CASE 
+                        WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN 
+                            CASE 
+                                WHEN (di.tasa_basura_anterior_oficial - di.tasa_basura) >= di.tasa_basura THEN 0
+                                ELSE di.tasa_basura - (di.tasa_basura_anterior_oficial - di.tasa_basura)
+                            END
+                        ELSE COALESCE(di.tasa_basura, 0)
                      END
                 ELSE NULL
             END                             AS adjusted_total,
