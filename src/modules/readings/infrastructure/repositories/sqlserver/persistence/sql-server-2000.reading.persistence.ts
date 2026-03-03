@@ -755,17 +755,42 @@ export class ReadingSQLServer2000Persistence
           END                             AS reading_status,
 
           di.Fecha_Pago                   AS payment_date,
-          
+          CASE WHEN l.LecturaActual IS NOT NULL THEN (di.tasa_basura_anterior_oficial)    ELSE NULL END AS trash_rate_previous,
           CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura      ELSE NULL END AS trash_rate,
           CASE WHEN l.LecturaActual IS NOT NULL THEN (di.Valor_Titulo + di.Recargo)     ELSE NULL END AS epaa_value,
           CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros    ELSE NULL END AS third_party_value,
-          
-          CASE WHEN l.LecturaActual IS NOT NULL 
-              THEN COALESCE(di.Valor_Titulo, 0) + 
-                    COALESCE(di.ValorTerceros, 0) + 
-                    COALESCE(di.tasa_basura, 0) + COALESCE(di.Recargo, 0)
-              ELSE NULL 
-          END                             AS total,
+          CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > di.tasa_basura
+                THEN (di.tasa_basura_anterior_oficial - di.tasa_basura)
+                ELSE NULL
+            END AS balance_in_favor,
+            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial < di.tasa_basura
+                THEN (di.tasa_basura - di.tasa_basura_anterior_oficial)
+                ELSE NULL
+            END AS balance_against,
+            COALESCE(di.descuento_tb, 0) as discount_trash_rate,
+            di.Recargo as surcharge,
+
+          CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)    -- ValorEpaa
+                  + COALESCE(di.ValorTerceros, 0)   -- ValorTerceros
+                  + COALESCE(di.tasa_basura, 0)     -- TasaBasura actual
+                  + COALESCE(di.Recargo, 0)         -- Recargos
+                -- descuento_tb does not apply: only exists on paid records (Fecha_Pago IS NOT NULL)
+                ELSE NULL
+            END                             AS total,
+
+          -- Total adjusted by trash rate balance:
+          --   Rate went down (previous > current) → credit in favor of client → difference is subtracted
+          --   Rate went up  (current > previous)  → balance against client   → difference is added
+          CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                  + COALESCE(di.ValorTerceros, 0)
+                  + COALESCE(di.tasa_basura, 0)
+                  + COALESCE(di.Recargo, 0)
+                  + COALESCE(di.descuento_tb, 0)
+                  + (COALESCE(di.tasa_basura, 0) - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                ELSE NULL
+            END                             AS adjusted_total,
 
           di.Fecha_Venc_Interes           AS due_date,
           di.Estado_Ingreso               AS income_status,

@@ -36,8 +36,14 @@ export interface PendingReadingResponse {
   readingStatus: string;
   paymentDate: Date | null;
   trashRate: number;
+  trashRatePrevious: number;
   epaaValue: number;
   thirdPartyValue: number;
+  balanceInFavor: number;
+  balanceAgainst: number;
+  discountTrashRate: number;
+  surcharge: number;
+  adjustedTotal: number;
   total: number;
   dueDate: Date | null;
   incomeStatus: string;

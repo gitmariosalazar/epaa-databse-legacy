@@ -538,10 +538,10 @@ export class ReadingSQLServer2022Persistence
             l.LecturaActual                 AS current_reading,
             l.LecturaAnterior               AS previous_reading,
             l.ValorAPagar                   AS reading_value,
-            CASE 
-                WHEN l.LecturaActual IS NOT NULL 
-                THEN (l.LecturaActual - l.LecturaAnterior) 
-                ELSE NULL 
+            CASE
+                WHEN l.LecturaActual IS NOT NULL
+                THEN (l.LecturaActual - l.LecturaAnterior)
+                ELSE NULL
             END                             AS consumption,
 
             CASE MONTH(di.Fecha_Venc_Interes)
@@ -550,51 +550,76 @@ export class ReadingSQLServer2022Persistence
                 WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
                 WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
             END                             AS month_due,
-            
+
             YEAR(di.Fecha_Venc_Interes)     AS year_due,
 
             CASE
                 WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
-                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE() 
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE()
                     THEN 'Pendiente de lectura (período actual/futuro)'
-                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE() 
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE()
                     THEN 'Lectura no registrada o pendiente'
                 ELSE 'No disponible'
             END                             AS reading_status,
 
             di.Fecha_Pago                   AS payment_date,
-            
+            CASE WHEN l.LecturaActual IS NOT NULL THEN (di.tasa_basura_anterior_oficial)    ELSE NULL END AS trash_rate_previous,
             CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura      ELSE NULL END AS trash_rate,
             CASE WHEN l.LecturaActual IS NOT NULL THEN di.Valor_Titulo     ELSE NULL END AS epaa_value,
             CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros    ELSE NULL END AS third_party_value,
-            
-            CASE WHEN l.LecturaActual IS NOT NULL 
-                THEN COALESCE(di.Valor_Titulo, 0) + 
-                      COALESCE(di.ValorTerceros, 0) + 
-                      COALESCE(di.tasa_basura, 0) 
-                ELSE NULL 
+            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > di.tasa_basura
+                THEN (di.tasa_basura_anterior_oficial - di.tasa_basura)
+                ELSE NULL
+            END AS balance_in_favor,
+            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial < di.tasa_basura
+                THEN (di.tasa_basura - di.tasa_basura_anterior_oficial)
+                ELSE NULL
+            END AS balance_against,
+            COALESCE(di.descuento_tb, 0) as discount_trash_rate,
+            di.Recargo as surcharge,
+
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)    -- ValorEpaa
+                  + COALESCE(di.ValorTerceros, 0)   -- ValorTerceros
+                  + COALESCE(di.tasa_basura, 0)     -- TasaBasura actual
+                  + COALESCE(di.Recargo, 0)         -- Recargos
+                -- descuento_tb does not apply: only exists on paid records (Fecha_Pago IS NOT NULL)
+                ELSE NULL
             END                             AS total,
+
+            -- Total adjusted by trash rate balance:
+            --   Rate went down (previous > current) → credit in favor of client → difference is subtracted
+            --   Rate went up  (current > previous)  → balance against client   → difference is added
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                  + COALESCE(di.ValorTerceros, 0)
+                  + COALESCE(di.tasa_basura, 0)
+                  + COALESCE(di.Recargo, 0)
+                  + COALESCE(di.descuento_tb, 0)
+                  + (COALESCE(di.tasa_basura, 0) - COALESCE(di.tasa_basura_anterior_oficial, 0))
+                ELSE NULL
+            END                             AS adjusted_total,
 
             di.Fecha_Venc_Interes           AS due_date,
             di.Estado_Ingreso               AS income_status,
             di.Fecha_Ingreso                AS income_date
 
         FROM Datos_ingreso di
-        INNER JOIN CIUDADANO c 
+        INNER JOIN CIUDADANO c
             ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
         INNER JOIN AP_ACOMETIDAS a
-            ON a.Sector = 
-                CASE 
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+            ON a.Sector =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
                         AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
                         AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
                     THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
                     ELSE -1
                 END
-            AND a.Cuenta = 
-                CASE 
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+            AND a.Cuenta =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
                         AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
                     THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
                     ELSE -1
@@ -612,7 +637,7 @@ export class ReadingSQLServer2022Persistence
                 END
             )
 
-        WHERE 
+        WHERE
             (
                 (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)
                 OR
@@ -622,9 +647,10 @@ export class ReadingSQLServer2022Persistence
             AND di.convenio   IS NULL
             AND di.Estado_Ingreso IS NULL
 
-        ORDER BY 
+        ORDER BY
             di.ClaveCatastral,
             di.Fecha_Venc_Interes DESC;
+
     `;
 
       const queryParams: any[] = [
@@ -638,6 +664,8 @@ export class ReadingSQLServer2022Persistence
         query,
         queryParams,
       );
+
+      console.log(result);
 
       const pendingReadings = result.map((reading) =>
         SQLServerReadingAdapter.toDomainPending(reading),

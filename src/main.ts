@@ -15,11 +15,11 @@ async function bootstrap() {
   await app.listen(environments.NODE_ENV === 'production' ? 3009 : 4009);
   app.use(morgan('dev'));
 
-  const postgresqlService: DatabaseServiceSQLServer2000 = app.get(
+  const sqlServerService: DatabaseServiceSQLServer2000 = app.get(
     DatabaseServiceSQLServer2000,
   );
 
-  logger.log(await postgresqlService.connect());
+  logger.log(await sqlServerService.connect());
   logger.log(
     `🚀🎉 The Epaa Database Legacy microservice is running: http://localhost:${environments.NODE_ENV === 'production' ? 3009 : 4009}✅`,
   );

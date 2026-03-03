@@ -65,8 +65,14 @@ export interface PendingReadingSQLResult {
   reading_status: string;
   payment_date: Date | null;
   trash_rate: number;
+  trash_rate_previous: number;
   epaa_value: number;
   third_party_value: number;
+  balance_in_favor: number;
+  balance_against: number;
+  discount_trash_rate: number;
+  surcharge: number;
+  adjusted_total: number;
   total: number;
   due_date: Date | null;
   income_status: string;

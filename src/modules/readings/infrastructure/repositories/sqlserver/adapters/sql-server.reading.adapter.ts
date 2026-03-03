@@ -86,7 +86,17 @@ export class SQLServerReadingAdapter {
       thirdPartyValue: data.third_party_value
         ? Number(data.third_party_value)
         : 0,
+      balanceInFavor: data.balance_in_favor ? Number(data.balance_in_favor) : 0,
+      balanceAgainst: data.balance_against ? Number(data.balance_against) : 0,
+      discountTrashRate: data.discount_trash_rate
+        ? Number(data.discount_trash_rate)
+        : 0,
+      surcharge: data.surcharge ? Number(data.surcharge) : 0,
+      adjustedTotal: data.adjusted_total ? Number(data.adjusted_total) : 0,
       total: data.total ? Number(data.total) : 0,
+      trashRatePrevious: data.trash_rate_previous
+        ? Number(data.trash_rate_previous)
+        : 0,
       dueDate: data.due_date ? new Date(data.due_date) : null,
       incomeStatus: data.income_status ? String(data.income_status).trim() : '',
       incomeDate: data.income_date ? new Date(data.income_date) : null,
