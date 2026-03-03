@@ -779,7 +779,7 @@ export class ReadingSQLServer2000Persistence
 
             -- ── Tasa de recolección de basura ─────────────────────────────────────────────
             -- Tarifa de basura OFICIAL (para mostrar como información de la tabla)
-            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura     ELSE NULL END AS trash_rate,
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura     ELSE NULL END AS trash_rate_official,
 
             -- Lo que EFECTIVAMENTE paga el usuario por basura este mes
             -- (Si el saldo anterior cubre todo, paga 0)
