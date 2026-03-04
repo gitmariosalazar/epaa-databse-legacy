@@ -294,12 +294,12 @@ export class ReadingService
             Number(ep.LecturaActual) === reading.currentReading,
         );
 
+        const totalAux = reading.total;
+
         if (match) {
           reading.thirdPartyValue = match.valor_terceros;
-          reading.total =
-            reading.epaaValue +
-            reading.trashRateOfficial +
-            reading.thirdPartyValue;
+          reading.total = totalAux + match.valor_terceros;
+          reading.adjustedTotal = totalAux + match.valor_terceros;
         }
 
         return reading;
