@@ -44,45 +44,51 @@ export interface RangoTarifaSQLResult {
   Base: number;
   Adicional: number;
 }
+
 export interface PendingReadingSQLResult {
-  // Cliente (solo en la primera fila):
+  // ── Identificación del Cliente y Suministro ────────────────────────────────
   card_id: string;
   name: string;
   last_name: string;
-  // Por cada suministro/planilla:
   cadastral_key: string;
   address: string;
   rate: string;
+
+  // ── Período de Facturación e Ingresos ──────────────────────────────────────
   month: string;
   year: number;
-  current_reading: number;
-  previous_reading: number;
-  reading_value: number;
-  consumption: number;
   month_due: string;
   year_due: number;
-  reading_status: string;
+  due_date: Date | null;
   payment_date: Date | null;
+  income_status: string;
+  income_date: Date | null;
 
-  // ▼ Campos Modificados de Basura ▼
-  trash_rate_official: number; // Tarifa de basura OFICIAL (la que vale el mes actual)
-  trash_rate_for_payment: number; // Lo que EFECTIVAMENTE paga (0 si el saldo cubre todo)
-  trash_rate_previous: number; // Crédito del pasado
-  balance_in_favor_next_month: number; // Saldo sobrante para el próx mes (Verde)
-  balance_against_next_month: number; // Saldo en contra (Rojo)
-  discount_trash_rate: number; // Descuento aplicado (siempre 0 en deudas)
-  total_trash_rate: number; // Total neto basura (tasa actual + ajuste, coincidirá con for_payment)
+  // ── Lectura del Medidor ────────────────────────────────────────────────────
+  current_reading: number;
+  previous_reading: number;
+  consumption: number;
+  reading_status: string;
+  reading_value: number;
 
+  // ── Valores de Agua (Servicios Base) ───────────────────────────────────────
   epaa_value: number; // Valor Titulo
   third_party_value: number; // Valor Terceros
   surcharge: number; // Recargo
   total_epaa_value: number; // Agua + Terceros + Recargo
-  total: number; // Sumatoria base de todo (sin ajustes)
-  adjusted_total: number; // Sumatoria final totalizada del cliente
 
-  due_date: Date | null;
-  income_status: string;
-  income_date: Date | null;
+  // ── Tasa de Basura y Notas de Crédito ──────────────────────────────────────
+  trash_rate_official: number; // Tarifa de basura OFICIAL (la que vale el mes actual)
+  trash_rate: number; // Lo que EFECTIVAMENTE paga (0 si el saldo cubre todo)
+  trash_rate_previous: number; // Crédito del pasado (AP_NotasCredito.Valor)
+  balance_in_favor_next_month: number; // Saldo sobrante para el próx mes (Verde)
+  balance_against_next_month: number; // Saldo en contra (Rojo)
+  discount_trash_rate: number; // Descuento aplicado (0 en lecturas pendientes)
+  total_trash_rate: number; // Total neto basura (coincidirá con trash_rate)
+
+  // ── Totales de la Planilla ─────────────────────────────────────────────────
+  total: number; // Sumatoria base de todo (sin deducciones de nota de crédito)
+  adjusted_total: number; // Sumatoria final totalizada real a cobrar al cliente
 }
 
 export interface PaymentReadingSqlResponse {

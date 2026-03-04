@@ -525,6 +525,7 @@ export class ReadingSQLServer2022Persistence
 
         DECLARE @searchParam VARCHAR(50)
         SET @searchParam = '${String(searchValue.trim())}'
+
         SELECT
             -- ── Identificación del cliente y suministro ──────────────────────────────────
             c.CED_IDENT_CIUDADANO           AS card_id,
@@ -580,28 +581,58 @@ export class ReadingSQLServer2022Persistence
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
+                   + COALESCE(di.Recargo, 0)
                 ELSE NULL
             END                             AS total_epaa_value,
 
             -- ── Tasa de recolección de basura ─────────────────────────────────────────────
-            -- Tarifa de basura aplicada en este período
-            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura     ELSE NULL END AS trash_rate,
-            -- Tarifa oficial del período anterior (para calcular saldo)
-            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
-            -- Saldo a favor: la tarifa bajó, el cliente pagó de más antes → se descuenta
-            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura
-                THEN (di.tasa_basura_anterior_oficial - di.tasa_basura)
+            -- Tarifa de basura OFICIAL (para mostrar como información de la tabla)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN ISNULL(v.Valor, di.tasa_basura)     ELSE NULL END AS trash_rate_official,
+            
+            -- Lo que EFECTIVAMENTE paga el usuario por basura este mes 
+            -- (Si hay saldo a favor y cubre todo, paga 0)
+            CASE WHEN l.LecturaActual IS NOT NULL 
+                THEN 
+                    CASE 
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN 
+                            CASE 
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL 
+            END                             AS trash_rate,
+
+            -- Crédito original que arrastra del pasado (sólo informativo)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN anc.Valor ELSE NULL END AS trash_rate_previous,
+            
+            -- Saldo a favor sobrante para el PRÓXIMO MES
+            CASE WHEN l.LecturaActual IS NOT NULL AND COALESCE(anc.Valor, 0) > 0
+                THEN 
+                    CASE 
+                        WHEN anc.Valor > ISNULL(v.Valor, di.tasa_basura) THEN anc.Valor - ISNULL(v.Valor, di.tasa_basura)
+                        ELSE 0
+                    END
                 ELSE NULL
-            END                             AS balance_in_favor,
-            -- Saldo en contra: Nunca hay saldo a favor de la empresa (se anula a petición)
-            NULL                            AS balance_against,
+            END                             AS balance_in_favor_next_month,
+
+            -- Saldo en contra: se anula por completo (nunca hay saldo a favor de la empresa)
+            NULL                            AS balance_against_next_month,
             -- Descuento aplicado sobre la tasa de basura (solo en registros pagados, aquí siempre 0)
             COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,
-            -- Total neto de basura = tasa actual - descuento por saldo a favor del cliente
-            CASE WHEN l.LecturaActual IS NOT NULL
-                THEN COALESCE(di.tasa_basura, 0)
-                   - CASE WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN (di.tasa_basura_anterior_oficial - di.tasa_basura) ELSE 0 END
-                ELSE NULL
+            -- Total neto de basura = lo que le toca pagar finalmente este mes
+            CASE WHEN l.LecturaActual IS NOT NULL 
+                THEN 
+                    CASE 
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN 
+                            CASE 
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL 
             END                             AS total_trash_rate,
 
             -- ── Totales de la planilla ────────────────────────────────────────────────────
@@ -609,22 +640,25 @@ export class ReadingSQLServer2022Persistence
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
-                   + COALESCE(di.tasa_basura, 0)
+                   + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
                    + COALESCE(di.Recargo, 0)
                 -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
             END                             AS total,
 
-            -- Total ajustado: incorpora el saldo a favor por cambio de tarifa de basura
-            --   Tarifa bajó (anterior > actual) → saldo a favor del cliente → resta diferencia
-            --   (No se cobra saldo en contra si la tarifa subió)
+            -- Total ajustado: Total consolidado del cliente
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
-                   + COALESCE(di.tasa_basura, 0)
                    + COALESCE(di.Recargo, 0)
-                   - CASE WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN (di.tasa_basura_anterior_oficial - di.tasa_basura) ELSE 0 END
-                -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
+                   + CASE 
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN 
+                            CASE 
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                     END
                 ELSE NULL
             END                             AS adjusted_total,
 
@@ -664,6 +698,12 @@ export class ReadingSQLServer2022Persistence
                     WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
                 END
             )
+
+        LEFT JOIN AP_NotasCredito anc
+            ON di.ClaveCatastral = anc.Cuenta
+
+        LEFT JOIN Valor v
+            ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
 
         WHERE
             (

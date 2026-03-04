@@ -718,7 +718,6 @@ export class ReadingSQLServer2000Persistence
         DECLARE @searchParam VARCHAR(50)
         SET @searchParam = '${String(searchValue.trim())}'
 
-
         SELECT
             -- ── Identificación del cliente y suministro ──────────────────────────────────
             c.CED_IDENT_CIUDADANO           AS card_id,
@@ -780,31 +779,31 @@ export class ReadingSQLServer2000Persistence
 
             -- ── Tasa de recolección de basura ─────────────────────────────────────────────
             -- Tarifa de basura OFICIAL (para mostrar como información de la tabla)
-            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura     ELSE NULL END AS trash_rate_official,
+            CASE WHEN l.LecturaActual IS NOT NULL THEN ISNULL(v.Valor, di.tasa_basura)     ELSE NULL END AS trash_rate_official,
             
             -- Lo que EFECTIVAMENTE paga el usuario por basura este mes 
-            -- (Si hay saldo a favor y cubre todo, paga 0. Si son iguales o la tarifa subió, paga normal 2.51)
+            -- (Si hay saldo a favor y cubre todo, paga 0)
             CASE WHEN l.LecturaActual IS NOT NULL 
                 THEN 
                     CASE 
-                        WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN 
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN 
                             CASE 
-                                WHEN (di.tasa_basura_anterior_oficial - di.tasa_basura) >= di.tasa_basura THEN 0
-                                ELSE di.tasa_basura - (di.tasa_basura_anterior_oficial - di.tasa_basura)
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
                             END
-                        ELSE COALESCE(di.tasa_basura, 0)
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
                     END
                 ELSE NULL 
             END                             AS trash_rate,
 
-            -- Crédito o saldo original que arrastra del pasado (sólo informativo)
-            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
+            -- Crédito original que arrastra del pasado (sólo informativo)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN anc.Valor ELSE NULL END AS trash_rate_previous,
             
-            -- Saldo a favor sobrante para el PRÓXIMO MES (ej: 16.07 - 4.37 = 11.70)
-            CASE WHEN l.LecturaActual IS NOT NULL AND di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura
+            -- Saldo a favor sobrante para el PRÓXIMO MES
+            CASE WHEN l.LecturaActual IS NOT NULL AND COALESCE(anc.Valor, 0) > 0
                 THEN 
                     CASE 
-                        WHEN (di.tasa_basura_anterior_oficial - di.tasa_basura) >= di.tasa_basura THEN (di.tasa_basura_anterior_oficial - di.tasa_basura) - di.tasa_basura
+                        WHEN anc.Valor > ISNULL(v.Valor, di.tasa_basura) THEN anc.Valor - ISNULL(v.Valor, di.tasa_basura)
                         ELSE 0
                     END
                 ELSE NULL
@@ -818,12 +817,12 @@ export class ReadingSQLServer2000Persistence
             CASE WHEN l.LecturaActual IS NOT NULL 
                 THEN 
                     CASE 
-                        WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN 
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN 
                             CASE 
-                                WHEN (di.tasa_basura_anterior_oficial - di.tasa_basura) >= di.tasa_basura THEN 0
-                                ELSE di.tasa_basura - (di.tasa_basura_anterior_oficial - di.tasa_basura)
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
                             END
-                        ELSE COALESCE(di.tasa_basura, 0)
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
                     END
                 ELSE NULL 
             END                             AS total_trash_rate,
@@ -833,7 +832,7 @@ export class ReadingSQLServer2000Persistence
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
-                   + COALESCE(di.tasa_basura, 0)
+                   + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
                    + COALESCE(di.Recargo, 0)
                 -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
@@ -845,12 +844,12 @@ export class ReadingSQLServer2000Persistence
                    + COALESCE(di.ValorTerceros, 0)
                    + COALESCE(di.Recargo, 0)
                    + CASE 
-                        WHEN di.tasa_basura_anterior_oficial > 0 AND di.tasa_basura_anterior_oficial > di.tasa_basura THEN 
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN 
                             CASE 
-                                WHEN (di.tasa_basura_anterior_oficial - di.tasa_basura) >= di.tasa_basura THEN 0
-                                ELSE di.tasa_basura - (di.tasa_basura_anterior_oficial - di.tasa_basura)
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
                             END
-                        ELSE COALESCE(di.tasa_basura, 0)
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
                      END
                 ELSE NULL
             END                             AS adjusted_total,
@@ -891,6 +890,12 @@ export class ReadingSQLServer2000Persistence
                     WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
                 END
             )
+
+        LEFT JOIN AP_NotasCredito anc
+            ON di.ClaveCatastral = anc.Cuenta
+
+        LEFT JOIN Valor v
+            ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
 
         WHERE
             (
