@@ -62,6 +62,7 @@ export class SQLServerReadingAdapter {
   ): PendingReadingResponse {
     return {
       // ── Identificación del Cliente y Suministro ────────────────────────────────
+      incomeCode: data.income_code ? String(data.income_code).trim() : '',
       cardId: String(data.card_id).trim(),
       name: data.name ? String(data.name).trim() : '',
       lastName: data.last_name ? String(data.last_name).trim() : '',

@@ -18,6 +18,7 @@ export interface ReadingResponse {
 
 export interface PendingReadingResponse {
   // ── Identificación del Cliente y Suministro ────────────────────────────────
+  incomeCode: string;
   cardId: string;
   name: string;
   lastName: string;

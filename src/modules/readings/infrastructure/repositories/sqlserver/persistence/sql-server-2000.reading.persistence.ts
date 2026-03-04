@@ -720,6 +720,7 @@ export class ReadingSQLServer2000Persistence
 
         SELECT
             -- ── Identificación del cliente y suministro ──────────────────────────────────
+			      di.Cod_Ingreso                  AS income_code,
             c.CED_IDENT_CIUDADANO           AS card_id,
             c.NOMBRES_CIUDADANO             AS name,
             c.APELLIDOS_CIUDADANO           AS last_name,
@@ -797,7 +798,7 @@ export class ReadingSQLServer2000Persistence
             END                             AS trash_rate,
 
             -- Crédito original que arrastra del pasado (sólo informativo)
-            CASE WHEN l.LecturaActual IS NOT NULL THEN anc.Valor ELSE NULL END AS trash_rate_previous,
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
             
             -- Saldo a favor sobrante para el PRÓXIMO MES
             CASE WHEN l.LecturaActual IS NOT NULL AND COALESCE(anc.Valor, 0) > 0

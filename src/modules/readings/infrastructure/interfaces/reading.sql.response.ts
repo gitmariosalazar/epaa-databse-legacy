@@ -47,6 +47,7 @@ export interface RangoTarifaSQLResult {
 
 export interface PendingReadingSQLResult {
   // ── Identificación del Cliente y Suministro ────────────────────────────────
+  income_code: string;
   card_id: string;
   name: string;
   last_name: string;
