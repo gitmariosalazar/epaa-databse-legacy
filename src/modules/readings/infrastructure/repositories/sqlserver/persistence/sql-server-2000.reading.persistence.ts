@@ -799,7 +799,15 @@ export class ReadingSQLServer2000Persistence
 
             -- Crédito original que arrastra del pasado (sólo informativo)
             CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
-            
+            -- Saldo a favor actual
+            CASE WHEN l.LecturaActual IS NOT NULL AND COALESCE(anc.Valor, 0) > 0
+                THEN 
+                    CASE 
+                        WHEN anc.Valor > ISNULL(v.Valor, di.tasa_basura) THEN anc.Valor - ISNULL(v.Valor, di.tasa_basura)
+                        ELSE 0
+                    END
+                ELSE NULL
+            END                             AS balance_in_favor_current_month,
             -- Saldo a favor sobrante para el PRÓXIMO MES
             CASE WHEN l.LecturaActual IS NOT NULL AND COALESCE(anc.Valor, 0) > 0
                 THEN 

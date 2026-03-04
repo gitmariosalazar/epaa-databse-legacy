@@ -111,6 +111,9 @@ export class SQLServerReadingAdapter {
       trashRatePrevious: data.trash_rate_previous
         ? Number(data.trash_rate_previous)
         : 0,
+      balanceInFavorCurrentMonth: data.balance_in_favor_current_month
+        ? Number(data.balance_in_favor_current_month)
+        : 0,
       balanceInFavorNextMonth: data.balance_in_favor_next_month
         ? Number(data.balance_in_favor_next_month)
         : 0,

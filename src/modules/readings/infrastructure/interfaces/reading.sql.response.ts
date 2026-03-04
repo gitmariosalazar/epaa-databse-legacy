@@ -82,6 +82,7 @@ export interface PendingReadingSQLResult {
   trash_rate_official: number; // Tarifa de basura OFICIAL (la que vale el mes actual)
   trash_rate: number; // Lo que EFECTIVAMENTE paga (0 si el saldo cubre todo)
   trash_rate_previous: number; // Crédito del pasado (AP_NotasCredito.Valor)
+  balance_in_favor_current_month: number; // Saldo a favor actual
   balance_in_favor_next_month: number; // Saldo sobrante para el próx mes (Verde)
   balance_against_next_month: number; // Saldo en contra (Rojo)
   discount_trash_rate: number; // Descuento aplicado (0 en lecturas pendientes)

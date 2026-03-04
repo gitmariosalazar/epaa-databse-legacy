@@ -53,6 +53,7 @@ export interface PendingReadingResponse {
   trashRateOfficial: number; // Tarifa de basura OFICIAL (según tabla Valor o Datos_ingreso)
   trashRate: number; // Lo que EFECTIVAMENTE paga (0 si el saldo a favor cubre todo)
   trashRatePrevious: number; // Crédito o nota de crédito original que arrastra del pasado
+  balanceInFavorCurrentMonth: number; // Saldo a favor actual
   balanceInFavorNextMonth: number; // Saldo sobrante a favor para el próximo mes
   balanceAgainstNextMonth: number; // Saldo en contra (siempre nulo/0)
   discountTrashRate: number; // Descuento manual aplicado (0 en recibos pendientes)
