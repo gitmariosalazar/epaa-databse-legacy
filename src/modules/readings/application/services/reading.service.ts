@@ -295,11 +295,12 @@ export class ReadingService
         );
 
         const totalAux = reading.total;
+        const totalAdjusted = reading.adjustedTotal;
 
         if (match) {
           reading.thirdPartyValue = match.valor_terceros;
           reading.total = totalAux + match.valor_terceros;
-          reading.adjustedTotal = totalAux + match.valor_terceros;
+          reading.adjustedTotal = totalAdjusted + match.valor_terceros;
         }
 
         return reading;

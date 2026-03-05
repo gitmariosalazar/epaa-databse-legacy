@@ -1302,6 +1302,8 @@ SELECT
         .replace('T', ' ')
         .replace('Z', '')
         .split('.')[0];
+      // Example Date init: 2026-03-01 00:00:00
+      // Example Date init: 2026-03-01 23:59:59.997
       const endDate = params.endDate.split('T')[0] + ' 23:59:59.997';
       const query = `
           SELECT
@@ -1362,7 +1364,7 @@ SELECT
               AND i.collector = d.collector
           ORDER BY
               i.date,
-              i.total_collected DESC
+              i.total_collected DESC;
       `;
       const result =
         await this.sqlServerService.query<DailyCollectorSummarySQLResult>(
