@@ -143,6 +143,8 @@ export class TrashRateReportMapper {
       paidBills: model.paidBills,
       pendingBills: model.pendingBills,
       missingValorRecords: model.missingValorRecords,
+      countNotes: model.countNotes,
+      totalNotesAmount: model.totalNotesAmount,
     };
   }
 }

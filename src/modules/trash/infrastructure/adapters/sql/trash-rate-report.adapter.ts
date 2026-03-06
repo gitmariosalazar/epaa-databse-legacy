@@ -143,6 +143,8 @@ export class TrashRateReportAdapter {
       paidBills: response.paid_bills,
       pendingBills: response.pending_bills,
       missingValorRecords: response.missing_valor_records,
+      countNotes: response.count_notes,
+      totalNotesAmount: response.total_notes_amount,
     };
   }
 }

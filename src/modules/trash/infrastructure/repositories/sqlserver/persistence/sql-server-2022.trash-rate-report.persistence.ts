@@ -38,6 +38,9 @@ export class SqlServer2022TrashRateReportPersistence
     try {
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
+      const safeOffset = Number.isInteger(offset) && offset! >= 0 ? offset! : 0;
+      const safeLimit =
+        Number.isInteger(limit) && limit! > 0 ? limit! : 1000000;
       const query = `
         SET NOCOUNT ON;
         DECLARE @fechaInicio DATETIME
@@ -46,9 +49,9 @@ export class SqlServer2022TrashRateReportPersistence
         SET @fechaFin    = CONVERT(DATETIME, '${endDateTime}', 120)
 
         SELECT
-            di.Cod_Ingreso                                          AS bill_id,
+            di.Cod_Ingreso                                          AS income_code,
             di.ClaveCatastral                                       AS cadastral_key,
-            di.CodCliente_Ingreso                                   AS national_id,
+            di.CodCliente_Ingreso                                   AS card_id,
             di.nombre                                               AS customer_name,
             CONVERT(VARCHAR(10), di.Fecha_Ingreso, 103)             AS issue_date,
             CONVERT(VARCHAR(10), di.Fecha_Pago, 103)                AS payment_date,
@@ -75,7 +78,7 @@ export class SqlServer2022TrashRateReportPersistence
           AND di.Fecha_Ingreso <= @fechaFin
           AND di.tasa_basura IS NOT NULL
         ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
-        OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
+        OFFSET ${safeOffset} ROWS FETCH NEXT ${safeLimit} ROWS ONLY;
       `;
 
       const result: TrashRateAuditRowSqlResult[] =
@@ -100,13 +103,16 @@ export class SqlServer2022TrashRateReportPersistence
   ): Promise<CreditNoteRowModel[]> {
     try {
       const initDateTime = `${String(startDate)} 00:00:00.000`;
+      const safeOffset = Number.isInteger(offset) && offset! >= 0 ? offset! : 0;
+      const safeLimit =
+        Number.isInteger(limit) && limit! > 0 ? limit! : 1000000;
       const query = `
         SET NOCOUNT ON;
         DECLARE @fechaInicio DATETIME
         SET @fechaInicio = CONVERT(DATETIME, '${initDateTime}', 120)
         SELECT
             nc.Cuenta                                               AS cadastral_key,
-            nc.CedulaCiudadano                                      AS national_id,
+            nc.CedulaCiudadano                                      AS card_id,
             ia.nombre                                               AS customer_name,
             ia.total_trash                                          AS total_trash_rate_history,
             ia.Max_Fecha_Ingreso                                    AS last_bill_issued,
@@ -159,7 +165,7 @@ export class SqlServer2022TrashRateReportPersistence
             nc.Cuenta,
             nc.CedulaCiudadano
         ORDER BY SUM(COALESCE(nc.Valor, 0)) DESC, ia.ClaveCatastral ASC
-        OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
+        OFFSET ${safeOffset} ROWS FETCH NEXT ${safeLimit} ROWS ONLY;
       `;
 
       const result: CreditNoteRowSqlResult[] =
@@ -187,9 +193,9 @@ export class SqlServer2022TrashRateReportPersistence
       SET @searchParam = '${searchParams}'
 
       SELECT
-          di.Cod_Ingreso                                          AS bill_id,
+          di.Cod_Ingreso                                          AS income_code,
           di.ClaveCatastral                                       AS cadastral_key,
-          di.CodCliente_Ingreso                                   AS national_id,
+          di.CodCliente_Ingreso                                   AS card_id,
           di.nombre                                               AS customer_name,
           CONVERT(VARCHAR(10), di.Fecha_Ingreso, 103)             AS issue_date,
           CONVERT(VARCHAR(10), di.Fecha_Venc_Interes, 103)        AS due_date,
@@ -298,7 +304,18 @@ export class SqlServer2022TrashRateReportPersistence
 
             SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS pending_bills,
 
-            SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)  AS missing_valor_records
+            SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)  AS missing_valor_records,
+            (SELECT COUNT(*) FROM AP_NotasCredito
+            WHERE Cuenta IN (
+                SELECT ClaveCatastral FROM Datos_ingreso
+                WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
+            )) AS count_notes,
+
+            (SELECT SUM(Valor) FROM AP_NotasCredito
+            WHERE Cuenta IN (
+                SELECT ClaveCatastral FROM Datos_ingreso
+                WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
+            )) AS total_notes_amount
 
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
@@ -338,9 +355,9 @@ export class SqlServer2022TrashRateReportPersistence
         SET @fechaFin3    = CONVERT(DATETIME, '${endDateTime}', 120)
 
         SELECT
-            di.Cod_Ingreso                                          AS bill_id,
+            di.Cod_Ingreso                                          AS income_code,
             di.ClaveCatastral                                       AS cadastral_key,
-            di.CodCliente_Ingreso                                   AS national_id,
+            di.CodCliente_Ingreso                                   AS card_id,
             di.nombre                                               AS customer_name,
             CONVERT(VARCHAR(10), di.Fecha_Ingreso, 103)             AS issue_date,
             CONVERT(VARCHAR(10), di.Fecha_Pago, 103)                AS payment_date,
@@ -444,7 +461,7 @@ export class SqlServer2022TrashRateReportPersistence
 
         SELECT TOP ${top}
             di.ClaveCatastral                                       AS cadastral_key,
-            di.CodCliente_Ingreso                                   AS national_id,
+            di.CodCliente_Ingreso                                   AS card_id,
             di.nombre                                               AS customer_name,
             COUNT(di.Cod_Ingreso)                                   AS unpaid_months,
             SUM(COALESCE(V.Valor, di.tasa_basura))                  AS total_trash_debt,

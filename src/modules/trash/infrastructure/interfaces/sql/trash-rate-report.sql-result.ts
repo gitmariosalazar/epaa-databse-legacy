@@ -96,4 +96,6 @@ export interface TrashDashboardKpiSqlResult {
   paid_bills: number;
   pending_bills: number;
   missing_valor_records: number;
+  count_notes: number;
+  total_notes_amount: number;
 }

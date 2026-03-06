@@ -96,4 +96,6 @@ export interface TrashDashboardKpiResponse {
   paidBills: number;
   pendingBills: number;
   missingValorRecords: number;
+  countNotes: number;
+  totalNotesAmount: number;
 }

@@ -109,5 +109,7 @@ export class TrashDashboardKpiModel {
     public readonly paidBills: number,
     public readonly pendingBills: number,
     public readonly missingValorRecords: number,
+    public readonly countNotes: number,
+    public readonly totalNotesAmount: number,
   ) {}
 }

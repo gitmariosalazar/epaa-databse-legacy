@@ -38,8 +38,11 @@ export class SqlServerTrash2000RateReportPersistence
     try {
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
-      const pageSize = limit;
-      const totalRows = offset + limit;
+      const safeOffset = Number.isInteger(offset) && offset! >= 0 ? offset! : 0;
+      const safeLimit =
+        Number.isInteger(limit) && limit! > 0 ? limit! : 1000000;
+      const pageSize = safeLimit;
+      const totalRows = safeOffset + safeLimit;
 
       // SQL Server 2000 pagination: double TOP technique
       // Step 1: grab the TOP (offset+limit) ordered rows
@@ -55,9 +58,9 @@ export class SqlServerTrash2000RateReportPersistence
         SELECT *
         FROM (
             SELECT TOP ${pageSize}
-                t.bill_id,
+                t.income_code,
                 t.cadastral_key,
-                t.national_id,
+                t.card_id,
                 t.customer_name,
                 t.issue_date,
                 t.payment_date,
@@ -99,9 +102,9 @@ export class SqlServerTrash2000RateReportPersistence
                   AND di.tasa_basura IS NOT NULL
                 ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
             ) t
-            ORDER BY t.cadastral_key DESC, t.bill_id DESC
+            ORDER BY t.cadastral_key DESC, t.income_code DESC
         ) r
-        ORDER BY r.cadastral_key ASC, r.bill_id ASC;
+        ORDER BY r.cadastral_key ASC, r.income_code ASC;
       `;
 
       const result: TrashRateAuditRowSqlResult[] =
@@ -126,8 +129,11 @@ export class SqlServerTrash2000RateReportPersistence
   ): Promise<CreditNoteRowModel[]> {
     try {
       const initDateTime = `${String(startDate)} 00:00:00.000`;
-      const pageSize = limit;
-      const totalRows = offset + limit;
+      const safeOffset = Number.isInteger(offset) && offset! >= 0 ? offset! : 0;
+      const safeLimit =
+        Number.isInteger(limit) && limit! > 0 ? limit! : 1000000;
+      const pageSize = safeLimit;
+      const totalRows = safeOffset + safeLimit;
 
       // SQL Server 2000 pagination: double TOP on the aggregated result
       const query = `
@@ -139,7 +145,7 @@ export class SqlServerTrash2000RateReportPersistence
         FROM (
             SELECT TOP ${pageSize}
                 p.cadastral_key,
-                p.national_id,
+                p.card_id,
                 p.customer_name,
                 p.total_trash_rate_history,
                 p.last_bill_issued,
@@ -153,7 +159,7 @@ export class SqlServerTrash2000RateReportPersistence
             FROM (
                 SELECT TOP ${totalRows}
                     nc.Cuenta                                               AS cadastral_key,
-                    nc.CedulaCiudadano                                      AS national_id,
+                    nc.CedulaCiudadano                                      AS card_id,
                     ia.nombre                                               AS customer_name,
                     ia.total_trash                                          AS total_trash_rate_history,
                     ia.Max_Fecha_Ingreso                                    AS last_bill_issued,
@@ -237,9 +243,9 @@ export class SqlServerTrash2000RateReportPersistence
       SET @searchParam = '${searchParams}'
 
       SELECT
-          di.Cod_Ingreso                                          AS bill_id,
+          di.Cod_Ingreso                                          AS income_code,
           di.ClaveCatastral                                       AS cadastral_key,
-          di.CodCliente_Ingreso                                   AS national_id,
+          di.CodCliente_Ingreso                                   AS card_id,
           di.nombre                                               AS customer_name,
           CONVERT(VARCHAR(10), di.Fecha_Ingreso, 103)             AS issue_date,
           CONVERT(VARCHAR(10), di.Fecha_Venc_Interes, 103)        AS due_date,
@@ -348,7 +354,18 @@ export class SqlServerTrash2000RateReportPersistence
 
             SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS pending_bills,
 
-            SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)  AS missing_valor_records
+            SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)  AS missing_valor_records,
+            (SELECT COUNT(*) FROM AP_NotasCredito
+            WHERE Cuenta IN (
+                SELECT ClaveCatastral FROM Datos_ingreso
+                WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
+            )) AS count_notes,
+
+            (SELECT SUM(Valor) FROM AP_NotasCredito
+            WHERE Cuenta IN (
+                SELECT ClaveCatastral FROM Datos_ingreso
+                WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
+            )) AS total_notes_amount
 
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
@@ -388,9 +405,9 @@ export class SqlServerTrash2000RateReportPersistence
         SET @fechaFin3    = CONVERT(DATETIME, '${endDateTime}', 120)
 
         SELECT
-            di.Cod_Ingreso                                          AS bill_id,
+            di.Cod_Ingreso                                          AS income_code,
             di.ClaveCatastral                                       AS cadastral_key,
-            di.CodCliente_Ingreso                                   AS national_id,
+            di.CodCliente_Ingreso                                   AS card_id,
             di.nombre                                               AS customer_name,
             CONVERT(VARCHAR(10), di.Fecha_Ingreso, 103)             AS issue_date,
             CONVERT(VARCHAR(10), di.Fecha_Pago, 103)                AS payment_date,
@@ -494,7 +511,7 @@ export class SqlServerTrash2000RateReportPersistence
 
         SELECT TOP ${top}
             di.ClaveCatastral                                       AS cadastral_key,
-            di.CodCliente_Ingreso                                   AS national_id,
+            di.CodCliente_Ingreso                                   AS card_id,
             di.nombre                                               AS customer_name,
             COUNT(di.Cod_Ingreso)                                   AS unpaid_months,
             SUM(COALESCE(V.Valor, di.tasa_basura))                  AS total_trash_debt,
