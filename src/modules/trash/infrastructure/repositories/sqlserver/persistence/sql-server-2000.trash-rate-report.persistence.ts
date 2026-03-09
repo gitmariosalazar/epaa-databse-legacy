@@ -103,8 +103,8 @@ export class SqlServerTrash2000RateReportPersistence
                 FROM Datos_ingreso di
                 LEFT JOIN dbo.Valor V
                     ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-                WHERE di.Fecha_Ingreso >= @fechaInicio
-                  AND di.Fecha_Ingreso <= @fechaFin
+                WHERE di.Fecha_Pago >= @fechaInicio
+                  AND di.Fecha_Pago <= @fechaFin
                   AND di.tasa_basura IS NOT NULL
                 ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
             ) t
@@ -197,7 +197,7 @@ export class SqlServerTrash2000RateReportPersistence
                         MAX(Fecha_Pago)                                     AS Max_Fecha_Pago
                     FROM Datos_ingreso
                     WHERE tasa_basura IS NOT NULL
-                      AND Fecha_Ingreso >= @fechaInicio
+                      AND Fecha_Pago >= @fechaInicio
                     GROUP BY ClaveCatastral, CodCliente_Ingreso, nombre
                 ) ia
                 INNER JOIN AP_NotasCredito nc
@@ -287,8 +287,8 @@ export class SqlServerTrash2000RateReportPersistence
               (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
           )
         AND di.tasa_basura IS NOT NULL
-        AND di.Fecha_Ingreso >= '20260101'
-      ORDER BY di.Fecha_Ingreso DESC;
+        AND di.Fecha_Pago >= '20260101'
+      ORDER BY di.Fecha_Pago DESC;
       `;
 
       const result: ClientTrashDetailRowSqlResult[] =
@@ -359,20 +359,20 @@ export class SqlServerTrash2000RateReportPersistence
             (SELECT COUNT(*) FROM AP_NotasCredito
             WHERE Cuenta IN (
                 SELECT ClaveCatastral FROM Datos_ingreso
-                WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
+                WHERE Fecha_Pago >= @fechaInicioKPI AND Fecha_Pago <= @fechaFinKPI
             )) AS count_notes,
 
             (SELECT SUM(Valor) FROM AP_NotasCredito
             WHERE Cuenta IN (
                 SELECT ClaveCatastral FROM Datos_ingreso
-                WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
+                WHERE Fecha_Pago >= @fechaInicioKPI AND Fecha_Pago <= @fechaFinKPI
             )) AS total_notes_amount
 
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Ingreso >= @fechaInicioKPI
-          AND di.Fecha_Ingreso <= @fechaFinKPI
+        WHERE di.Fecha_Pago >= @fechaInicioKPI
+          AND di.Fecha_Pago <= @fechaFinKPI
           AND di.tasa_basura IS NOT NULL;
       `;
 
@@ -425,8 +425,8 @@ export class SqlServerTrash2000RateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Ingreso >= @fechaInicio3
-          AND di.Fecha_Ingreso <= @fechaFin3
+        WHERE di.Fecha_Pago >= @fechaInicio3
+          AND di.Fecha_Pago <= @fechaFin3
           AND di.tasa_basura IS NOT NULL
           AND V.cod_Ingreso IS NULL   -- Only those without a match
         -- AND di.Estado_Ingreso = 'N' -- uncomment for pending only
@@ -474,8 +474,8 @@ export class SqlServerTrash2000RateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Ingreso >= @fechaInicio2
-          AND di.Fecha_Ingreso <= @fechaFin2
+        WHERE di.Fecha_Pago >= @fechaInicio2
+          AND di.Fecha_Pago <= @fechaFin2
           AND di.tasa_basura IS NOT NULL
         GROUP BY di.Estado_Ingreso, V.orden
         ORDER BY di.Estado_Ingreso;
@@ -523,8 +523,8 @@ export class SqlServerTrash2000RateReportPersistence
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
         WHERE di.Fecha_Pago IS NULL
           AND di.tasa_basura IS NOT NULL
-          AND di.Fecha_Ingreso >= @fechaInicioTop
-          AND di.Fecha_Ingreso <= @fechaFinTop
+          AND di.Fecha_Pago >= @fechaInicioTop
+          AND di.Fecha_Pago <= @fechaFinTop
         GROUP BY di.ClaveCatastral, di.CodCliente_Ingreso, di.nombre
         ORDER BY total_trash_debt DESC;
       `;
@@ -571,8 +571,8 @@ export class SqlServerTrash2000RateReportPersistence
         WHERE Cuenta IN (
             SELECT ClaveCatastral
             FROM dbo.Datos_ingreso
-            WHERE Fecha_Ingreso >= @Date_Start
-              AND Fecha_Ingreso <= @Date_End
+            WHERE Fecha_Pago >= @Date_Start
+              AND Fecha_Pago <= @Date_End
         );
 
         -- 3. MAIN KPI AGGREGATION
@@ -655,8 +655,8 @@ export class SqlServerTrash2000RateReportPersistence
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
         WHERE
-            di.Fecha_Ingreso >= @Date_Start
-          AND di.Fecha_Ingreso <= @Date_End
+            di.Fecha_Pago >= @Date_Start
+          AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL;
 
 
@@ -671,10 +671,10 @@ export class SqlServerTrash2000RateReportPersistence
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
         WHERE
-            di.Fecha_Ingreso >= @Date_Start
-          AND di.Fecha_Ingreso <= @Date_End
-          AND di.Fecha_Pago >= @Date_Start
+            di.Fecha_Pago >= @Date_Start
           AND di.Fecha_Pago <= @Date_End
+          --AND di.Fecha_Pago >= @Date_Start
+          --AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
         GROUP BY di.Estado_Ingreso;
 
