@@ -6,16 +6,23 @@ import {
   ClientTrashDetailRowSqlResult,
   TopDebtorRowSqlResult,
   TrashDashboardKpiSqlResult,
+  TrashRateKPISqlResult,
+  CollectorPerformanceKPISqlResult,
+  DailyCollectorDetailSqlResult,
 } from '../../interfaces/sql/trash-rate-report.sql-result';
 import {
   ClientTrashDetailRowModel,
+  CollectorPerformanceKPIModel,
   CreditNoteRowModel,
+  DailyCollectorDetailModel,
   MissingValorRowModel,
   MonthlySummaryRowModel,
   TopDebtorRowModel,
   TrashDashboardKpiModel,
   TrashRateAuditRowModel,
+  TrashRateKPIModel,
 } from '../../../domain/models/trash-rate-report.model';
+import { TrashRateKPIResponse } from '../../../application/dtos/response/trash-rate-report.response';
 
 export class TrashRateReportAdapter {
   static fromTrashRateAuditRowResponseToTrashRateAuditRowModel(
@@ -145,6 +152,71 @@ export class TrashRateReportAdapter {
       missingValorRecords: response.missing_valor_records,
       countNotes: response.count_notes,
       totalNotesAmount: response.total_notes_amount,
+    };
+  }
+
+  static fromTrashRateKPISqlResultToTrashRateKPIModel(
+    response: TrashRateKPISqlResult,
+  ): TrashRateKPIModel {
+    return {
+      totalBillsIssued: response.total_bills_issued,
+      uniqueCadastralKeys: response.unique_cadastral_keys,
+      sourceTrashRateTotal: response.source_trash_rate_total,
+      valorTableTotal: response.valor_table_total,
+      integrityGapAmount: response.integrity_gap_amount,
+      grossAmountToCollect: response.gross_amount_to_collect,
+      totalToCollectedMonthly: response.total_to_collected_monthly,
+      netAmountCollected: response.net_amount_collected,
+      totalAmountPending: response.total_amount_pending,
+      collectionCompliancePct: response.collection_compliance_pct,
+      paidBillsCount: response.paid_bills_count,
+      pendingBillsCount: response.pending_bills_count,
+      integrityAuditMissingValor: response.integrity_audit_missing_valor,
+      creditNotesVolume: response.credit_notes_volume,
+      creditNotesTotalAmount: response.credit_notes_total_amount,
+      paymentRateVolumePct: response.payment_rate_volume_pct,
+      delinquencyRateValuePct: response.delinquency_rate_value_pct,
+      creditNotesImpactPct: response.credit_notes_impact_pct,
+      revenueStatusJsonArray: response.revenue_status_json_array,
+    };
+  }
+
+  static fromCollectorPerformanceKPISqlResultToCollectorPerformanceKPIModel(
+    response: CollectorPerformanceKPISqlResult,
+  ): CollectorPerformanceKPIModel {
+    return {
+      performanceRank: response.performance_rank,
+      collectorId: response.collector_id,
+      totalTransactions: response.total_transactions,
+      uniqueCustomersServed: response.unique_customers_served,
+      sourceTrashRateTotal: response.source_trash_rate_total,
+      valorTableTotal: response.valor_table_total,
+      integrityGapAmount: response.integrity_gap_amount,
+      grossAmount: response.gross_amount,
+      totalDiscountsApplied: response.total_discounts_applied,
+      netCollectionTotal: response.net_collection_total,
+      avgTicketSize: response.avg_ticket_size,
+      pctOfTotalRevenue: response.pct_of_total_revenue,
+      cancelledBillsCount: response.cancelled_bills_count,
+    };
+  }
+
+  static fromDailyCollectorDetailSqlResultToCollectorPerformanceKPIModel(
+    response: DailyCollectorDetailSqlResult,
+  ): DailyCollectorDetailModel {
+    return {
+      collectorId: response.collector_id,
+      paymentDate: response.payment_date,
+      incomeStatus: response.income_status,
+      transactionsCount: response.transactions_count,
+      sourceTrashRateDaily: response.source_trash_rate_daily,
+      valorTableDaily: response.valor_table_daily,
+      integrityGapDaily: response.integrity_gap_daily,
+      grossDailyTotal: response.gross_daily_total,
+      discountsDailyTotal: response.discounts_daily_total,
+      netDailyCollection: response.net_daily_collection,
+      avgTicketDaily: response.avg_ticket_daily,
+      cancelledCountDaily: response.cancelled_count_daily,
     };
   }
 }

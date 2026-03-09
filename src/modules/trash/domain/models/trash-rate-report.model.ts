@@ -113,3 +113,56 @@ export class TrashDashboardKpiModel {
     public readonly totalNotesAmount: number,
   ) {}
 }
+
+export class TrashRateKPIModel {
+  public readonly totalBillsIssued: number;
+  public readonly uniqueCadastralKeys: number;
+  public readonly sourceTrashRateTotal: number;
+  public readonly valorTableTotal: number;
+  public readonly integrityGapAmount: number;
+  public readonly grossAmountToCollect: number;
+  public readonly totalToCollectedMonthly: number;
+  public readonly netAmountCollected: number;
+  public readonly totalAmountPending: number;
+  public readonly collectionCompliancePct: number;
+  public readonly paidBillsCount: number;
+  public readonly pendingBillsCount: number;
+  public readonly integrityAuditMissingValor: number;
+  public readonly creditNotesVolume: number;
+  public readonly creditNotesTotalAmount: number;
+  public readonly paymentRateVolumePct: number;
+  public readonly delinquencyRateValuePct: number;
+  public readonly creditNotesImpactPct: number;
+  public readonly revenueStatusJsonArray: string;
+}
+
+export class CollectorPerformanceKPIModel {
+  public readonly performanceRank: number;
+  public readonly collectorId: string;
+  public readonly totalTransactions: number;
+  public readonly uniqueCustomersServed: number;
+  public readonly sourceTrashRateTotal: number;
+  public readonly valorTableTotal: number;
+  public readonly integrityGapAmount: number;
+  public readonly grossAmount: number;
+  public readonly totalDiscountsApplied: number;
+  public readonly netCollectionTotal: number;
+  public readonly avgTicketSize: number;
+  public readonly pctOfTotalRevenue: number;
+  public readonly cancelledBillsCount: number;
+}
+
+export class DailyCollectorDetailModel {
+  public readonly collectorId: string;
+  public readonly paymentDate: string;
+  public readonly incomeStatus: string;
+  public readonly transactionsCount: number;
+  public readonly sourceTrashRateDaily: number;
+  public readonly valorTableDaily: number;
+  public readonly integrityGapDaily: number;
+  public readonly grossDailyTotal: number;
+  public readonly discountsDailyTotal: number;
+  public readonly netDailyCollection: number;
+  public readonly avgTicketDaily: number;
+  public readonly cancelledCountDaily: number;
+}

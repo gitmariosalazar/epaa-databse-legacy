@@ -99,3 +99,56 @@ export interface TrashDashboardKpiSqlResult {
   count_notes: number;
   total_notes_amount: number;
 }
+
+export interface TrashRateKPISqlResult {
+  total_bills_issued: number;
+  unique_cadastral_keys: number;
+  source_trash_rate_total: number;
+  valor_table_total: number;
+  integrity_gap_amount: number;
+  gross_amount_to_collect: number;
+  total_to_collected_monthly: number;
+  net_amount_collected: number;
+  total_amount_pending: number;
+  collection_compliance_pct: number;
+  paid_bills_count: number;
+  pending_bills_count: number;
+  integrity_audit_missing_valor: number;
+  credit_notes_volume: number;
+  credit_notes_total_amount: number;
+  payment_rate_volume_pct: number;
+  delinquency_rate_value_pct: number;
+  credit_notes_impact_pct: number;
+  revenue_status_json_array: string;
+}
+
+export interface CollectorPerformanceKPISqlResult {
+  performance_rank: number;
+  collector_id: string;
+  total_transactions: number;
+  unique_customers_served: number;
+  source_trash_rate_total: number;
+  valor_table_total: number;
+  integrity_gap_amount: number;
+  gross_amount: number;
+  total_discounts_applied: number;
+  net_collection_total: number;
+  avg_ticket_size: number;
+  pct_of_total_revenue: number;
+  cancelled_bills_count: number;
+}
+
+export interface DailyCollectorDetailSqlResult {
+  collector_id: string;
+  payment_date: string;
+  income_status: string;
+  transactions_count: number;
+  source_trash_rate_daily: number;
+  valor_table_daily: number;
+  integrity_gap_daily: number;
+  gross_daily_total: number;
+  discounts_daily_total: number;
+  net_daily_collection: number;
+  avg_ticket_daily: number;
+  cancelled_count_daily: number;
+}

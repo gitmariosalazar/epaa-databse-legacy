@@ -3,21 +3,27 @@ import { InterfaceTrashRateReportRepository } from '../../../../domain/contracts
 import { DatabaseServiceSQLServer2022 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
 import {
   ClientTrashDetailRowModel,
+  CollectorPerformanceKPIModel,
   CreditNoteRowModel,
+  DailyCollectorDetailModel,
   MissingValorRowModel,
   MonthlySummaryRowModel,
   TopDebtorRowModel,
   TrashDashboardKpiModel,
   TrashRateAuditRowModel,
+  TrashRateKPIModel,
 } from '../../../../domain/models/trash-rate-report.model';
 import {
   ClientTrashDetailRowSqlResult,
+  CollectorPerformanceKPISqlResult,
   CreditNoteRowSqlResult,
+  DailyCollectorDetailSqlResult,
   MissingValorRowSqlResult,
   MonthlySummaryRowSqlResult,
   TopDebtorRowSqlResult,
   TrashDashboardKpiSqlResult,
   TrashRateAuditRowSqlResult,
+  TrashRateKPISqlResult,
 } from '../../../interfaces/sql/trash-rate-report.sql-result';
 import { TrashRateReportAdapter } from '../../../adapters/sql/trash-rate-report.adapter';
 
@@ -483,6 +489,354 @@ export class SqlServer2022TrashRateReportPersistence
 
       const response: TopDebtorRowModel[] = result.map((row) =>
         TrashRateReportAdapter.fromTopDebtorRowResponseToTopDebtorRowModel(row),
+      );
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getTrashRateKPI(
+    startDate: string,
+    endDate: string,
+  ): Promise<TrashRateKPIModel[]> {
+    try {
+      const initDateTime = `${String(startDate)} 00:00:00.000`;
+      const endDateTime = `${String(endDate)} 23:59:59.997`;
+      const query = `
+          -- 1. CONFIGURATION & PARAMETERS
+          DECLARE @Date_Start     VARCHAR(50)
+          DECLARE @Date_End       VARCHAR(50)
+          DECLARE @Service_Order  INT
+  
+          SET @Date_Start    = CONVERT(VARCHAR(50), '${initDateTime}', 120)
+          SET @Date_End      = CONVERT(VARCHAR(50), '${endDateTime}', 120)
+          SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
+  
+          -- 2. PRE-CALCULATION OF EXTERNAL METRICS (Optimization for SQL 2000)
+          -- Calculate Credit Notes context based on the date range
+          DECLARE @Credit_Notes_Count  INT
+          DECLARE @Credit_Notes_Total  DECIMAL(18,2)
+  
+          SELECT
+              @Credit_Notes_Count = COUNT(*),
+              @Credit_Notes_Total = SUM(Valor)
+          FROM dbo.AP_NotasCredito
+          WHERE Cuenta IN (
+              SELECT ClaveCatastral
+              FROM dbo.Datos_ingreso
+              WHERE Fecha_Ingreso >= @Date_Start
+                AND Fecha_Ingreso <= @Date_End
+          );
+  
+          -- 3. MAIN KPI AGGREGATION
+          SELECT
+              -- Billing Metrics
+              COUNT(di.Cod_Ingreso)                                   AS total_bills_issued,
+              COUNT(DISTINCT di.ClaveCatastral)                       AS unique_cadastral_keys,
+  
+              -- Financial Totals & Integrity Audit
+              SUM(di.tasa_basura)                                     AS source_trash_rate_total,
+              SUM(V.Valor)                                            AS valor_table_total,
+              SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_amount,
+  
+              SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_amount_to_collect,
+              SUM(CASE
+                          WHEN di.Fecha_Pago IS NOT NULL
+                              THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
+                          ELSE 0
+                      END)                                                    AS total_to_collected_monthly,
+              SUM(CASE
+                  WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
+                      THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
+                  ELSE 0
+              END)                                                    AS net_amount_collected,
+  
+              SUM(CASE
+                  WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
+                      THEN 0
+                  ELSE COALESCE(V.Valor, di.tasa_basura)
+              END)                                                    AS total_amount_pending,
+  
+              -- Compliance Metrics
+              CASE
+                  WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
+                  ELSE ROUND(
+                      CAST(SUM(CASE
+                          WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
+                              THEN COALESCE(V.Valor, di.tasa_basura)
+                          ELSE 0
+                      END) AS NUMERIC(18,4))
+                      / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100
+                  , 2)
+              END                                                     AS collection_compliance_pct,
+  
+              -- Volume Counters
+              SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 1 ELSE 0 END) AS paid_bills_count,
+              SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 0 ELSE 1 END) AS pending_bills_count,
+              SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)     AS integrity_audit_missing_valor,
+  
+              -- Credit Notes (From Pre-calculated Variables)
+              COALESCE(@Credit_Notes_Count, 0)                        AS credit_notes_volume,
+              COALESCE(@Credit_Notes_Total, 0)                        AS credit_notes_total_amount,
+  
+              -- Original Revenue Distribution by Status (Paid Only - Restored as requested)
+              -- SUM(CASE WHEN di.Estado_Ingreso = 'P' AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_P,
+              -- SUM(CASE WHEN di.Estado_Ingreso = 'O' AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_O,
+              -- SUM(CASE WHEN di.Estado_Ingreso = 'A' AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_A,
+              -- SUM(CASE WHEN di.Estado_Ingreso = 'B' AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_B,
+              -- SUM(CASE WHEN di.Estado_Ingreso IS NULL AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_Unknown,
+  
+              -- New Enterprise KPI Percentages
+              CASE
+                  WHEN COUNT(di.Cod_Ingreso) = 0 THEN 0
+                  ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 1 ELSE 0 END) AS NUMERIC(18,4)) / COUNT(di.Cod_Ingreso) * 100, 2)
+              END AS payment_rate_volume_pct, -- % de facturas cobradas
+  
+              CASE
+                  WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
+                  ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 0 ELSE COALESCE(V.Valor, di.tasa_basura) END) AS NUMERIC(18,4)) / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100, 2)
+              END AS delinquency_rate_value_pct, -- Índice de Morosidad (%)
+  
+              CASE
+                  WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
+                  ELSE ROUND(CAST(COALESCE(@Credit_Notes_Total, 0) AS NUMERIC(18,4)) / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100, 2)
+              END AS credit_notes_impact_pct -- % de Impacto por Notas de Crédito
+  
+          INTO #MainKPIs
+          FROM dbo.Datos_ingreso di
+          LEFT JOIN dbo.Valor V
+              ON di.Cod_Ingreso = V.cod_Ingreso
+              AND V.orden = @Service_Order
+          WHERE
+              di.Fecha_Ingreso >= @Date_Start
+            AND di.Fecha_Ingreso <= @Date_End
+            AND di.tasa_basura IS NOT NULL;
+  
+  
+          -- 4. DYNAMIC REVENUE DISTRIBUTION BY STATUS ARRAY (SQL 2000 Compatible)
+          -- Aggregate dynamically by Estado_Ingreso
+          SELECT
+              COALESCE(di.Estado_Ingreso, 'Unknown') AS estado_ingreso,
+              SUM(COALESCE(V.Valor, di.tasa_basura)) AS monto
+          INTO #RevenueByStatus
+          FROM dbo.Datos_ingreso di
+          LEFT JOIN dbo.Valor V
+              ON di.Cod_Ingreso = V.cod_Ingreso
+              AND V.orden = @Service_Order
+          WHERE
+              di.Fecha_Ingreso >= @Date_Start
+            AND di.Fecha_Ingreso <= @Date_End
+            AND di.Fecha_Pago >= @Date_Start
+            AND di.Fecha_Pago <= @Date_End
+            AND di.tasa_basura IS NOT NULL
+          GROUP BY di.Estado_Ingreso;
+  
+          -- Build the JSON array string manually
+          DECLARE @Dynamic_JSON_Array VARCHAR(8000)
+          SET @Dynamic_JSON_Array = '['
+  
+          SELECT @Dynamic_JSON_Array = @Dynamic_JSON_Array +
+              '{"Estado": "' + estado_ingreso + '", "Monto": ' + LTRIM(STR(monto, 18, 2)) + '}, '
+          FROM #RevenueByStatus;
+  
+          -- Clean up trailing comma and close array
+          IF LEN(@Dynamic_JSON_Array) > 1
+              SET @Dynamic_JSON_Array = LEFT(@Dynamic_JSON_Array, LEN(@Dynamic_JSON_Array) - 1) + ']'
+          ELSE
+              SET @Dynamic_JSON_Array = '[]'
+  
+          -- 5. FINAL RESULT SET
+          SELECT
+              M.*,
+              @Dynamic_JSON_Array AS revenue_status_json_array
+          FROM #MainKPIs M;
+  
+          -- Cleanup Temp Tables
+          DROP TABLE #MainKPIs;
+          DROP TABLE #RevenueByStatus;
+        `;
+
+      const result: TrashRateKPISqlResult[] =
+        await this.sqlServerService.query<TrashRateKPISqlResult>(query);
+
+      const response: TrashRateKPIModel[] = result.map((row) =>
+        TrashRateReportAdapter.fromTrashRateKPISqlResultToTrashRateKPIModel(
+          row,
+        ),
+      );
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCollectorPerformanceKPI(
+    startDate: string,
+    endDate: string,
+  ): Promise<CollectorPerformanceKPIModel[]> {
+    try {
+      const initDateTime = `${String(startDate)} 00:00:00.000`;
+      const endDateTime = `${String(endDate)} 23:59:59.997`;
+      const query = `
+          DECLARE @startDate VARCHAR(50)
+          DECLARE @endDate VARCHAR(50)
+          SET @startDate = CONVERT(DATETIME, '${initDateTime}', 120)
+          SET @endDate    = CONVERT(DATETIME, '${endDateTime}', 120)
+  
+          -- 1. CONFIGURATION
+          DECLARE @Service_Order  INT
+  
+          SET @Service_Order = 10
+  
+          -- 2. PRE-CALCULATION OF GLOBAL METRIC (For % Contribution)
+          DECLARE @Global_Total_Collection DECIMAL(18,2)
+  
+          SELECT @Global_Total_Collection = SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
+          FROM dbo.Datos_ingreso di
+          LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+          WHERE di.Fecha_Pago >= @startDate AND di.Fecha_Pago <= @endDate
+            AND di.tasa_basura IS NOT NULL;
+  
+          -- Ensure no zero-division
+          SET @Global_Total_Collection = CASE WHEN @Global_Total_Collection = 0 THEN 1 ELSE @Global_Total_Collection END;
+  
+          -- 3. PRODUCTIVITY AGGREGATION
+          SELECT
+              di.User_Cobro                                           AS collector_id,
+  
+              -- Volume Metrics
+              COUNT(di.Cod_Ingreso)                                   AS total_transactions,
+              COUNT(DISTINCT di.ClaveCatastral)                       AS unique_customers_served,
+  
+              -- Financial Performance & Integrity Audit
+              SUM(di.tasa_basura)                                     AS source_trash_rate_total,
+              SUM(V.Valor)                                            AS valor_table_total,
+              SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_amount,
+  
+              SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_amount,
+              SUM(COALESCE(di.descuento_tb, 0))                       AS total_discounts_applied,
+  
+              SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
+                                                                      AS net_collection_total,
+  
+              -- Productivity KPIs
+              ROUND(
+                  (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / COUNT(di.Cod_Ingreso))
+              , 2)                                                    AS avg_ticket_size,
+  
+              ROUND(
+                  (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / @Global_Total_Collection) * 100
+              , 2)                                                    AS pct_of_total_revenue,
+  
+              -- Error/Audit Metric
+              SUM(CASE WHEN di.Estado_Ingreso = 'A' THEN 1 ELSE 0 END) AS cancelled_bills_count
+  
+          INTO #CollectorKPIs
+          FROM dbo.Datos_ingreso di
+          LEFT JOIN dbo.Valor V
+              ON di.Cod_Ingreso = V.cod_Ingreso
+              AND V.orden = @Service_Order
+          WHERE
+              di.Fecha_Pago >= @startDate
+            AND di.Fecha_Pago <= @endDate
+            AND di.tasa_basura IS NOT NULL
+          GROUP BY di.User_Cobro;
+  
+          -- 4. FINAL RESULTS WITH RANKING (SQL 2000 Manual Rank)
+          SELECT
+              (SELECT COUNT(*) + 1
+              FROM #CollectorKPIs C2
+              WHERE C2.net_collection_total > C1.net_collection_total) AS performance_rank,
+              C1.*
+          FROM #CollectorKPIs C1
+          ORDER BY performance_rank ASC;
+  
+          -- Cleanup
+          DROP TABLE #CollectorKPIs;
+        `;
+
+      const result: CollectorPerformanceKPISqlResult[] =
+        await this.sqlServerService.query<CollectorPerformanceKPISqlResult>(
+          query,
+        );
+
+      const response: CollectorPerformanceKPIModel[] = result.map((row) =>
+        TrashRateReportAdapter.fromCollectorPerformanceKPISqlResultToCollectorPerformanceKPIModel(
+          row,
+        ),
+      );
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getDailyCollectorDetail(
+    startDate: string,
+    endDate: string,
+  ): Promise<DailyCollectorDetailModel[]> {
+    try {
+      const initDateTime = `${String(startDate)} 00:00:00.000`;
+      const endDateTime = `${String(endDate)} 23:59:59.997`;
+      const query = `
+          DECLARE @startDate DATETIME
+          DECLARE @endDate DATETIME
+          SET @startDate = CONVERT(DATETIME, '${initDateTime}', 120)
+          SET @endDate    = CONVERT(DATETIME, '${endDateTime}', 120)
+  
+          DECLARE @Service_Order INT
+          SET @Service_Order = 10
+  
+          -- 2. DAILY AGGREGATION
+          SELECT
+              di.User_Cobro                                           AS collector_id,
+              di.Fecha_Pago                                           AS payment_date,
+              di.Estado_Ingreso                                       AS income_status,
+              -- Transaction Volume
+              COUNT(di.Cod_Ingreso)                                   AS transactions_count,
+  
+              -- Financial Totals & Integrity Audit
+              SUM(di.tasa_basura)                                     AS source_trash_rate_daily,
+              SUM(V.Valor)                                            AS valor_table_daily,
+              SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_daily,
+  
+              SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_daily_total,
+              SUM(COALESCE(di.descuento_tb, 0))                       AS discounts_daily_total,
+  
+              SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
+                                                                      AS net_daily_collection,
+  
+              -- Productivity KPIs per day
+              ROUND(
+                  (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / CASE WHEN COUNT(di.Cod_Ingreso) = 0 THEN 1 ELSE COUNT(di.Cod_Ingreso) END)
+              , 2)                                                    AS avg_ticket_daily,
+  
+              -- Audit Details
+              SUM(CASE WHEN di.Estado_Ingreso = 'A' THEN 1 ELSE 0 END) AS cancelled_count_daily
+  
+          FROM dbo.Datos_ingreso di
+          LEFT JOIN dbo.Valor V
+              ON di.Cod_Ingreso = V.cod_Ingreso
+              AND V.orden = @Service_Order
+          WHERE
+              di.Fecha_Pago >= @StartDate
+            AND di.Fecha_Pago <= @EndDate
+            AND di.tasa_basura IS NOT NULL
+          GROUP BY di.User_Cobro, di.Fecha_Pago, di.Estado_Ingreso
+          ORDER BY di.User_Cobro ASC, di.Fecha_Pago DESC;
+        `;
+
+      const result: DailyCollectorDetailSqlResult[] =
+        await this.sqlServerService.query<DailyCollectorDetailSqlResult>(query);
+
+      const response: DailyCollectorDetailModel[] = result.map((row) =>
+        TrashRateReportAdapter.fromDailyCollectorDetailSqlResultToCollectorPerformanceKPIModel(
+          row,
+        ),
       );
 
       return response;

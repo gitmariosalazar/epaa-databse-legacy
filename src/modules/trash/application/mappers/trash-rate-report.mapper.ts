@@ -1,20 +1,26 @@
 import {
   ClientTrashDetailRowModel,
+  CollectorPerformanceKPIModel,
   CreditNoteRowModel,
+  DailyCollectorDetailModel,
   MissingValorRowModel,
   MonthlySummaryRowModel,
   TopDebtorRowModel,
   TrashDashboardKpiModel,
   TrashRateAuditRowModel,
+  TrashRateKPIModel,
 } from '../../domain/models/trash-rate-report.model';
 import {
   ClientTrashDetailRowResponse,
+  CollectorPerformanceKPIResponse,
   CreditNoteRowResponse,
+  DailyCollectorDetailResponse,
   MissingValorRowResponse,
   MonthlySummaryRowResponse,
   TopDebtorRowResponse,
   TrashDashboardKpiResponse,
   TrashRateAuditRowResponse,
+  TrashRateKPIResponse,
 } from '../dtos/response/trash-rate-report.response';
 
 export class TrashRateReportMapper {
@@ -145,6 +151,71 @@ export class TrashRateReportMapper {
       missingValorRecords: model.missingValorRecords,
       countNotes: model.countNotes,
       totalNotesAmount: model.totalNotesAmount,
+    };
+  }
+
+  static fromTrashRateKPIModelToResponse(
+    model: TrashRateKPIModel,
+  ): TrashRateKPIResponse {
+    return {
+      totalBillsIssued: model.totalBillsIssued,
+      uniqueCadastralKeys: model.uniqueCadastralKeys,
+      sourceTrashRateTotal: model.sourceTrashRateTotal,
+      valorTableTotal: model.valorTableTotal,
+      integrityGapAmount: model.integrityGapAmount,
+      grossAmountToCollect: model.grossAmountToCollect,
+      totalToCollectedMonthly: model.totalToCollectedMonthly,
+      netAmountCollected: model.netAmountCollected,
+      totalAmountPending: model.totalAmountPending,
+      collectionCompliancePct: model.collectionCompliancePct,
+      paidBillsCount: model.paidBillsCount,
+      pendingBillsCount: model.pendingBillsCount,
+      integrityAuditMissingValor: model.integrityAuditMissingValor,
+      creditNotesVolume: model.creditNotesVolume,
+      creditNotesTotalAmount: model.creditNotesTotalAmount,
+      paymentRateVolumePct: model.paymentRateVolumePct,
+      delinquencyRateValuePct: model.delinquencyRateValuePct,
+      creditNotesImpactPct: model.creditNotesImpactPct,
+      revenueStatusJsonArray: model.revenueStatusJsonArray,
+    };
+  }
+
+  static fromCollectorPerformanceKPIModelToResponse(
+    model: CollectorPerformanceKPIModel,
+  ): CollectorPerformanceKPIResponse {
+    return {
+      performanceRank: model.performanceRank,
+      collectorId: model.collectorId,
+      totalTransactions: model.totalTransactions,
+      uniqueCustomersServed: model.uniqueCustomersServed,
+      sourceTrashRateTotal: model.sourceTrashRateTotal,
+      valorTableTotal: model.valorTableTotal,
+      integrityGapAmount: model.integrityGapAmount,
+      grossAmount: model.grossAmount,
+      totalDiscountsApplied: model.totalDiscountsApplied,
+      netCollectionTotal: model.netCollectionTotal,
+      avgTicketSize: model.avgTicketSize,
+      pctOfTotalRevenue: model.pctOfTotalRevenue,
+      cancelledBillsCount: model.cancelledBillsCount,
+    };
+  }
+
+  static fromDailyCollectorDetailModelToResponse(
+    model: DailyCollectorDetailModel,
+  ): DailyCollectorDetailResponse {
+    return {
+      collectorId: model.collectorId,
+      paymentDate: model.paymentDate,
+      incomeStatus: model.incomeStatus,
+      transactionsCount: model.transactionsCount,
+      sourceTrashRateDaily: model.sourceTrashRateDaily,
+      valorTableDaily: model.valorTableDaily,
+      integrityGapDaily: model.integrityGapDaily,
+      grossDailyTotal: model.grossDailyTotal,
+      discountsDailyTotal: model.discountsDailyTotal,
+      netDailyCollection: model.netDailyCollection,
+      avgTicketDaily: model.avgTicketDaily,
+      cancelledCountDaily: model.cancelledCountDaily,
     };
   }
 }

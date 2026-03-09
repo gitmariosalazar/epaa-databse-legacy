@@ -7,6 +7,9 @@ import {
   ClientTrashDetailRowModel,
   TopDebtorRowModel,
   TrashDashboardKpiModel,
+  TrashRateKPIModel,
+  CollectorPerformanceKPIModel,
+  DailyCollectorDetailModel,
 } from '../models/trash-rate-report.model';
 
 export interface InterfaceTrashRateReportRepository {
@@ -47,4 +50,15 @@ export interface InterfaceTrashRateReportRepository {
     startDate: string,
     endDate: string,
   ): Promise<TrashDashboardKpiModel[]>;
+  getTrashRateKPI(startDate: string, endDate): Promise<TrashRateKPIModel[]>;
+
+  getCollectorPerformanceKPI(
+    startDate: string,
+    endDate: string,
+  ): Promise<CollectorPerformanceKPIModel[]>;
+
+  getDailyCollectorDetail(
+    startDate: string,
+    endDate: string,
+  ): Promise<DailyCollectorDetailModel[]>;
 }
