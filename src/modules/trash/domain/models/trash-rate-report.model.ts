@@ -150,6 +150,7 @@ export class CollectorPerformanceKPIModel {
   public readonly avgTicketSize: number;
   public readonly pctOfTotalRevenue: number;
   public readonly cancelledBillsCount: number;
+  public readonly cancelledBillsValue: number;
 }
 
 export class DailyCollectorDetailModel {
@@ -165,4 +166,5 @@ export class DailyCollectorDetailModel {
   public readonly netDailyCollection: number;
   public readonly avgTicketDaily: number;
   public readonly cancelledCountDaily: number;
+  public readonly cancelledValueDaily: number;
 }

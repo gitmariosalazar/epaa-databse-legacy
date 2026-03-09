@@ -198,6 +198,7 @@ export class TrashRateReportAdapter {
       avgTicketSize: response.avg_ticket_size,
       pctOfTotalRevenue: response.pct_of_total_revenue,
       cancelledBillsCount: response.cancelled_bills_count,
+      cancelledBillsValue: response.cancelled_bills_value,
     };
   }
 
@@ -217,6 +218,7 @@ export class TrashRateReportAdapter {
       netDailyCollection: response.net_daily_collection,
       avgTicketDaily: response.avg_ticket_daily,
       cancelledCountDaily: response.cancelled_count_daily,
+      cancelledValueDaily: response.cancelled_value_daily,
     };
   }
 }

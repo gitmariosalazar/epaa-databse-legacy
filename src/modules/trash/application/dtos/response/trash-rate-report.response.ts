@@ -136,6 +136,7 @@ export interface CollectorPerformanceKPIResponse {
   avgTicketSize: number;
   pctOfTotalRevenue: number;
   cancelledBillsCount: number;
+  cancelledBillsValue: number;
 }
 
 export interface DailyCollectorDetailResponse {
@@ -151,4 +152,5 @@ export interface DailyCollectorDetailResponse {
   netDailyCollection: number;
   avgTicketDaily: number;
   cancelledCountDaily: number;
+  cancelledValueDaily: number;
 }

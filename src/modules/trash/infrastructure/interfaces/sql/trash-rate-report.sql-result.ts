@@ -136,6 +136,7 @@ export interface CollectorPerformanceKPISqlResult {
   avg_ticket_size: number;
   pct_of_total_revenue: number;
   cancelled_bills_count: number;
+  cancelled_bills_value: number;
 }
 
 export interface DailyCollectorDetailSqlResult {
@@ -151,4 +152,5 @@ export interface DailyCollectorDetailSqlResult {
   net_daily_collection: number;
   avg_ticket_daily: number;
   cancelled_count_daily: number;
+  cancelled_value_daily: number;
 }

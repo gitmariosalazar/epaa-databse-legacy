@@ -197,6 +197,7 @@ export class TrashRateReportMapper {
       avgTicketSize: model.avgTicketSize,
       pctOfTotalRevenue: model.pctOfTotalRevenue,
       cancelledBillsCount: model.cancelledBillsCount,
+      cancelledBillsValue: model.cancelledBillsValue,
     };
   }
 
@@ -216,6 +217,7 @@ export class TrashRateReportMapper {
       netDailyCollection: model.netDailyCollection,
       avgTicketDaily: model.avgTicketDaily,
       cancelledCountDaily: model.cancelledCountDaily,
+      cancelledValueDaily: model.cancelledValueDaily,
     };
   }
 }

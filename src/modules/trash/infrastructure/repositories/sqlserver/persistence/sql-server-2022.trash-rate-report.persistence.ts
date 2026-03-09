@@ -134,10 +134,7 @@ export class SqlServer2022TrashRateReportPersistence
                 ELSE 'NOT APPLICABLE'
             END                                                     AS credit_coverage,
             ia.total_trash_pendiente                                AS pending_trash_debt,
-            CASE
-                WHEN SUM(COALESCE(nc.Valor, 0)) >= ia.total_trash_pendiente THEN 0
-                ELSE ia.total_trash_pendiente - SUM(COALESCE(nc.Valor, 0))
-            END                                                     AS remaining_debt_after_nc
+            ia.total_trash_pendiente - SUM(COALESCE(nc.Valor, 0))    AS remaining_debt_after_nc
         FROM (
             SELECT
                 ClaveCatastral,
@@ -215,10 +212,8 @@ export class SqlServer2022TrashRateReportPersistence
                                                                   AS net_rate_to_pay,
           nc.Valor                                                AS credit_note_balance,
           nc.Observacion                                          AS credit_note_observation,
-          CASE
-              WHEN COALESCE(nc.Valor, 0) >= COALESCE(V.Valor, di.tasa_basura) THEN 0
-              ELSE COALESCE(V.Valor, di.tasa_basura) - COALESCE(nc.Valor, 0)
-          END                                                     AS effective_trash_to_pay,
+          COALESCE(V.Valor, di.tasa_basura) - COALESCE(nc.Valor, 0)
+                                                                  AS effective_trash_to_pay,
           CASE
               WHEN COALESCE(nc.Valor, 0) > COALESCE(V.Valor, di.tasa_basura)
                   THEN nc.Valor - COALESCE(V.Valor, di.tasa_basura)
@@ -732,7 +727,9 @@ export class SqlServer2022TrashRateReportPersistence
               , 2)                                                    AS pct_of_total_revenue,
   
               -- Error/Audit Metric
-              SUM(CASE WHEN di.Estado_Ingreso = 'A' THEN 1 ELSE 0 END) AS cancelled_bills_count
+              SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN 1 ELSE 0 END) AS cancelled_bills_count,
+              -- Total value of cancelled bills could also be calculated if needed
+              SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN di.tasa_basura ELSE 0 END) AS cancelled_bills_value
   
           INTO #CollectorKPIs
           FROM dbo.Datos_ingreso di
@@ -793,7 +790,7 @@ export class SqlServer2022TrashRateReportPersistence
   
           -- 2. DAILY AGGREGATION
           SELECT
-              di.User_Cobro                                           AS collector_id,
+              COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario') AS collector_id,
               di.Fecha_Pago                                           AS payment_date,
               di.Estado_Ingreso                                       AS income_status,
               -- Transaction Volume
@@ -816,7 +813,9 @@ export class SqlServer2022TrashRateReportPersistence
               , 2)                                                    AS avg_ticket_daily,
   
               -- Audit Details
-              SUM(CASE WHEN di.Estado_Ingreso = 'A' THEN 1 ELSE 0 END) AS cancelled_count_daily
+              SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN 1 ELSE 0 END) AS cancelled_count_daily,
+              -- Total value of cancelled bills could also be calculated if needed
+              SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN di.tasa_basura ELSE 0 END) AS cancelled_value_daily
   
           FROM dbo.Datos_ingreso di
           LEFT JOIN dbo.Valor V
@@ -826,8 +825,8 @@ export class SqlServer2022TrashRateReportPersistence
               di.Fecha_Pago >= @StartDate
             AND di.Fecha_Pago <= @EndDate
             AND di.tasa_basura IS NOT NULL
-          GROUP BY di.User_Cobro, di.Fecha_Pago, di.Estado_Ingreso
-          ORDER BY di.User_Cobro ASC, di.Fecha_Pago DESC;
+          GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario'), di.Fecha_Pago, di.Estado_Ingreso
+          ORDER BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario') ASC, di.Fecha_Pago DESC;
         `;
 
       const result: DailyCollectorDetailSqlResult[] =
