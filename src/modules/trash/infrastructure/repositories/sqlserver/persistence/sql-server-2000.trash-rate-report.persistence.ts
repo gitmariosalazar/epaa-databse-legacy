@@ -557,10 +557,9 @@ export class SqlServerTrash2000RateReportPersistence
 
         SET @Date_Start    = CONVERT(VARCHAR(50), '${initDateTime}', 120)
         SET @Date_End      = CONVERT(VARCHAR(50), '${endDateTime}', 120)
-        SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
+SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
 
-        -- 2. PRE-CALCULATION OF EXTERNAL METRICS (Optimization for SQL 2000)
-        -- Calculate Credit Notes context based on the date range
+        -- 2. PRE-CALCULATION OF EXTERNAL METRICS
         DECLARE @Credit_Notes_Count  INT
         DECLARE @Credit_Notes_Total  DECIMAL(18,2)
 
@@ -571,13 +570,12 @@ export class SqlServerTrash2000RateReportPersistence
         WHERE Cuenta IN (
             SELECT ClaveCatastral
             FROM dbo.Datos_ingreso
-            WHERE Fecha_Pago >= @Date_Start
-              AND Fecha_Pago <= @Date_End
+            WHERE Fecha_Pago >= @Date_Start AND Fecha_Pago <= @Date_End
         );
 
         -- 3. MAIN KPI AGGREGATION
         SELECT
-            -- Billing Metrics
+            -- Billing Metrics (Basadas en Fecha_Ingreso para no perder facturas pendientes)
             COUNT(di.Cod_Ingreso)                                   AS total_bills_issued,
             COUNT(DISTINCT di.ClaveCatastral)                       AS unique_cadastral_keys,
 
@@ -586,22 +584,28 @@ export class SqlServerTrash2000RateReportPersistence
             SUM(V.Valor)                                            AS valor_table_total,
             SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_amount,
 
+            -- Todas las columnas originales corregidas:
             SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_amount_to_collect,
+
+            -- Este es el total emitido en el mes (cartera total generada)
             SUM(CASE
-                        WHEN di.Fecha_Pago IS NOT NULL
-                            THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
-                        ELSE 0
-                    END)                                                    AS total_to_collected_monthly,
+                    WHEN di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
+                        THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
+                    ELSE 0
+                END)                                                AS total_to_collected_monthly,
+
+            -- Este es el monto real cobrado en el rango de fechas (Caja)
             SUM(CASE
                 WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
                     THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
                 ELSE 0
             END)                                                    AS net_amount_collected,
 
+            -- Facturas del mes que NO han sido pagadas en el rango
             SUM(CASE
-                WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
-                    THEN 0
-                ELSE COALESCE(V.Valor, di.tasa_basura)
+                WHEN di.Fecha_Pago IS NULL OR di.Fecha_Pago > @Date_End
+                    THEN COALESCE(V.Valor, di.tasa_basura)
+                ELSE 0
             END)                                                    AS total_amount_pending,
 
             -- Compliance Metrics
@@ -619,35 +623,28 @@ export class SqlServerTrash2000RateReportPersistence
 
             -- Volume Counters
             SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 1 ELSE 0 END) AS paid_bills_count,
-            SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 0 ELSE 1 END) AS pending_bills_count,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL OR di.Fecha_Pago > @Date_End THEN 1 ELSE 0 END)          AS pending_bills_count,
             SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)     AS integrity_audit_missing_valor,
 
-            -- Credit Notes (From Pre-calculated Variables)
+            -- Credit Notes
             COALESCE(@Credit_Notes_Count, 0)                        AS credit_notes_volume,
             COALESCE(@Credit_Notes_Total, 0)                        AS credit_notes_total_amount,
-
-            -- Original Revenue Distribution by Status (Paid Only - Restored as requested)
-            -- SUM(CASE WHEN di.Estado_Ingreso = 'P' AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_P,
-            -- SUM(CASE WHEN di.Estado_Ingreso = 'O' AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_O,
-            -- SUM(CASE WHEN di.Estado_Ingreso = 'A' AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_A,
-            -- SUM(CASE WHEN di.Estado_Ingreso = 'B' AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_B,
-            -- SUM(CASE WHEN di.Estado_Ingreso IS NULL AND (di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End) THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS Revenue_Status_Unknown,
 
             -- New Enterprise KPI Percentages
             CASE
                 WHEN COUNT(di.Cod_Ingreso) = 0 THEN 0
                 ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 1 ELSE 0 END) AS NUMERIC(18,4)) / COUNT(di.Cod_Ingreso) * 100, 2)
-            END AS payment_rate_volume_pct, -- % de facturas cobradas
+            END AS payment_rate_volume_pct,
 
             CASE
                 WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
-                ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 0 ELSE COALESCE(V.Valor, di.tasa_basura) END) AS NUMERIC(18,4)) / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100, 2)
-            END AS delinquency_rate_value_pct, -- Índice de Morosidad (%)
+                ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago IS NULL OR di.Fecha_Pago > @Date_End THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS NUMERIC(18,4)) / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100, 2)
+            END AS delinquency_rate_value_pct,
 
             CASE
                 WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
                 ELSE ROUND(CAST(COALESCE(@Credit_Notes_Total, 0) AS NUMERIC(18,4)) / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100, 2)
-            END AS credit_notes_impact_pct -- % de Impacto por Notas de Crédito
+            END AS credit_notes_impact_pct
 
         INTO #MainKPIs
         FROM dbo.Datos_ingreso di
@@ -655,13 +652,12 @@ export class SqlServerTrash2000RateReportPersistence
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
         WHERE
-            di.Fecha_Pago >= @Date_Start
-          AND di.Fecha_Pago <= @Date_End
+            di.Fecha_Ingreso >= @Date_Start
+          AND di.Fecha_Ingreso <= @Date_End
           AND di.tasa_basura IS NOT NULL;
 
 
-        -- 4. DYNAMIC REVENUE DISTRIBUTION BY STATUS ARRAY (SQL 2000 Compatible)
-        -- Aggregate dynamically by Estado_Ingreso
+        -- 4. DYNAMIC REVENUE DISTRIBUTION BY STATUS ARRAY (FILTRADO POR PAGO)
         SELECT
             COALESCE(di.Estado_Ingreso, 'Unknown') AS estado_ingreso,
             SUM(COALESCE(V.Valor, di.tasa_basura)) AS monto
@@ -673,20 +669,16 @@ export class SqlServerTrash2000RateReportPersistence
         WHERE
             di.Fecha_Pago >= @Date_Start
           AND di.Fecha_Pago <= @Date_End
-          --AND di.Fecha_Pago >= @Date_Start
-          --AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
         GROUP BY di.Estado_Ingreso;
 
-        -- Build the JSON array string manually
+        -- Build the JSON array string
         DECLARE @Dynamic_JSON_Array VARCHAR(8000)
         SET @Dynamic_JSON_Array = '['
-
         SELECT @Dynamic_JSON_Array = @Dynamic_JSON_Array +
             '{"Estado": "' + estado_ingreso + '", "Monto": ' + LTRIM(STR(monto, 18, 2)) + '}, '
         FROM #RevenueByStatus;
 
-        -- Clean up trailing comma and close array
         IF LEN(@Dynamic_JSON_Array) > 1
             SET @Dynamic_JSON_Array = LEFT(@Dynamic_JSON_Array, LEN(@Dynamic_JSON_Array) - 1) + ']'
         ELSE
@@ -698,7 +690,6 @@ export class SqlServerTrash2000RateReportPersistence
             @Dynamic_JSON_Array AS revenue_status_json_array
         FROM #MainKPIs M;
 
-        -- Cleanup Temp Tables
         DROP TABLE #MainKPIs;
         DROP TABLE #RevenueByStatus;
       `;
