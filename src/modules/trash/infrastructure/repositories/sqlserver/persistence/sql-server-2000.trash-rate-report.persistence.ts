@@ -287,7 +287,7 @@ export class SqlServerTrash2000RateReportPersistence
               (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
           )
         AND di.tasa_basura IS NOT NULL
-        AND di.Fecha_Pago >= '20260101'
+        AND di.Fecha_Ingreso >= '20260101'
       ORDER BY di.Fecha_Pago DESC;
       `;
 
@@ -523,8 +523,8 @@ export class SqlServerTrash2000RateReportPersistence
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
         WHERE di.Fecha_Pago IS NULL
           AND di.tasa_basura IS NOT NULL
-          AND di.Fecha_Pago >= @fechaInicioTop
-          AND di.Fecha_Pago <= @fechaFinTop
+          AND di.Fecha_Ingreso >= @fechaInicioTop
+          AND di.Fecha_Ingreso <= @fechaFinTop
         GROUP BY di.ClaveCatastral, di.CodCliente_Ingreso, di.nombre
         ORDER BY total_trash_debt DESC;
       `;

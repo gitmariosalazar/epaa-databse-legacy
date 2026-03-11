@@ -80,8 +80,8 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Pago >= @fechaInicio
-          AND di.Fecha_Pago <= @fechaFin
+        WHERE di.Fecha_Ingreso >= @fechaInicio
+          AND di.Fecha_Ingreso <= @fechaFin
           AND di.tasa_basura IS NOT NULL
         ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
         OFFSET ${safeOffset} ROWS FETCH NEXT ${safeLimit} ROWS ONLY;
@@ -237,7 +237,7 @@ export class SqlServer2022TrashRateReportPersistence
               (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
           )
         AND di.tasa_basura IS NOT NULL
-        AND di.Fecha_Pago >= '20260101'
+        AND di.Fecha_Ingreso >= '20260101'
       ORDER BY di.Fecha_Pago DESC;
       `;
 
@@ -321,8 +321,8 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Pago >= @fechaInicioKPI
-          AND di.Fecha_Pago <= @fechaFinKPI
+        WHERE di.Fecha_Ingreso >= @fechaInicioKPI
+          AND di.Fecha_Ingreso <= @fechaFinKPI
           AND di.tasa_basura IS NOT NULL;
       `;
 
@@ -375,8 +375,8 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Pago >= @fechaInicio3
-          AND di.Fecha_Pago <= @fechaFin3
+        WHERE di.Fecha_Ingreso >= @fechaInicio3
+          AND di.Fecha_Ingreso <= @fechaFin3
           AND di.tasa_basura IS NOT NULL
           AND V.cod_Ingreso IS NULL   -- Only those without a match
         -- AND di.Estado_Ingreso = 'N' -- uncomment for pending only
@@ -424,8 +424,8 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Pago >= @fechaInicio2
-          AND di.Fecha_Pago <= @fechaFin2
+        WHERE di.Fecha_Ingreso >= @fechaInicio2
+          AND di.Fecha_Ingreso <= @fechaFin2
           AND di.tasa_basura IS NOT NULL
         GROUP BY di.Estado_Ingreso, V.orden
         ORDER BY di.Estado_Ingreso;
@@ -473,8 +473,8 @@ export class SqlServer2022TrashRateReportPersistence
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
         WHERE di.Fecha_Pago IS NULL
           AND di.tasa_basura IS NOT NULL
-          AND di.Fecha_Pago >= @fechaInicioTop
-          AND di.Fecha_Pago <= @fechaFinTop
+          AND di.Fecha_Ingreso >= @fechaInicioTop
+          AND di.Fecha_Ingreso <= @fechaFinTop
         GROUP BY di.ClaveCatastral, di.CodCliente_Ingreso, di.nombre
         ORDER BY total_trash_debt DESC;
       `;
