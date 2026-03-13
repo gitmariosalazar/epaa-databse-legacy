@@ -59,8 +59,8 @@ export class SqlServer2022TrashRateReportPersistence
             di.ClaveCatastral                                       AS cadastral_key,
             di.CodCliente_Ingreso                                   AS card_id,
             di.nombre                                               AS customer_name,
-            CONVERT(VARCHAR(10), di.Fecha_Ingreso, 103)             AS issue_date,
-            CONVERT(VARCHAR(10), di.Fecha_Pago, 103)                AS payment_date,
+            CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
+            CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,
             di.Estado_Ingreso                                       AS payment_status_code,
             CASE
                 WHEN di.Fecha_Pago IS NULL THEN 'PENDING'
@@ -80,8 +80,8 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Ingreso >= @fechaInicio
-          AND di.Fecha_Ingreso <= @fechaFin
+        WHERE di.Fecha_Pago >= @fechaInicio
+          AND di.Fecha_Pago <= @fechaFin
           AND di.tasa_basura IS NOT NULL
         ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
         OFFSET ${safeOffset} ROWS FETCH NEXT ${safeLimit} ROWS ONLY;
@@ -200,9 +200,9 @@ export class SqlServer2022TrashRateReportPersistence
           di.ClaveCatastral                                       AS cadastral_key,
           di.CodCliente_Ingreso                                   AS card_id,
           di.nombre                                               AS customer_name,
-          CONVERT(VARCHAR(10), di.Fecha_Ingreso, 103)             AS issue_date,
-          CONVERT(VARCHAR(10), di.Fecha_Venc_Interes, 103)        AS due_date,
-          CONVERT(VARCHAR(10), di.Fecha_Pago, 103)                AS payment_date,
+          CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
+          CONVERT(VARCHAR(10), di.Fecha_Venc_Interes, 120)        AS due_date,
+          CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,
           di.Estado_Ingreso                                       AS payment_status_code,
           di.tasa_basura                                          AS rate_in_income,
           V.Valor                                                 AS rate_in_valor_table,
@@ -360,8 +360,8 @@ export class SqlServer2022TrashRateReportPersistence
             di.ClaveCatastral                                       AS cadastral_key,
             di.CodCliente_Ingreso                                   AS card_id,
             di.nombre                                               AS customer_name,
-            CONVERT(VARCHAR(10), di.Fecha_Ingreso, 103)             AS issue_date,
-            CONVERT(VARCHAR(10), di.Fecha_Pago, 103)                AS payment_date,
+            CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
+            CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,
             di.tasa_basura                                          AS trash_rate,
             di.Estado_Ingreso                                       AS payment_status_code,
             CASE
@@ -375,8 +375,8 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Ingreso >= @fechaInicio3
-          AND di.Fecha_Ingreso <= @fechaFin3
+        WHERE di.Fecha_Pago >= @fechaInicio3
+          AND di.Fecha_Pago <= @fechaFin3
           AND di.tasa_basura IS NOT NULL
           AND V.cod_Ingreso IS NULL   -- Only those without a match
         -- AND di.Estado_Ingreso = 'N' -- uncomment for pending only
@@ -424,8 +424,8 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Ingreso >= @fechaInicio2
-          AND di.Fecha_Ingreso <= @fechaFin2
+        WHERE di.Fecha_Pago >= @fechaInicio2
+          AND di.Fecha_Pago <= @fechaFin2
           AND di.tasa_basura IS NOT NULL
         GROUP BY di.Estado_Ingreso, V.orden
         ORDER BY di.Estado_Ingreso;
