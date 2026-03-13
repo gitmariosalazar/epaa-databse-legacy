@@ -106,6 +106,7 @@ export class SqlServerTrash2000RateReportPersistence
                 WHERE di.Fecha_Pago >= @fechaInicio
                   AND di.Fecha_Pago <= @fechaFin
                   AND di.tasa_basura IS NOT NULL
+                  AND di.Estado_Ingreso = 'P'
                 ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
             ) t
             --ORDER BY t.cadastral_key DESC, t.income_code DESC
