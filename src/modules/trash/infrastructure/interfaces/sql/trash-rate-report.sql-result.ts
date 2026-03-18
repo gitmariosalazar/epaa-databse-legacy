@@ -11,6 +11,8 @@ export interface TrashRateAuditRowSqlResult {
   rate_in_valor_table: number | null;
   difference: number;
   diagnostic: string;
+  discount_applied: number;
+  credit_note_balance: number | null;
 }
 
 export interface MonthlySummaryRowSqlResult {

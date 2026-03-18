@@ -40,6 +40,8 @@ export class TrashRateReportMapper {
       rateInValorTable: model.rateInValorTable,
       difference: model.difference,
       diagnostic: model.diagnostic,
+      discountApplied: model.discountApplied,
+      creditNoteBalance: model.creditNoteBalance,
     };
   }
 

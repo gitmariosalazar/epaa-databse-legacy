@@ -12,6 +12,8 @@ export class TrashRateAuditRowModel {
     public readonly rateInValorTable: number | null,
     public readonly difference: number,
     public readonly diagnostic: string,
+    public readonly discountApplied: number,
+    public readonly creditNoteBalance: number | null,
   ) {}
 }
 

@@ -68,6 +68,8 @@ export class SqlServer2022TrashRateReportPersistence
             END                                                     AS payment_status,
             di.tasa_basura                                          AS rate_in_income,
             V.Valor                                                 AS rate_in_valor_table,
+            di.descuento_tb                                         AS discount_applied,
+            nc.Valor                                                AS credit_note_balance
             ROUND(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0), 2)
                                                                     AS difference,
             CASE
@@ -80,6 +82,7 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
+        LEFT JOIN AP_NotasCredito nc ON di.ClaveCatastral = nc.Cuenta
         WHERE di.Fecha_Pago >= @fechaInicio
           AND di.Fecha_Pago <= @fechaFin
           AND di.tasa_basura IS NOT NULL

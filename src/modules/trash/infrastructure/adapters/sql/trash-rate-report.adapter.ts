@@ -41,6 +41,8 @@ export class TrashRateReportAdapter {
       rateInValorTable: response.rate_in_valor_table,
       difference: response.difference,
       diagnostic: response.diagnostic,
+      discountApplied: response.discount_applied,
+      creditNoteBalance: response.credit_note_balance,
     };
   }
 
