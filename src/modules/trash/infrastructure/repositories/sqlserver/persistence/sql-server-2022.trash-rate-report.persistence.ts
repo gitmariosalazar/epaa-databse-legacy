@@ -47,6 +47,13 @@ export class SqlServer2022TrashRateReportPersistence
       const safeOffset = Number.isInteger(offset) && offset! >= 0 ? offset! : 0;
       const safeLimit =
         Number.isInteger(limit) && limit! > 0 ? limit! : 1000000;
+      const pageSize = safeLimit;
+      const totalRows = safeOffset + safeLimit;
+
+      // SQL Server 2000 pagination: double TOP technique
+      // Step 1: grab the TOP (offset+limit) ordered rows
+      // Step 2: from that set reversed, grab TOP (limit)
+      // Step 3: re-order ascending
       const query = `
         SET NOCOUNT ON;
         DECLARE @fechaInicio DATETIME
@@ -54,40 +61,62 @@ export class SqlServer2022TrashRateReportPersistence
         SET @fechaInicio = CONVERT(DATETIME, '${initDateTime}', 120)
         SET @fechaFin    = CONVERT(DATETIME, '${endDateTime}', 120)
 
-        SELECT
-            di.Cod_Ingreso                                          AS income_code,
-            di.ClaveCatastral                                       AS cadastral_key,
-            di.CodCliente_Ingreso                                   AS card_id,
-            di.nombre                                               AS customer_name,
-            CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
-            CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,
-            di.Estado_Ingreso                                       AS payment_status_code,
-            CASE
-                WHEN di.Fecha_Pago IS NULL THEN 'PENDING'
-                ELSE 'PAID'
-            END                                                     AS payment_status,
-            di.tasa_basura                                          AS rate_in_income,
-            V.Valor                                                 AS rate_in_valor_table,
-            di.descuento_tb                                         AS discount_applied,
-            nc.Valor                                                AS credit_note_balance
-            ROUND(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0), 2)
-                                                                    AS difference,
-            CASE
-                WHEN V.cod_Ingreso IS NULL
-                    THEN 'No record in Valor (Ord 10)'
-                WHEN ABS(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) < 0.01
-                    THEN 'Correct Match'
-                ELSE 'Different Value - Review'
-            END                                                     AS diagnostic
-        FROM Datos_ingreso di
-        LEFT JOIN dbo.Valor V
-            ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        LEFT JOIN AP_NotasCredito nc ON di.ClaveCatastral = nc.Cuenta
-        WHERE di.Fecha_Pago >= @fechaInicio
-          AND di.Fecha_Pago <= @fechaFin
-          AND di.tasa_basura IS NOT NULL
-        ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
-        OFFSET ${safeOffset} ROWS FETCH NEXT ${safeLimit} ROWS ONLY;
+        SELECT *
+        FROM (
+            SELECT TOP ${pageSize}
+                t.income_code,
+                t.cadastral_key,
+                t.card_id,
+                t.customer_name,
+                t.issue_date,
+                t.payment_date,
+                t.payment_status_code,
+                t.payment_status,
+                t.rate_in_income,
+                t.rate_in_valor_table,
+                t.difference,
+                t.diagnostic,
+                t.discount_applied,
+                t.credit_note_balance
+            FROM (
+                SELECT TOP ${totalRows}
+                    di.Cod_Ingreso                                          AS income_code,
+                    di.ClaveCatastral                                       AS cadastral_key,
+                    di.CodCliente_Ingreso                                   AS card_id,
+                    di.nombre                                               AS customer_name,
+                    CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
+                    CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,
+                    di.Estado_Ingreso                                       AS payment_status_code,
+                    CASE
+                        WHEN di.Fecha_Pago IS NULL THEN 'PENDING'
+                        ELSE 'PAID'
+                    END                                                     AS payment_status,
+                    di.tasa_basura                                          AS rate_in_income,
+                    V.Valor                                                 AS rate_in_valor_table,
+                    di.descuento_tb                                         AS discount_applied,
+                    nc.Valor                                                AS credit_note_balance,
+                    ROUND(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0), 2)
+                                                                            AS difference,
+                    CASE
+                        WHEN V.cod_Ingreso IS NULL
+                            THEN 'No record in Valor (Ord 10)'
+                        WHEN ABS(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) < 0.01
+                            THEN 'Correct Match'
+                        ELSE 'Different Value - Review'
+                    END                                                     AS diagnostic
+                FROM Datos_ingreso di
+                LEFT JOIN dbo.Valor V
+                    ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
+                LEFT JOIN AP_NotasCredito nc ON di.ClaveCatastral = nc.Cuenta
+                WHERE di.Fecha_Pago >= @fechaInicio
+                  AND di.Fecha_Pago <= @fechaFin
+                  AND di.tasa_basura IS NOT NULL
+                  AND di.Estado_Ingreso = 'P'
+                ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
+            ) t
+            --ORDER BY t.cadastral_key DESC, t.income_code DESC
+        ) r
+        ORDER BY r.cadastral_key ASC, r.income_code ASC;
       `;
 
       const result: TrashRateAuditRowSqlResult[] =
@@ -115,63 +144,87 @@ export class SqlServer2022TrashRateReportPersistence
       const safeOffset = Number.isInteger(offset) && offset! >= 0 ? offset! : 0;
       const safeLimit =
         Number.isInteger(limit) && limit! > 0 ? limit! : 1000000;
+      const pageSize = safeLimit;
+      const totalRows = safeOffset + safeLimit;
+
+      // SQL Server 2000 pagination: double TOP on the aggregated result
       const query = `
         SET NOCOUNT ON;
         DECLARE @fechaInicio DATETIME
         SET @fechaInicio = CONVERT(DATETIME, '${initDateTime}', 120)
-        SELECT
-            nc.Cuenta                                               AS cadastral_key,
-            nc.CedulaCiudadano                                      AS card_id,
-            ia.nombre                                               AS customer_name,
-            ia.total_trash                                          AS total_trash_rate_history,
-            ia.Max_Fecha_Ingreso                                    AS last_bill_issued,
-            ia.Max_Fecha_Pago                                       AS last_payment_date,
-            SUM(COALESCE(nc.Valor, 0))                              AS total_balance_in_favor,
-            CAST(COUNT(nc.Cuenta) AS NUMERIC)                       AS credit_note_count,
-            MAX(nc.Observacion)                                     AS observation,
-            CASE
-                WHEN SUM(COALESCE(nc.Valor, 0)) >= ia.total_trash_pendiente
-                    THEN 'COVERS FULL DEBT'
-                WHEN SUM(COALESCE(nc.Valor, 0)) > 0 AND ia.total_trash_pendiente > 0
-                    THEN 'PARTIALLY COVERS'
-                ELSE 'NOT APPLICABLE'
-            END                                                     AS credit_coverage,
-            ia.total_trash_pendiente                                AS pending_trash_debt,
-            ia.total_trash_pendiente - SUM(COALESCE(nc.Valor, 0))    AS remaining_debt_after_nc
+
+        SELECT *
         FROM (
-            SELECT
-                ClaveCatastral,
-                CodCliente_Ingreso,
-                nombre,
-                MAX(Cod_Ingreso)                                    AS Max_Cod_Ingreso,
-                SUM(COALESCE(tasa_basura, 0))                       AS total_trash,
-                SUM(CASE
-                    WHEN Fecha_Pago IS NULL THEN COALESCE(tasa_basura, 0)
-                    ELSE 0
-                END)                                                AS total_trash_pendiente,
-                MAX(Fecha_Ingreso)                                  AS Max_Fecha_Ingreso,
-                MAX(Fecha_Pago)                                     AS Max_Fecha_Pago
-            FROM Datos_ingreso
-            WHERE tasa_basura IS NOT NULL
-              AND Fecha_Pago >= @fechaInicio
-            GROUP BY ClaveCatastral, CodCliente_Ingreso, nombre
-        ) ia
-        INNER JOIN AP_NotasCredito nc
-            ON ia.ClaveCatastral = nc.Cuenta
-          AND ia.CodCliente_Ingreso = nc.CedulaCiudadano
-        GROUP BY
-            ia.Max_Cod_Ingreso,
-            ia.ClaveCatastral,
-            ia.CodCliente_Ingreso,
-            ia.total_trash,
-            ia.total_trash_pendiente,
-            ia.nombre,
-            ia.Max_Fecha_Ingreso,
-            ia.Max_Fecha_Pago,
-            nc.Cuenta,
-            nc.CedulaCiudadano
-        ORDER BY SUM(COALESCE(nc.Valor, 0)) DESC, ia.ClaveCatastral ASC
-        OFFSET ${safeOffset} ROWS FETCH NEXT ${safeLimit} ROWS ONLY;
+            SELECT TOP ${pageSize}
+                p.cadastral_key,
+                p.card_id,
+                p.customer_name,
+                p.total_trash_rate_history,
+                p.last_bill_issued,
+                p.last_payment_date,
+                p.total_balance_in_favor,
+                p.credit_note_count,
+                p.observation,
+                p.credit_coverage,
+                p.pending_trash_debt,
+                p.remaining_debt_after_nc
+            FROM (
+                SELECT TOP ${totalRows}
+                    nc.Cuenta                                               AS cadastral_key,
+                    nc.CedulaCiudadano                                      AS card_id,
+                    ia.nombre                                               AS customer_name,
+                    ia.total_trash                                          AS total_trash_rate_history,
+                    ia.Max_Fecha_Ingreso                                    AS last_bill_issued,
+                    ia.Max_Fecha_Pago                                       AS last_payment_date,
+                    SUM(COALESCE(nc.Valor, 0))                              AS total_balance_in_favor,
+                    CAST(COUNT(nc.Cuenta) AS NUMERIC)                       AS credit_note_count,
+                    MAX(nc.Observacion)                                     AS observation,
+                    CASE
+                        WHEN SUM(COALESCE(nc.Valor, 0)) >= ia.total_trash_pendiente
+                            THEN 'COVERS FULL DEBT'
+                        WHEN SUM(COALESCE(nc.Valor, 0)) > 0 AND ia.total_trash_pendiente > 0
+                            THEN 'PARTIALLY COVERS'
+                        ELSE 'NOT APPLICABLE'
+                    END                                                     AS credit_coverage,
+                    ia.total_trash_pendiente                                AS pending_trash_debt,
+                    ia.total_trash_pendiente - SUM(COALESCE(nc.Valor, 0))    AS remaining_debt_after_nc
+                FROM (
+                    SELECT
+                        ClaveCatastral,
+                        CodCliente_Ingreso,
+                        nombre,
+                        MAX(Cod_Ingreso)                                    AS Max_Cod_Ingreso,
+                        SUM(COALESCE(tasa_basura, 0))                       AS total_trash,
+                        SUM(CASE
+                            WHEN Fecha_Pago IS NULL THEN COALESCE(tasa_basura, 0)
+                            ELSE 0
+                        END)                                                AS total_trash_pendiente,
+                        MAX(Fecha_Ingreso)                                  AS Max_Fecha_Ingreso,
+                        MAX(Fecha_Pago)                                     AS Max_Fecha_Pago
+                    FROM Datos_ingreso
+                    WHERE tasa_basura IS NOT NULL
+                      AND Fecha_Pago >= @fechaInicio
+                    GROUP BY ClaveCatastral, CodCliente_Ingreso, nombre
+                ) ia
+                INNER JOIN AP_NotasCredito nc
+                    ON ia.ClaveCatastral = nc.Cuenta
+                  AND ia.CodCliente_Ingreso = nc.CedulaCiudadano
+                GROUP BY
+                    ia.Max_Cod_Ingreso,
+                    ia.ClaveCatastral,
+                    ia.CodCliente_Ingreso,
+                    ia.total_trash,
+                    ia.total_trash_pendiente,
+                    ia.nombre,
+                    ia.Max_Fecha_Ingreso,
+                    ia.Max_Fecha_Pago,
+                    nc.Cuenta,
+                    nc.CedulaCiudadano
+                ORDER BY SUM(COALESCE(nc.Valor, 0)) DESC, ia.ClaveCatastral ASC
+            ) p
+            ORDER BY p.total_balance_in_favor ASC, p.cadastral_key DESC
+        ) r
+        ORDER BY r.total_balance_in_favor DESC, r.cadastral_key ASC;
       `;
 
       const result: CreditNoteRowSqlResult[] =
@@ -282,6 +335,12 @@ export class SqlServer2022TrashRateReportPersistence
                     THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
                 ELSE 0
             END)                                                    AS total_collected,
+            -- Total discounts applied in the period (for KPI analysis, not necessarily matching collected amount)
+              SUM(CASE
+                WHEN di.Fecha_Pago IS NOT NULL
+                    THEN COALESCE(di.descuento_tb, 0)
+                ELSE 0
+              END)                                                    AS total_discounts,
 
             SUM(CASE
                 WHEN di.Fecha_Pago IS NULL
@@ -324,8 +383,8 @@ export class SqlServer2022TrashRateReportPersistence
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Ingreso >= @fechaInicioKPI
-          AND di.Fecha_Ingreso <= @fechaFinKPI
+        WHERE di.Fecha_Pago >= @fechaInicioKPI
+          AND di.Fecha_Pago <= @fechaFinKPI
           AND di.tasa_basura IS NOT NULL;
       `;
 
@@ -497,7 +556,7 @@ export class SqlServer2022TrashRateReportPersistence
 
   async getTrashRateKPI(
     startDate: string,
-    endDate: string,
+    endDate: any,
   ): Promise<TrashRateKPIModel[]> {
     try {
       const initDateTime = `${String(startDate)} 00:00:00.000`;
@@ -546,6 +605,12 @@ SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
                         THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
                     ELSE 0
                 END)                                                AS total_to_collected_monthly,
+            -- Total discounts given in the period, for KPI visibility (not subtracted from total_to_collect_monthly)
+            SUM(CASE
+                    WHEN di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
+                        THEN COALESCE(di.descuento_tb, 0)
+                    ELSE 0
+                END)                                                AS total_discounts_monthly,
 
             -- Este es el monto real cobrado en el rango de fechas (Caja)
             SUM(CASE
@@ -774,54 +839,54 @@ SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
-          DECLARE @startDate DATETIME
-          DECLARE @endDate DATETIME
-          SET @startDate = CONVERT(DATETIME, '${initDateTime}', 120)
-          SET @endDate    = CONVERT(DATETIME, '${endDateTime}', 120)
-  
-          DECLARE @Service_Order INT
-          SET @Service_Order = 10
-  
-          -- 2. DAILY AGGREGATION
-          SELECT
-              COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario') AS collector_id,
-              di.Fecha_Pago                                           AS payment_date,
-              di.Estado_Ingreso                                       AS income_status,
-              -- Transaction Volume
-              COUNT(di.Cod_Ingreso)                                   AS transactions_count,
-  
-              -- Financial Totals & Integrity Audit
-              SUM(di.tasa_basura)                                     AS source_trash_rate_daily,
-              SUM(V.Valor)                                            AS valor_table_daily,
-              SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_daily,
-  
-              SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_daily_total,
-              SUM(COALESCE(di.descuento_tb, 0))                       AS discounts_daily_total,
-  
-              SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
-                                                                      AS net_daily_collection,
-  
-              -- Productivity KPIs per day
-              ROUND(
-                  (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / CASE WHEN COUNT(di.Cod_Ingreso) = 0 THEN 1 ELSE COUNT(di.Cod_Ingreso) END)
-              , 2)                                                    AS avg_ticket_daily,
-  
-              -- Audit Details
-              SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN 1 ELSE 0 END) AS cancelled_count_daily,
-              -- Total value of cancelled bills could also be calculated if needed
-              SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN di.tasa_basura ELSE 0 END) AS cancelled_value_daily
-  
-          FROM dbo.Datos_ingreso di
-          LEFT JOIN dbo.Valor V
-              ON di.Cod_Ingreso = V.cod_Ingreso
-              AND V.orden = @Service_Order
-          WHERE
-              di.Fecha_Pago >= @StartDate
-            AND di.Fecha_Pago <= @EndDate
-            AND di.tasa_basura IS NOT NULL
-          GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario'), di.Fecha_Pago, di.Estado_Ingreso
-          ORDER BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario') ASC, di.Fecha_Pago DESC;
-        `;
+        DECLARE @startDate DATETIME
+        DECLARE @endDate DATETIME
+        SET @startDate = CONVERT(DATETIME, '${initDateTime}', 120)
+        SET @endDate    = CONVERT(DATETIME, '${endDateTime}', 120)
+
+        DECLARE @Service_Order INT
+        SET @Service_Order = 10
+
+        -- 2. DAILY AGGREGATION
+        SELECT
+            COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario')  AS collector_id,
+            di.Fecha_Pago                                           AS payment_date,
+            di.Estado_Ingreso                                       AS income_status,
+            -- Transaction Volume
+            COUNT(di.Cod_Ingreso)                                   AS transactions_count,
+
+            -- Financial Totals & Integrity Audit
+            SUM(di.tasa_basura)                                     AS source_trash_rate_daily,
+            SUM(V.Valor)                                            AS valor_table_daily,
+            SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_daily,
+
+            SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_daily_total,
+            SUM(COALESCE(di.descuento_tb, 0))                       AS discounts_daily_total,
+
+            SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
+                                                                    AS net_daily_collection,
+
+            -- Productivity KPIs per day
+            ROUND(
+                (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / CASE WHEN COUNT(di.Cod_Ingreso) = 0 THEN 1 ELSE COUNT(di.Cod_Ingreso) END)
+            , 2)                                                    AS avg_ticket_daily,
+
+            -- Audit Details
+            SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN 1 ELSE 0 END) AS cancelled_count_daily,
+            -- Total value of cancelled bills (if any)
+            SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS cancelled_value_daily
+
+        FROM dbo.Datos_ingreso di
+        LEFT JOIN dbo.Valor V
+            ON di.Cod_Ingreso = V.cod_Ingreso
+            AND V.orden = @Service_Order
+        WHERE
+            di.Fecha_Pago >= @startDate
+          AND di.Fecha_Pago <= @endDate
+          AND di.tasa_basura IS NOT NULL
+        GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario'), di.Fecha_Pago, di.Estado_Ingreso
+        ORDER BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario') ASC, di.Fecha_Pago DESC;
+      `;
 
       const result: DailyCollectorDetailSqlResult[] =
         await this.sqlServerService.query<DailyCollectorDetailSqlResult>(query);
