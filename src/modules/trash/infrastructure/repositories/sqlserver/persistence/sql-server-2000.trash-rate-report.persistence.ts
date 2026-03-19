@@ -669,8 +669,8 @@ SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
         WHERE
-            di.Fecha_Ingreso >= @Date_Start
-          AND di.Fecha_Ingreso <= @Date_End
+            di.Fecha_Pago >= @Date_Start
+          AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL;
 
 
