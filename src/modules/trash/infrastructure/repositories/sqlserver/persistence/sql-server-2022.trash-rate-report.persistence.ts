@@ -94,7 +94,7 @@ export class SqlServer2022TrashRateReportPersistence
                     di.tasa_basura                                          AS rate_in_income,
                     V.Valor                                                 AS rate_in_valor_table,
                     di.descuento_tb                                         AS discount_applied,
-                    nc.Valor                                                AS credit_note_balance,
+                    nc.Total_NC                                             AS credit_note_balance,
                     ROUND(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0), 2)
                                                                             AS difference,
                     CASE
@@ -107,7 +107,11 @@ export class SqlServer2022TrashRateReportPersistence
                 FROM Datos_ingreso di
                 LEFT JOIN dbo.Valor V
                     ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-                LEFT JOIN AP_NotasCredito nc ON di.ClaveCatastral = nc.Cuenta
+                OUTER APPLY (
+                    SELECT SUM(ISNULL(Valor, 0)) as Total_NC
+                    FROM AP_NotasCredito
+                    WHERE Cuenta = di.ClaveCatastral
+                ) nc
                 WHERE di.Fecha_Pago >= @fechaInicio
                   AND di.Fecha_Pago <= @fechaFin
                   AND di.tasa_basura IS NOT NULL
@@ -590,6 +594,7 @@ export class SqlServer2022TrashRateReportPersistence
       LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
       WHERE di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
         AND di.tasa_basura IS NOT NULL
+        AND di.Estado_Ingreso = 'P'
       GROUP BY di.Estado_Ingreso;
       SET @JSON_Revenue = CASE WHEN LEN(@JSON_Revenue) > 1 THEN LEFT(@JSON_Revenue, LEN(@JSON_Revenue) - 1) + N']' ELSE N'[]' END;
 
@@ -603,6 +608,7 @@ export class SqlServer2022TrashRateReportPersistence
       WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
         AND di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
         AND di.tasa_basura IS NOT NULL
+        AND di.Estado_Ingreso = 'P'
       GROUP BY di.Estado_Ingreso;
       SET @JSON_Compliance = CASE WHEN LEN(@JSON_Compliance) > 1 THEN LEFT(@JSON_Compliance, LEN(@JSON_Compliance) - 1) + N']' ELSE N'[]' END;
 
@@ -657,15 +663,16 @@ export class SqlServer2022TrashRateReportPersistence
           END AS collection_rate,
           (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc 
            WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
-                         AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_volume,
+                         AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL AND di2.Estado_Ingreso = 'P')) AS credit_notes_volume,
           (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc 
            WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
-                         AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_amount,
+                         AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL AND di2.Estado_Ingreso = 'P')) AS credit_notes_amount,
           @JSON_Revenue AS revenue_status_json
       FROM dbo.Datos_ingreso di
       LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
       WHERE di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
         AND di.tasa_basura IS NOT NULL
+        AND di.Estado_Ingreso = 'P'
 
       UNION ALL
 
@@ -690,17 +697,18 @@ export class SqlServer2022TrashRateReportPersistence
           (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc 
            WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
                          AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End 
-                         AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_volume,
+                         AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL AND di2.Estado_Ingreso = 'P')) AS credit_notes_volume,
           (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc 
            WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
                          AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End 
-                         AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_amount,
+                         AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL AND di2.Estado_Ingreso = 'P')) AS credit_notes_amount,
           @JSON_Compliance AS revenue_status_json
       FROM dbo.Datos_ingreso di
       LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
       WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
         AND di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
-        AND di.tasa_basura IS NOT NULL;
+        AND di.tasa_basura IS NOT NULL
+        AND di.Estado_Ingreso = 'P';
       `;
 
       const result: TrashRateKPISqlResult[] =
@@ -718,6 +726,7 @@ export class SqlServer2022TrashRateReportPersistence
       throw error;
     }
   }
+
 
   async getCollectorPerformanceKPI(
     startDate: string,
