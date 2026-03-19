@@ -100,6 +100,7 @@ export interface TrashDashboardKpiResponse {
   missingValorRecords: number;
   countNotes: number;
   totalNotesAmount: number;
+  totalDiscounts: number;
 }
 
 export interface TrashRateKPIResponse {
@@ -122,6 +123,7 @@ export interface TrashRateKPIResponse {
   delinquencyRateValuePct: number;
   creditNotesImpactPct: number;
   revenueStatusJsonArray: string;
+  totalDiscountsMonthly: number;
 }
 
 export interface CollectorPerformanceKPIResponse {

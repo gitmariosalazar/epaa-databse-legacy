@@ -153,6 +153,7 @@ export class TrashRateReportMapper {
       missingValorRecords: model.missingValorRecords,
       countNotes: model.countNotes,
       totalNotesAmount: model.totalNotesAmount,
+      totalDiscounts: model.totalDiscounts,
     };
   }
 
@@ -179,6 +180,7 @@ export class TrashRateReportMapper {
       delinquencyRateValuePct: model.delinquencyRateValuePct,
       creditNotesImpactPct: model.creditNotesImpactPct,
       revenueStatusJsonArray: model.revenueStatusJsonArray,
+      totalDiscountsMonthly: model.totalDiscountsMonthly,
     };
   }
 

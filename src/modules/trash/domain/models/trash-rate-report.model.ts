@@ -113,6 +113,7 @@ export class TrashDashboardKpiModel {
     public readonly missingValorRecords: number,
     public readonly countNotes: number,
     public readonly totalNotesAmount: number,
+    public readonly totalDiscounts: number,
   ) {}
 }
 
@@ -136,6 +137,7 @@ export class TrashRateKPIModel {
   public readonly delinquencyRateValuePct: number;
   public readonly creditNotesImpactPct: number;
   public readonly revenueStatusJsonArray: string;
+  public readonly totalDiscountsMonthly: number;
 }
 
 export class CollectorPerformanceKPIModel {

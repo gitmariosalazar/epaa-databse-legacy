@@ -154,6 +154,7 @@ export class TrashRateReportAdapter {
       missingValorRecords: response.missing_valor_records,
       countNotes: response.count_notes,
       totalNotesAmount: response.total_notes_amount,
+      totalDiscounts: response.total_discounts,
     };
   }
 
@@ -180,6 +181,7 @@ export class TrashRateReportAdapter {
       delinquencyRateValuePct: response.delinquency_rate_value_pct,
       creditNotesImpactPct: response.credit_notes_impact_pct,
       revenueStatusJsonArray: response.revenue_status_json_array,
+      totalDiscountsMonthly: response.total_discounts_monthly,
     };
   }
 

@@ -335,7 +335,12 @@ export class SqlServerTrash2000RateReportPersistence
                     THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
                 ELSE 0
             END)                                                    AS total_collected,
-
+            -- Total discounts given in the period, for KPI visibility (not subtracted from total_to_collect)
+            SUM(CASE
+                WHEN di.Fecha_Pago IS NOT NULL
+                    THEN COALESCE(di.descuento_tb, 0)
+                ELSE 0
+            END)                                                    AS total_discounts,
             SUM(CASE
                 WHEN di.Fecha_Pago IS NULL
                     THEN COALESCE(V.Valor, di.tasa_basura)
@@ -599,6 +604,12 @@ SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
                         THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
                     ELSE 0
                 END)                                                AS total_to_collected_monthly,
+            -- Total discounts given in the period, for KPI visibility (not subtracted from total_to_collect_monthly)
+            SUM(CASE
+                    WHEN di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
+                        THEN COALESCE(di.descuento_tb, 0)
+                    ELSE 0
+                END)                                                AS total_discounts_monthly,
 
             -- Este es el monto real cobrado en el rango de fechas (Caja)
             SUM(CASE

@@ -100,6 +100,7 @@ export interface TrashDashboardKpiSqlResult {
   missing_valor_records: number;
   count_notes: number;
   total_notes_amount: number;
+  total_discounts: number;
 }
 
 export interface TrashRateKPISqlResult {
@@ -122,6 +123,7 @@ export interface TrashRateKPISqlResult {
   delinquency_rate_value_pct: number;
   credit_notes_impact_pct: number;
   revenue_status_json_array: string;
+  total_discounts_monthly: number;
 }
 
 export interface CollectorPerformanceKPISqlResult {
