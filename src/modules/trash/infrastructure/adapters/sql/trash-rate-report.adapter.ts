@@ -161,28 +161,23 @@ export class TrashRateReportAdapter {
   static fromTrashRateKPISqlResultToTrashRateKPIModel(
     response: TrashRateKPISqlResult,
   ): TrashRateKPIModel {
-    return {
-      totalBillsIssued: response.total_bills_issued,
-      uniqueCadastralKeys: response.unique_cadastral_keys,
-      sourceTrashRateTotal: response.source_trash_rate_total,
-      valorTableTotal: response.valor_table_total,
-      integrityGapAmount: response.integrity_gap_amount,
-      grossAmountToCollect: response.gross_amount_to_collect,
-      totalToCollectedMonthly: response.total_to_collected_monthly,
-      netAmountCollected: response.net_amount_collected,
-      totalAmountPending: response.total_amount_pending,
-      collectionCompliancePct: response.collection_compliance_pct,
-      paidBillsCount: response.paid_bills_count,
-      pendingBillsCount: response.pending_bills_count,
-      integrityAuditMissingValor: response.integrity_audit_missing_valor,
-      creditNotesVolume: response.credit_notes_volume,
-      creditNotesTotalAmount: response.credit_notes_total_amount,
-      paymentRateVolumePct: response.payment_rate_volume_pct,
-      delinquencyRateValuePct: response.delinquency_rate_value_pct,
-      creditNotesImpactPct: response.credit_notes_impact_pct,
-      revenueStatusJsonArray: response.revenue_status_json_array,
-      totalDiscountsMonthly: response.total_discounts_monthly,
-    };
+    return new TrashRateKPIModel(
+      response.category_name,
+      response.total_bills,
+      response.unique_cadastral_keys,
+      response.source_trash_rate,
+      response.valor_table_amount,
+      response.integrity_gap,
+      response.gross_amount,
+      response.net_amount,
+      response.discounts,
+      response.paid_bills,
+      response.pending_bills,
+      response.collection_rate,
+      response.credit_notes_volume,
+      response.credit_notes_amount,
+      response.revenue_status_json,
+    );
   }
 
   static fromCollectorPerformanceKPISqlResultToCollectorPerformanceKPIModel(
@@ -206,7 +201,7 @@ export class TrashRateReportAdapter {
     };
   }
 
-  static fromDailyCollectorDetailSqlResultToCollectorPerformanceKPIModel(
+  static fromDailyCollectorDetailSqlResultToDailyCollectorDetailModel(
     response: DailyCollectorDetailSqlResult,
   ): DailyCollectorDetailModel {
     return {

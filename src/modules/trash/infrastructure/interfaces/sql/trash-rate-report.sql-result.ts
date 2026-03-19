@@ -104,26 +104,21 @@ export interface TrashDashboardKpiSqlResult {
 }
 
 export interface TrashRateKPISqlResult {
-  total_bills_issued: number;
+  category_name: string;
+  total_bills: number;
   unique_cadastral_keys: number;
-  source_trash_rate_total: number;
-  valor_table_total: number;
-  integrity_gap_amount: number;
-  gross_amount_to_collect: number;
-  total_to_collected_monthly: number;
-  net_amount_collected: number;
-  total_amount_pending: number;
-  collection_compliance_pct: number;
-  paid_bills_count: number;
-  pending_bills_count: number;
-  integrity_audit_missing_valor: number;
+  source_trash_rate: number;
+  valor_table_amount: number;
+  integrity_gap: number;
+  gross_amount: number;
+  net_amount: number;
+  discounts: number;
+  paid_bills: number;
+  pending_bills: number;
+  collection_rate: number;
   credit_notes_volume: number;
-  credit_notes_total_amount: number;
-  payment_rate_volume_pct: number;
-  delinquency_rate_value_pct: number;
-  credit_notes_impact_pct: number;
-  revenue_status_json_array: string;
-  total_discounts_monthly: number;
+  credit_notes_amount: number;
+  revenue_status_json?: string;
 }
 
 export interface CollectorPerformanceKPISqlResult {

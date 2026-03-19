@@ -118,26 +118,23 @@ export class TrashDashboardKpiModel {
 }
 
 export class TrashRateKPIModel {
-  public readonly totalBillsIssued: number;
-  public readonly uniqueCadastralKeys: number;
-  public readonly sourceTrashRateTotal: number;
-  public readonly valorTableTotal: number;
-  public readonly integrityGapAmount: number;
-  public readonly grossAmountToCollect: number;
-  public readonly totalToCollectedMonthly: number;
-  public readonly netAmountCollected: number;
-  public readonly totalAmountPending: number;
-  public readonly collectionCompliancePct: number;
-  public readonly paidBillsCount: number;
-  public readonly pendingBillsCount: number;
-  public readonly integrityAuditMissingValor: number;
-  public readonly creditNotesVolume: number;
-  public readonly creditNotesTotalAmount: number;
-  public readonly paymentRateVolumePct: number;
-  public readonly delinquencyRateValuePct: number;
-  public readonly creditNotesImpactPct: number;
-  public readonly revenueStatusJsonArray: string;
-  public readonly totalDiscountsMonthly: number;
+  constructor(
+    public readonly category: string,
+    public readonly totalBills: number,
+    public readonly uniqueCadastralKeys: number,
+    public readonly sourceAmount: number,
+    public readonly valorAmount: number,
+    public readonly integrityGap: number,
+    public readonly grossAmount: number,
+    public readonly netAmount: number,
+    public readonly discounts: number,
+    public readonly paidBills: number,
+    public readonly pendingBills: number,
+    public readonly collectionRate: number,
+    public readonly creditNotesVolume: number,
+    public readonly creditNotesAmount: number,
+    public readonly revenueStatusJson?: string,
+  ) {}
 }
 
 export class CollectorPerformanceKPIModel {

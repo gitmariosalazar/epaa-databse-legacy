@@ -104,26 +104,21 @@ export interface TrashDashboardKpiResponse {
 }
 
 export interface TrashRateKPIResponse {
-  totalBillsIssued: number;
+  category: string;
+  totalBills: number;
   uniqueCadastralKeys: number;
-  sourceTrashRateTotal: number;
-  valorTableTotal: number;
-  integrityGapAmount: number;
-  grossAmountToCollect: number;
-  totalToCollectedMonthly: number;
-  netAmountCollected: number;
-  totalAmountPending: number;
-  collectionCompliancePct: number;
-  paidBillsCount: number;
-  pendingBillsCount: number;
-  integrityAuditMissingValor: number;
+  sourceAmount: number;
+  valorAmount: number;
+  integrityGap: number;
+  grossAmount: number;
+  netAmount: number;
+  discounts: number;
+  paidBills: number;
+  pendingBills: number;
+  collectionRate: number;
   creditNotesVolume: number;
-  creditNotesTotalAmount: number;
-  paymentRateVolumePct: number;
-  delinquencyRateValuePct: number;
-  creditNotesImpactPct: number;
-  revenueStatusJsonArray: string;
-  totalDiscountsMonthly: number;
+  creditNotesAmount: number;
+  revenueStatusJson?: string;
 }
 
 export interface CollectorPerformanceKPIResponse {

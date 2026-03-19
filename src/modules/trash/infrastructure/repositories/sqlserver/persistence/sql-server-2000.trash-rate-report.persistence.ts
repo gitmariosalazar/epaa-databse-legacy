@@ -555,160 +555,154 @@ export class SqlServerTrash2000RateReportPersistence
 
   async getTrashRateKPI(
     startDate: string,
-    endDate: any,
+    endDate: string,
   ): Promise<TrashRateKPIModel[]> {
     try {
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
         -- 1. CONFIGURATION & PARAMETERS
-        DECLARE @Date_Start     VARCHAR(50)
-        DECLARE @Date_End       VARCHAR(50)
+        DECLARE @Date_Start     DATETIME
+        DECLARE @Date_End       DATETIME
         DECLARE @Service_Order  INT
 
-        SET @Date_Start    = CONVERT(VARCHAR(50), '${initDateTime}', 120)
-        SET @Date_End      = CONVERT(VARCHAR(50), '${endDateTime}', 120)
-SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
+        SET @Date_Start    = CONVERT(DATETIME, '${initDateTime}', 120)
+        SET @Date_End      = CONVERT(DATETIME, '${endDateTime}', 120)
+        SET @Service_Order = 10 
 
-        -- 2. PRE-CALCULATION OF EXTERNAL METRICS
-        DECLARE @Credit_Notes_Count  INT
-        DECLARE @Credit_Notes_Total  DECIMAL(18,2)
-
-        SELECT
-            @Credit_Notes_Count = COUNT(*),
-            @Credit_Notes_Total = SUM(Valor)
-        FROM dbo.AP_NotasCredito
-        WHERE Cuenta IN (
-            SELECT ClaveCatastral
-            FROM dbo.Datos_ingreso
-            WHERE Fecha_Pago >= @Date_Start AND Fecha_Pago <= @Date_End
-        );
-
-        -- 3. MAIN KPI AGGREGATION
-        SELECT
-            -- Billing Metrics (Basadas en Fecha_Ingreso para no perder facturas pendientes)
-            COUNT(di.Cod_Ingreso)                                   AS total_bills_issued,
-            COUNT(DISTINCT di.ClaveCatastral)                       AS unique_cadastral_keys,
-
-            -- Financial Totals & Integrity Audit
-            SUM(di.tasa_basura)                                     AS source_trash_rate_total,
-            SUM(V.Valor)                                            AS valor_table_total,
-            SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_amount,
-
-            -- Todas las columnas originales corregidas:
-            SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_amount_to_collect,
-
-            -- Este es el total emitido en el mes (cartera total generada)
-            SUM(CASE
-                    WHEN di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
-                        THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
-                    ELSE 0
-                END)                                                AS total_to_collected_monthly,
-            -- Total discounts given in the period, for KPI visibility (not subtracted from total_to_collect_monthly)
-            SUM(CASE
-                    WHEN di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
-                        THEN COALESCE(di.descuento_tb, 0)
-                    ELSE 0
-                END)                                                AS total_discounts_monthly,
-
-            -- Este es el monto real cobrado en el rango de fechas (Caja)
-            SUM(CASE
-                WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
-                    THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
-                ELSE 0
-            END)                                                    AS net_amount_collected,
-
-            -- Facturas del mes que NO han sido pagadas en el rango
-            SUM(CASE
-                WHEN di.Fecha_Pago IS NULL OR di.Fecha_Pago > @Date_End
-                    THEN COALESCE(V.Valor, di.tasa_basura)
-                ELSE 0
-            END)                                                    AS total_amount_pending,
-
-            -- Compliance Metrics
-            CASE
-                WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
-                ELSE ROUND(
-                    CAST(SUM(CASE
-                        WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
-                            THEN COALESCE(V.Valor, di.tasa_basura)
-                        ELSE 0
-                    END) AS NUMERIC(18,4))
-                    / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100
-                , 2)
-            END                                                     AS collection_compliance_pct,
-
-            -- Volume Counters
-            SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 1 ELSE 0 END) AS paid_bills_count,
-            SUM(CASE WHEN di.Fecha_Pago IS NULL OR di.Fecha_Pago > @Date_End THEN 1 ELSE 0 END)          AS pending_bills_count,
-            SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)     AS integrity_audit_missing_valor,
-
-            -- Credit Notes
-            COALESCE(@Credit_Notes_Count, 0)                        AS credit_notes_volume,
-            COALESCE(@Credit_Notes_Total, 0)                        AS credit_notes_total_amount,
-
-            -- New Enterprise KPI Percentages
-            CASE
-                WHEN COUNT(di.Cod_Ingreso) = 0 THEN 0
-                ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End THEN 1 ELSE 0 END) AS NUMERIC(18,4)) / COUNT(di.Cod_Ingreso) * 100, 2)
-            END AS payment_rate_volume_pct,
-
-            CASE
-                WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
-                ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago IS NULL OR di.Fecha_Pago > @Date_End THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS NUMERIC(18,4)) / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100, 2)
-            END AS delinquency_rate_value_pct,
-
-            CASE
-                WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
-                ELSE ROUND(CAST(COALESCE(@Credit_Notes_Total, 0) AS NUMERIC(18,4)) / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100, 2)
-            END AS credit_notes_impact_pct
-
-        INTO #MainKPIs
+        -- 2. STATUS BREAKDOWN JSON HELPERS (Using VARCHAR(8000) for concatenation in 2000)
+        -- Helper 1: Globales
+        DECLARE @JSON_Global VARCHAR(8000)
+        SET @JSON_Global = '['
+        SELECT @JSON_Global = @JSON_Global +
+            '{"Estado": "' + COALESCE(di.Estado_Ingreso, 'S/E') + '", "Monto": ' + LTRIM(STR(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 18, 2)) + '}, '
         FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V
-            ON di.Cod_Ingreso = V.cod_Ingreso
-            AND V.orden = @Service_Order
-        WHERE
-            di.Fecha_Ingreso >= @Date_Start
-          AND di.Fecha_Ingreso <= @Date_End
-          AND di.tasa_basura IS NOT NULL;
-
-
-        -- 4. DYNAMIC REVENUE DISTRIBUTION BY STATUS ARRAY (FILTRADO POR PAGO)
-        SELECT
-            COALESCE(di.Estado_Ingreso, 'Unknown') AS estado_ingreso,
-            SUM(COALESCE(V.Valor, di.tasa_basura)) AS monto
-        INTO #RevenueByStatus
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V
-            ON di.Cod_Ingreso = V.cod_Ingreso
-            AND V.orden = @Service_Order
-        WHERE
-            di.Fecha_Pago >= @Date_Start
-          AND di.Fecha_Pago <= @Date_End
+        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
           AND di.tasa_basura IS NOT NULL
         GROUP BY di.Estado_Ingreso;
+        IF LEN(@JSON_Global) > 1 SET @JSON_Global = LEFT(@JSON_Global, LEN(@JSON_Global) - 1) + ']' ELSE SET @JSON_Global = '[]'
 
-        -- Build the JSON array string
-        DECLARE @Dynamic_JSON_Array VARCHAR(8000)
-        SET @Dynamic_JSON_Array = '['
-        SELECT @Dynamic_JSON_Array = @Dynamic_JSON_Array +
-            '{"Estado": "' + estado_ingreso + '", "Monto": ' + LTRIM(STR(monto, 18, 2)) + '}, '
-        FROM #RevenueByStatus;
+        -- Helper 2: Recaudación
+        DECLARE @JSON_Revenue VARCHAR(8000)
+        SET @JSON_Revenue = '['
+        SELECT @JSON_Revenue = @JSON_Revenue +
+            '{"Estado": "' + COALESCE(di.Estado_Ingreso, 'S/E') + '", "Monto": ' + LTRIM(STR(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 18, 2)) + '}, '
+        FROM dbo.Datos_ingreso di
+        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        WHERE di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
+          AND di.tasa_basura IS NOT NULL
+        GROUP BY di.Estado_Ingreso;
+        IF LEN(@JSON_Revenue) > 1 SET @JSON_Revenue = LEFT(@JSON_Revenue, LEN(@JSON_Revenue) - 1) + ']' ELSE SET @JSON_Revenue = '[]'
 
-        IF LEN(@Dynamic_JSON_Array) > 1
-            SET @Dynamic_JSON_Array = LEFT(@Dynamic_JSON_Array, LEN(@Dynamic_JSON_Array) - 1) + ']'
-        ELSE
-            SET @Dynamic_JSON_Array = '[]'
+        -- Helper 3: Cumplimiento
+        DECLARE @JSON_Compliance VARCHAR(8000)
+        SET @JSON_Compliance = '['
+        SELECT @JSON_Compliance = @JSON_Compliance +
+            '{"Estado": "' + COALESCE(di.Estado_Ingreso, 'S/E') + '", "Monto": ' + LTRIM(STR(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 18, 2)) + '}, '
+        FROM dbo.Datos_ingreso di
+        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
+          AND di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
+          AND di.tasa_basura IS NOT NULL
+        GROUP BY di.Estado_Ingreso;
+        IF LEN(@JSON_Compliance) > 1 SET @JSON_Compliance = LEFT(@JSON_Compliance, LEN(@JSON_Compliance) - 1) + ']' ELSE SET @JSON_Compliance = '[]'
 
-        -- 5. FINAL RESULT SET
-        SELECT
-            M.*,
-            @Dynamic_JSON_Array AS revenue_status_json_array
-        FROM #MainKPIs M;
+        -- 3. MAIN CATEGORIES
+        -- CATEGORY 1: Globales (Emitidos) por fecha de emisión no se toma en cuenta la fecha de pago
+        SELECT 
+            'Globales (Emitidos Fecha de Emisión ${initDateTime} - ${endDateTime})' AS category_name,
+            COUNT(di.Cod_Ingreso) AS total_bills,
+            COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
+            SUM(di.tasa_basura) AS source_trash_rate,
+            SUM(COALESCE(V.Valor, di.tasa_basura)) AS valor_table_amount,
+            SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, di.tasa_basura, 0)) AS integrity_gap,
+            SUM(COALESCE(V.Valor, di.tasa_basura)) AS gross_amount,
+            SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) AS net_amount,
+            SUM(COALESCE(di.descuento_tb, 0)) AS discounts,
+            SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS paid_bills,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS pending_bills,
+            CASE WHEN SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) = 0 THEN 0
+                 ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0) ELSE 0 END) AS NUMERIC(18,4)) 
+                      / NULLIF(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 0) * 100, 2)
+            END AS collection_rate,
+            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc 
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+                           AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_volume,
+            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc 
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+                           AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_amount,
+            @JSON_Global AS revenue_status_json
+        FROM dbo.Datos_ingreso di
+        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
+          AND di.tasa_basura IS NOT NULL
 
-        DROP TABLE #MainKPIs;
-        DROP TABLE #RevenueByStatus;
+        UNION ALL
+
+        -- CATEGORY 2: Recaudación (Pagados en Período por fecha de pago) no se toma en cuenta la fecha de emisión
+        SELECT 
+            'Recaudación (Pagados Fecha de Pago ${initDateTime} - ${endDateTime})' AS category_name,
+            COUNT(di.Cod_Ingreso) AS total_bills,
+            COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
+            SUM(di.tasa_basura) AS source_trash_rate,
+            SUM(COALESCE(V.Valor, di.tasa_basura)) AS valor_table_amount,
+            SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, di.tasa_basura, 0)) AS integrity_gap,
+            SUM(COALESCE(V.Valor, di.tasa_basura)) AS gross_amount,
+            SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) AS net_amount,
+            SUM(COALESCE(di.descuento_tb, 0)) AS discounts,
+            SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS paid_bills,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS pending_bills,
+            CASE WHEN SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) = 0 THEN 0
+                 ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0) ELSE 0 END) AS NUMERIC(18,4)) 
+                      / NULLIF(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 0) * 100, 2)
+            END AS collection_rate,
+            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc 
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+                           AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_volume,
+            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc 
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+                           AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_amount,
+            @JSON_Revenue AS revenue_status_json
+        FROM dbo.Datos_ingreso di
+        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        WHERE di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
+          AND di.tasa_basura IS NOT NULL
+
+        UNION ALL
+
+        -- CATEGORY 3: Cumplimiento (Emitidos y Pagados en Período por fecha de pago y emisión) 
+        -- Se toma en cuenta la fecha de pago y la fecha de emisión, el resultado debe ser todas las facturas que fueron emitidas en el período y pagadas en el período
+        SELECT 
+            'Cumplimiento (Emitidos y Pagados Fecha de Emisión y Pago ${initDateTime} - ${endDateTime})' AS category_name,
+            COUNT(di.Cod_Ingreso) AS total_bills,
+            COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
+            SUM(di.tasa_basura) AS source_trash_rate,
+            SUM(COALESCE(V.Valor, di.tasa_basura)) AS valor_table_amount,
+            SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, di.tasa_basura, 0)) AS integrity_gap,
+            SUM(COALESCE(V.Valor, di.tasa_basura)) AS gross_amount,
+            SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) AS net_amount,
+            SUM(COALESCE(di.descuento_tb, 0)) AS discounts,
+            SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS paid_bills,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS pending_bills,
+            CASE WHEN SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) = 0 THEN 0
+                 ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0) ELSE 0 END) AS NUMERIC(18,4)) 
+                      / NULLIF(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 0) * 100, 2)
+            END AS collection_rate,
+            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc 
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+                           AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End 
+                           AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_volume,
+            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc 
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+                           AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End 
+                           AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_amount,
+            @JSON_Compliance AS revenue_status_json
+        FROM dbo.Datos_ingreso di
+        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
+          AND di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
+          AND di.tasa_basura IS NOT NULL;
       `;
 
       const result: TrashRateKPISqlResult[] =
@@ -880,8 +874,8 @@ SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
         WHERE
-            di.Fecha_Pago >= @StartDate
-          AND di.Fecha_Pago <= @EndDate
+            di.Fecha_Pago >= @startDate
+          AND di.Fecha_Pago <= @endDate
           AND di.tasa_basura IS NOT NULL
         GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario'), di.Fecha_Pago, di.Estado_Ingreso
         ORDER BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario') ASC, di.Fecha_Pago DESC;
@@ -891,7 +885,7 @@ SET @Service_Order = 10 -- Standard code for trash service in 'Valor' table
         await this.sqlServerService.query<DailyCollectorDetailSqlResult>(query);
 
       const response: DailyCollectorDetailModel[] = result.map((row) =>
-        TrashRateReportAdapter.fromDailyCollectorDetailSqlResultToCollectorPerformanceKPIModel(
+        TrashRateReportAdapter.fromDailyCollectorDetailSqlResultToDailyCollectorDetailModel(
           row,
         ),
       );
