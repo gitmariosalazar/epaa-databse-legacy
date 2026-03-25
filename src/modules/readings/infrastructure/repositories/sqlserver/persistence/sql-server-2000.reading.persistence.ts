@@ -284,14 +284,14 @@ export class ReadingSQLServer2000Persistence
           SET
             LecturaActual = ${Number(reading.getCurrentReading())},
             Novedad = '${String(reading.getNovelty() || '')}',
-            ValorAPagar = ${reading.getReadingValue() != null ? Number(reading.getReadingValue()) : null},
-            TasaAlcantarillado = ${reading.getSewerRate() != null ? Number(reading.getSewerRate()) : null},
-            Reconexion = ${reading.getReconnection() != null ? Number(reading.getReconnection()) : null},
+            --ValorAPagar = ${reading.getReadingValue() != null ? Number(reading.getReadingValue()) : null},
+            --TasaAlcantarillado = ${reading.getSewerRate() != null ? Number(reading.getSewerRate()) : null},
+            --Reconexion = ${reading.getReconnection() != null ? Number(reading.getReconnection()) : null},
             --FechaCaptura = '${formatDateForSQLServer(reading.getReadingDate())}',
             --HoraCaptura = '${String(reading.getReadingTime() || '')}',
-            ClaveCatastral = '${String(reading.getCadastralKey() || '')}',
+            ClaveCatastral = '${String(reading.getCadastralKey() || '')}'
             -- Es el numero del mes la siguiente actualizacion
-            LecturaSugerida = ${Number(MONTHS_REVERSE[String(reading.getMonth())])} -- numero de mes actual de lectura
+            --LecturaSugerida = ${Number(MONTHS_REVERSE[String(reading.getMonth())])} -- numero de mes actual de lectura
           WHERE
             Sector = ${Number(params.sector)}
             AND Cuenta = ${Number(params.account)}

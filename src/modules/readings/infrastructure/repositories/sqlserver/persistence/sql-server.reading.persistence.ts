@@ -182,7 +182,7 @@ export class ReadingSQLServer2022Persistence
         inserted.ClaveCatastral AS cadastralKey
       WHERE
         Sector = @sector AND Cuenta = @account --AND Cod_ingreso = @incomeCode
-        AND Anio = @year AND Mes = @month AND LecturaAnterior = @previousReading AND FechaCaptura IS NULL;
+        AND Anio = @year AND Mes = @month AND LecturaAnterior = @previousReading; --AND FechaCaptura IS NULL;
       `;
       const queryParams: any[] = [
         {
