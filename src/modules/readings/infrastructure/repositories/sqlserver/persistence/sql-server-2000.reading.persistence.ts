@@ -939,7 +939,8 @@ export class ReadingSQLServer2000Persistence
       const query = `
         SET NOCOUNT ON  
           
-        DECLARE @searchParam VARCHAR(50) = '${String(searchValue.trim())}';  
+        DECLARE @searchParam VARCHAR(50)  
+        SET @searchParam = '${String(searchValue.trim())}';  
           
         SELECT  
             di.Cod_Ingreso                  AS income_code,
