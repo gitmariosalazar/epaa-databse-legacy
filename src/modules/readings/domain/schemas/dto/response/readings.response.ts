@@ -19,6 +19,8 @@ export interface ReadingResponse {
 export interface PendingReadingResponse {
   // ── Identificación del Cliente y Suministro ────────────────────────────────
   incomeCode: string;
+  incomeTitleCode?: string;
+  readingCaptureDate?: Date;
   cardId: string;
   name: string;
   lastName: string;
@@ -116,4 +118,16 @@ export interface PaymentResponse {
   orderValue?: number;
   paymentMethod: string;
   comment: string;
+}
+
+export interface OverduePaymentResponse {
+  cadastralKey: string;
+  clientId: string;
+  name: string;
+  totalTrashRate: number;
+  totalEpaaValue: number;
+  totalOldImprovementsInterest: number;
+  totalSurcharge: number;
+  totalOldSurcharge: number;
+  monthsPastDue: number;
 }

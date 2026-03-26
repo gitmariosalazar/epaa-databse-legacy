@@ -2,6 +2,7 @@ import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/cre
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import {
+  OverduePaymentResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
@@ -34,6 +35,11 @@ export interface InterfaceReadingUseCase {
   findPendingReadingsByCadastralKeyOrCardId(
     searchValue: string,
   ): Promise<PendingReadingResponse[]>;
+
+  findPendingReadingsByCadastralKeyOrCardIdAll(
+    searchValue: string,
+  ): Promise<PendingReadingResponse[]>;
+
   verifyReadingExists(searchValue: string): Promise<boolean>;
 
   findAllPaymentReadingPayrollsByDate(
@@ -53,4 +59,8 @@ export interface InterfaceReadingUseCase {
     limit?: number,
     offset?: number,
   ): Promise<PaymentResponse[]>;
+  findAllOverduePayments(
+    limit?: number,
+    offset?: number,
+  ): Promise<OverduePaymentResponse[]>;
 }

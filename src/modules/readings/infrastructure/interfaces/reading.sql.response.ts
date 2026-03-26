@@ -48,6 +48,8 @@ export interface RangoTarifaSQLResult {
 export interface PendingReadingSQLResult {
   // ── Identificación del Cliente y Suministro ────────────────────────────────
   income_code: string;
+  income_title_code?: string;
+  reading_capture_date?: Date;
   card_id: string;
   name: string;
   last_name: string;
@@ -145,4 +147,16 @@ export interface PaymentSqlResponse {
   order_value?: number;
   payment_method: string;
   comment: string;
+}
+
+export interface OverduePaymentSqlResponse {
+  cadastral_key: string;
+  client_id: string;
+  name: string;
+  total_trash_rate: number;
+  total_epaa_value: number;
+  total_old_improvements_interest: number;
+  total_surcharge: number;
+  total_old_surcharge: number;
+  months_past_due: number;
 }

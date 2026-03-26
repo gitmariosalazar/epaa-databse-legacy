@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InterfaceReadingUseCase } from '../usecases/reading.use-case.interface';
 import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/create.reading.request';
 import {
+  OverduePaymentResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
@@ -256,6 +257,28 @@ export class ReadingService
         await this.readingsRepository.findPendingReadingsByCadastralKeyOrCardId(
           searchValue,
         );
+      return this.enrichPendingReadingsWithExternalData(pendingReadings);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findPendingReadingsByCadastralKeyOrCardIdAll(
+    searchValue: string,
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      const pendingReadings =
+        await this.readingsRepository.findPendingReadingsByCadastralKeyOrCardIdAll(
+          searchValue,
+        );
+
+      if (!pendingReadings || pendingReadings.length === 0) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `No pending readings found for the given search value: ${searchValue}`,
+        });
+      }
+
       return this.enrichPendingReadingsWithExternalData(pendingReadings);
     } catch (error) {
       throw error;
@@ -564,6 +587,25 @@ export class ReadingService
         });
       }
       return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findAllOverduePayments(
+    limit?: number,
+    offset?: number,
+  ): Promise<OverduePaymentResponse[]> {
+    try {
+      const overdueReadings =
+        await this.readingsRepository.findAllOverduePayments(limit, offset);
+      if (!overdueReadings || overdueReadings.length === 0) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `No overdue payments found${limit !== undefined && offset !== undefined ? ` for the given pagination parameters: limit=${limit}, offset=${offset}` : ''}`,
+        });
+      }
+      return overdueReadings;
     } catch (error) {
       throw error;
     }

@@ -1,10 +1,12 @@
 import {
+  OverduePaymentResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
   ReadingResponse,
 } from '../../../../domain/schemas/dto/response/readings.response';
 import {
+  OverduePaymentSqlResponse,
   PaymentReadingSqlResponse,
   PaymentSqlResponse,
   PendingReadingSQLResult,
@@ -63,6 +65,12 @@ export class SQLServerReadingAdapter {
     return {
       // ── Identificación del Cliente y Suministro ────────────────────────────────
       incomeCode: data.income_code ? String(data.income_code).trim() : '',
+      incomeTitleCode: data.income_title_code
+        ? String(data.income_title_code).trim()
+        : undefined,
+      readingCaptureDate: data.reading_capture_date
+        ? new Date(String(data.reading_capture_date).trim())
+        : undefined,
       cardId: String(data.card_id).trim(),
       name: data.name ? String(data.name).trim() : '',
       lastName: data.last_name ? String(data.last_name).trim() : '',
@@ -202,6 +210,26 @@ export class SQLServerReadingAdapter {
         ? String(data.payment_method).trim()
         : '',
       comment: data.comment ? String(data.comment).trim() : '',
+    };
+  }
+
+  static fromOverduePaymentSqlResponseToOverduePaymentResponse(
+    data: OverduePaymentSqlResponse,
+  ): OverduePaymentResponse {
+    return {
+      cadastralKey: String(data.cadastral_key).trim(),
+      clientId: String(data.client_id).trim(),
+      name: data.name ? String(data.name).trim() : '',
+      totalTrashRate: data.total_trash_rate ? Number(data.total_trash_rate) : 0,
+      totalEpaaValue: data.total_epaa_value ? Number(data.total_epaa_value) : 0,
+      totalOldImprovementsInterest: data.total_old_improvements_interest
+        ? Number(data.total_old_improvements_interest)
+        : 0,
+      totalOldSurcharge: data.total_old_surcharge
+        ? Number(data.total_old_surcharge)
+        : 0,
+      totalSurcharge: data.total_surcharge ? Number(data.total_surcharge) : 0,
+      monthsPastDue: data.months_past_due ? Number(data.months_past_due) : 0,
     };
   }
 }

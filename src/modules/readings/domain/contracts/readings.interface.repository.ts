@@ -1,5 +1,6 @@
 import { FindCurrentReadingParams } from '../schemas/dto/request/find-current-reading.paramss';
 import {
+  OverduePaymentResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
@@ -39,6 +40,10 @@ export interface InterfaceReadingsRepository {
     searchValue: string,
   ): Promise<PendingReadingResponse[]>;
 
+  findPendingReadingsByCadastralKeyOrCardIdAll(
+    searchValue: string,
+  ): Promise<PendingReadingResponse[]>;
+
   // VErify if the reading exists for a given cadastral key and date
   verifyReadingExists(searchValue: string): Promise<boolean>;
 
@@ -59,4 +64,9 @@ export interface InterfaceReadingsRepository {
     limit?: number,
     offset?: number,
   ): Promise<PaymentResponse[]>;
+
+  findAllOverduePayments(
+    limit?: number,
+    offset?: number,
+  ): Promise<OverduePaymentResponse[]>;
 }

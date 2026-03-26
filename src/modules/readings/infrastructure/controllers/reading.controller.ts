@@ -136,6 +136,24 @@ export class ReadingController {
     );
   }
 
+  @Get('find-pending-reading-by-cadastral-key-or-card-id-all')
+  @MessagePattern(
+    'epaa-legacy.reading.find-pending-reading-by-cadastral-key-or-card-id-all',
+  )
+  findPendingReadingByCadastralKeyOrCardIdAll(
+    @Payload()
+    params: {
+      searchValue: string;
+    },
+  ) {
+    console.log(
+      `Received findPendingReadingByCadastralKeyOrCardIdAll request: ${JSON.stringify(params)}`,
+    );
+    return this.readingService.findPendingReadingsByCadastralKeyOrCardIdAll(
+      params.searchValue,
+    );
+  }
+
   @Get('find-payment-readings-by-payment-date')
   @MessagePattern('epaa-legacy.reading.find-payment-readings-by-payment-date')
   findPaymentReadingsByPaymentDate(@Payload() paymentDate: string) {
@@ -239,5 +257,20 @@ export class ReadingController {
       raw.endDate ?? '',
     );
     return this.readingService.getFullBreakdownReport(params);
+  }
+
+  @Get('find-all-overdue-payments')
+  @MessagePattern('epaa-legacy.reading.find-all-overdue-payments')
+  findAllOverduePayments(
+    @Payload()
+    data: {
+      limit?: number;
+      offset?: number;
+    },
+  ) {
+    console.log(
+      `Received findAllOverduePayments request: ${JSON.stringify(data)}`,
+    );
+    return this.readingService.findAllOverduePayments(data.limit, data.offset);
   }
 }

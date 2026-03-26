@@ -8,11 +8,13 @@ import {
   PendingReadingSQLResult,
   PaymentReadingSqlResponse,
   PaymentSqlResponse,
+  OverduePaymentSqlResponse,
 } from '../../../interfaces/reading.sql.response';
 import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
 import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
 import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading.model';
 import {
+  OverduePaymentResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
@@ -930,6 +932,183 @@ export class ReadingSQLServer2000Persistence
     }
   }
 
+  async findPendingReadingsByCadastralKeyOrCardIdAll(
+    searchValue: string,
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      const query = `
+        SET NOCOUNT ON  
+          
+        DECLARE @searchParam VARCHAR(50) = '${String(searchValue.trim())}';  
+          
+        SELECT  
+            di.Cod_Ingreso                  AS income_code,
+            di.Cod_Titulo_Datos      AS income_title_code,
+            l.FechaCaptura                 AS reading_capture_date,
+            c.CED_IDENT_CIUDADANO           AS card_id,  
+            c.NOMBRES_CIUDADANO             AS name,  
+            c.APELLIDOS_CIUDADANO           AS last_name,  
+            di.ClaveCatastral               AS cadastral_key,  
+            di.Direccion                    AS address,  
+            COALESCE(a.Tarifa, NULL)        AS rate,  
+          
+            l.Mes                           AS month,  
+            l.Anio                          AS year,  
+          
+            CASE MONTH(di.Fecha_Venc_Interes)  
+                WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'  
+                WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'  
+                WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'  
+                WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'  
+            END                             AS month_due,  
+          
+            YEAR(di.Fecha_Venc_Interes)     AS year_due,  
+            di.Fecha_Venc_Interes           AS due_date,  
+            di.Fecha_Pago                   AS payment_date,  
+          
+            -- Lectura  
+            l.LecturaActual                 AS current_reading,  
+            l.LecturaAnterior               AS previous_reading,  
+            CASE WHEN l.LecturaActual IS NOT NULL  
+                THEN (l.LecturaActual - l.LecturaAnterior)  
+                ELSE NULL END              AS consumption,  
+          
+            CASE  
+                WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'  
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE()  
+                    THEN 'Pendiente de lectura (período actual/futuro)'  
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE()  
+                    THEN 'Lectura no registrada o pendiente'  
+                ELSE 'No disponible'  
+            END                             AS reading_status,  
+          
+            -- === EPAA: Ahora muestra valores aunque no haya lectura ===  
+            di.Valor_Titulo                 AS epaa_value,                    -- ← Cambiado  
+            di.ValorTerceros                AS third_party_value,             -- ← Cambiado  
+            l.ValorAPagar                   AS reading_value,  
+            di.Recargo                      AS surcharge,  
+          
+            -- Total EPAA (muestra aunque no haya lectura)  
+            COALESCE(di.Valor_Titulo, 0)  
+            + COALESCE(di.ValorTerceros, 0)  
+            + COALESCE(di.Recargo, 0)       AS total_epaa_value,  
+          
+            -- === Basura ===  
+            ISNULL(v.Valor, di.tasa_basura) AS trash_rate_official,  
+          
+            CASE  
+                WHEN COALESCE(anc.Valor, 0) > 0 THEN  
+                    CASE  
+                        WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0  
+                        ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor  
+                    END  
+                ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)  
+            END                             AS trash_rate,  
+          
+            di.tasa_basura_anterior_oficial AS trash_rate_previous,  
+            anc.Valor                       AS balance_in_favor_current_month,  
+          
+            CASE  
+                WHEN COALESCE(anc.Valor, 0) > 0 AND anc.Valor > ISNULL(v.Valor, di.tasa_basura)  
+                THEN anc.Valor - ISNULL(v.Valor, di.tasa_basura)  
+                ELSE 0  
+            END                             AS balance_in_favor_next_month,  
+          
+            NULL                            AS balance_against_next_month,  
+            COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,  
+          
+            CASE  
+                WHEN COALESCE(anc.Valor, 0) > 0 THEN  
+                    CASE  
+                        WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0  
+                        ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor  
+                    END  
+                ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)  
+            END                             AS total_trash_rate,  
+          
+            -- Totales  
+            COALESCE(di.Valor_Titulo, 0)  
+            + COALESCE(di.ValorTerceros, 0)  
+            + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)  
+            + COALESCE(di.Recargo, 0)       AS total,  
+          
+            COALESCE(di.Valor_Titulo, 0)  
+            + COALESCE(di.ValorTerceros, 0)  
+            + COALESCE(di.Recargo, 0)  
+            + CASE  
+                WHEN COALESCE(anc.Valor, 0) > 0 THEN  
+                    CASE  
+                        WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0  
+                        ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor  
+                    END  
+                ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)  
+              END                           AS adjusted_total,  
+          
+            di.Estado_Ingreso               AS income_status,  
+            di.Fecha_Ingreso                AS income_date  
+          
+        FROM Datos_ingreso di  
+        LEFT JOIN CIUDADANO c ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO  
+          
+        LEFT JOIN AP_ACOMETIDAS a  
+            ON a.Sector = CASE  
+                            WHEN CHARINDEX('-', di.ClaveCatastral) > 1  
+                                AND ISNUMERIC(NULLIF(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1), '')) = 1  
+                                AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) BETWEEN 1 AND 2  
+                            THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))  
+                            ELSE NULL  
+                          END  
+            AND a.Cuenta = CASE  
+                            WHEN CHARINDEX('-', di.ClaveCatastral) > 1  
+                                AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1  
+                            THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))  
+                            ELSE NULL  
+                          END  
+          
+        LEFT JOIN AP_LECTURAS l  
+            ON l.ClaveCatastral = di.ClaveCatastral  
+          AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))  
+          AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(  
+                CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))  
+                    WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'  
+                    WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'  
+                    WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'  
+                    WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'  
+                END  
+            )  
+          
+        LEFT JOIN AP_NotasCredito anc ON di.ClaveCatastral = anc.Cuenta  
+        LEFT JOIN Valor v ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10  
+          
+        WHERE  
+            (  
+                (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)  
+                OR  
+                (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)  
+            )  
+            AND di.Fecha_Pago IS NULL  
+            AND di.convenio IS NULL  
+            AND di.Estado_Ingreso IS NULL  
+          
+        ORDER BY di.ClaveCatastral, di.Fecha_Venc_Interes DESC;
+    `;
+
+      const result =
+        await this.sqlServerService.query<PendingReadingSQLResult>(query);
+
+      //await this.sqlServerService.query(`SET NOCOUNT OFF;`);
+      //await this.sqlServerService.close();
+
+      return result.map(SQLServerReadingAdapter.toDomainPending);
+    } catch (error) {
+      console.error(
+        'Error al obtener lecturas pendientes por clave catastral o número de tarjeta:',
+        error,
+      );
+      throw error;
+    }
+  }
+
   async verifyReadingExists(searchValue: string): Promise<boolean> {
     try {
       const query = `
@@ -1670,6 +1849,81 @@ SELECT
       return response;
     } catch (error) {
       console.error('Error al buscar el resumen diario de cobradores:', error);
+      throw error;
+    }
+  }
+
+  async findAllOverduePayments(
+    limit?: number,
+    offset?: number,
+  ): Promise<OverduePaymentResponse[]> {
+    try {
+      const safeOffset = Number.isInteger(offset) && offset! >= 0 ? offset! : 0;
+      const safeLimit =
+        Number.isInteger(limit) && limit! > 0 ? limit! : 2147483647;
+
+      const query: string = `
+      SET NOCOUNT ON;
+
+      -- Tabla temporal con exactamente tu consulta original
+      SELECT 
+        IDENTITY(int, 1, 1) AS rn,
+        di.ClaveCatastral AS cadastral_key,
+        di.CodCliente_Ingreso AS client_id,
+        MAX(di.nombre) AS name,
+        SUM(COALESCE(di.tasa_basura, 0))          AS total_trash_rate,
+        SUM(COALESCE(di.Valor_Titulo, 0))         AS total_epaa_value,
+        SUM(COALESCE(di.interes_mejoras, 0))      AS total_old_improvements_interest,
+        SUM(COALESCE(di.Recargo, 0))              AS total_surcharge,
+        SUM(COALESCE(di.Recargo_old, 0))          AS total_old_surcharge,
+        COUNT(di.Cod_Ingreso)                     AS months_past_due
+      INTO #OverdueTemp
+      FROM Datos_ingreso di
+      WHERE di.Fecha_Pago IS NULL
+        AND di.Estado_Ingreso IS NULL
+        AND di.convenio IS NULL
+        --AND di.Cod_Titulo_Datos = 'AGP'     -- descomenta solo si lo necesitas
+
+      GROUP BY di.ClaveCatastral, di.CodCliente_Ingreso
+      HAVING COUNT(di.Cod_Ingreso) > 1;
+
+      -- Retornar solo la página solicitada
+      SELECT TOP ${safeLimit}
+        cadastral_key,
+        client_id,
+        name,
+        total_trash_rate,
+        total_epaa_value,
+        total_old_improvements_interest,
+        total_surcharge,
+        total_old_surcharge,
+        months_past_due
+      FROM #OverdueTemp
+      WHERE rn > ${safeOffset}
+      ORDER BY rn;
+
+      DROP TABLE #OverdueTemp;
+    `;
+
+      const result =
+        await this.sqlServerService.query<OverduePaymentSqlResponse>(query);
+
+      const response: OverduePaymentResponse[] = result.map((item) =>
+        SQLServerReadingAdapter.fromOverduePaymentSqlResponseToOverduePaymentResponse(
+          item,
+        ),
+      );
+
+      if (response.length === 0) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `No overdue readings found.`,
+        });
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Error al buscar lecturas vencidas:', error);
       throw error;
     }
   }
