@@ -3,10 +3,12 @@ import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import {
   OverduePaymentResponse,
+  OverdueSummaryResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
   ReadingResponse,
+  YearlyOverdueSummaryResponse,
 } from '../../domain/schemas/dto/response/readings.response';
 
 export interface InterfaceReadingUseCase {
@@ -63,4 +65,6 @@ export interface InterfaceReadingUseCase {
     limit?: number,
     offset?: number,
   ): Promise<OverduePaymentResponse[]>;
+  findOverdueSummary(): Promise<OverdueSummaryResponse | null>;
+  findYearlyOverdueSummary(): Promise<YearlyOverdueSummaryResponse[]>;
 }

@@ -3,10 +3,12 @@ import { InterfaceReadingUseCase } from '../usecases/reading.use-case.interface'
 import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/create.reading.request';
 import {
   OverduePaymentResponse,
+  OverdueSummaryResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
   ReadingResponse,
+  YearlyOverdueSummaryResponse,
 } from '../../domain/schemas/dto/response/readings.response';
 import { InterfaceReadingsRepository } from '../../domain/contracts/readings.interface.repository';
 import { ReadingModel } from '../../domain/schemas/model/sqlserver/reading.model';
@@ -606,6 +608,36 @@ export class ReadingService
         });
       }
       return overdueReadings;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findOverdueSummary(): Promise<OverdueSummaryResponse | null> {
+    try {
+      const summary = await this.readingsRepository.findOverdueSummary();
+      if (!summary) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `Overdue summary not found`,
+        });
+      }
+      return summary;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findYearlyOverdueSummary(): Promise<YearlyOverdueSummaryResponse[]> {
+    try {
+      const summary = await this.readingsRepository.findYearlyOverdueSummary();
+      if (!summary) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `Yearly overdue summary not found`,
+        });
+      }
+      return summary;
     } catch (error) {
       throw error;
     }

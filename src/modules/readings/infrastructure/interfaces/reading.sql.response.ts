@@ -160,3 +160,44 @@ export interface OverduePaymentSqlResponse {
   total_old_surcharge: number;
   months_past_due: number;
 }
+
+export interface OverdueSummarySqlResult {
+  total_clients_with_debt: number;
+  total_unique_cadastral_keys: number;
+  total_months_past_due: number;
+  total_debt_amount: number;
+  total_epaa_value: number;
+  total_trash_rate: number;
+  total_surcharge: number;
+  total_old_surcharge: number;
+  total_improvements_interest: number;
+  avg_months_past_due: number;
+  max_months_in_debt: number;
+  min_months_in_debt: number;
+  clients_over_6_months: number;
+  clients_over_1_year: number;
+  max_days_in_debt: number;
+  avg_debt_per_client: number;
+}
+
+export interface YearlyOverdueSummarySqlResult {
+  year: number;
+  total_unique_clients: number;
+  total_unique_cadastral_keys: number;
+  clients_with_debt: number;
+  total_unique_cadastral_keys_by_year: number;
+  total_months_past_due: number;
+  total_debt_amount: number;
+  total_epaa_value: number;
+  total_trash_rate: number;
+  total_surcharge: number;
+  total_old_surcharge: number;
+  total_improvements_interest: number;
+  avg_months_past_due: number;
+  max_months_in_debt: number;
+  min_months_in_debt: number;
+  clients_over_6_months: number;
+  clients_over_1_year: number;
+  max_days_in_debt: number;
+  avg_debt_per_client: number;
+}

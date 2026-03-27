@@ -9,16 +9,20 @@ import {
   PaymentReadingSqlResponse,
   PaymentSqlResponse,
   OverduePaymentSqlResponse,
+  OverdueSummarySqlResult,
+  YearlyOverdueSummarySqlResult,
 } from '../../../interfaces/reading.sql.response';
 import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
 import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
 import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading.model';
 import {
   OverduePaymentResponse,
+  OverdueSummaryResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
   ReadingResponse,
+  YearlyOverdueSummaryResponse,
 } from '../../../../domain/schemas/dto/response/readings.response';
 import { formatDateForSQLServer } from '../../../../../../shared/utils/format-date';
 import { FindCurrentReadingParams } from '../../../../domain/schemas/dto/request/find-current-reading.paramss';
@@ -1925,6 +1929,256 @@ SELECT
       return response;
     } catch (error) {
       console.error('Error al buscar lecturas vencidas:', error);
+      throw error;
+    }
+  }
+
+  async findOverdueSummary(): Promise<OverdueSummaryResponse | null> {
+    try {
+      const query: string = `
+        SET NOCOUNT ON;
+
+        DECLARE @Corte DATETIME;
+        SET @Corte = GETDATE();
+
+        SELECT
+            COUNT(DISTINCT CodCliente_Ingreso) AS total_clients_with_debt, -- ✅ CORRECTO
+            COUNT(DISTINCT ClaveCatastral)     AS total_unique_cadastral_keys, -- ✅ CORRECTO
+
+            SUM(months_past_due)               AS total_months_past_due,
+            SUM(total_debt_amount)             AS total_debt_amount,
+
+            SUM(total_epaa_value)              AS total_epaa_value,
+            SUM(total_trash_rate)              AS total_trash_rate,
+            SUM(total_surcharge)               AS total_surcharge,
+            SUM(total_old_surcharge)           AS total_old_surcharge,
+            SUM(total_improvements_interest)   AS total_improvements_interest,
+
+            AVG(CAST(months_past_due AS DECIMAL(10,2))) AS avg_months_past_due,
+            MAX(months_past_due)               AS max_months_in_debt,
+            MIN(months_past_due)               AS min_months_in_debt,
+
+            COUNT(DISTINCT CASE WHEN months_past_due >= 6 THEN CodCliente_Ingreso END)  AS clients_over_6_months,
+            COUNT(DISTINCT CASE WHEN months_past_due >= 12 THEN CodCliente_Ingreso END) AS clients_over_1_year,
+
+            MAX(DATEDIFF(DAY, oldest_due_date, @Corte)) AS max_days_in_debt,
+            AVG(total_debt_amount) AS avg_debt_per_client
+
+        FROM (
+            SELECT
+                di.CodCliente_Ingreso,
+                di.ClaveCatastral,
+
+                COUNT(*) AS months_past_due,
+
+                SUM(ISNULL(di.Valor_Titulo, 0)) AS total_epaa_value,
+                SUM(ISNULL(di.ValorTerceros, 0)) AS total_terceros,
+                SUM(ISNULL(di.tasa_basura, 0)) AS total_trash_rate,
+                SUM(ISNULL(di.Recargo, 0)) AS total_surcharge,
+                SUM(ISNULL(di.Recargo_old, 0)) AS total_old_surcharge,
+                SUM(ISNULL(di.interes_mejoras, 0)) AS total_improvements_interest,
+
+                SUM(
+                    ISNULL(di.Valor_Titulo, 0)
+                  + ISNULL(di.ValorTerceros, 0)
+                  + ISNULL(di.tasa_basura, 0)
+                  + ISNULL(di.Recargo, 0)
+                  + ISNULL(di.Recargo_old, 0)
+                  + ISNULL(di.interes_mejoras, 0)
+                ) AS total_debt_amount,
+
+                MIN(di.Fecha_Venc_Interes) AS oldest_due_date
+
+            FROM Datos_ingreso di
+            INNER JOIN (
+                SELECT CodCliente_Ingreso
+                FROM Datos_ingreso
+                WHERE Fecha_Pago IS NULL
+                  AND Estado_Ingreso IS NULL
+                  AND convenio IS NULL
+                  AND Fecha_Venc_Interes <= @Corte
+                GROUP BY CodCliente_Ingreso
+                HAVING COUNT(*) > 1
+            ) AS cv ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
+
+            WHERE di.Fecha_Pago IS NULL
+              AND di.Estado_Ingreso IS NULL
+              AND di.convenio IS NULL
+              AND di.Fecha_Venc_Interes <= @Corte
+
+            GROUP BY
+                di.CodCliente_Ingreso,
+                di.ClaveCatastral
+            HAVING COUNT(*) > 1
+        ) AS base;
+      `;
+
+      const result =
+        await this.sqlServerService.query<OverdueSummarySqlResult>(query);
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      const response: OverdueSummaryResponse =
+        SQLServerReadingAdapter.fromOverdueSummarySqlResultToOverdueSummaryResponse(
+          result[0],
+        );
+
+      return response;
+    } catch (error) {
+      console.error('Error al buscar el resumen de lecturas vencidas:', error);
+      throw error;
+    }
+  }
+
+  async findYearlyOverdueSummary(): Promise<YearlyOverdueSummaryResponse[]> {
+    try {
+      const query: string = `
+        SET NOCOUNT ON;
+
+        DECLARE @Today DATETIME;
+        SET @Today = GETDATE();
+
+        SELECT
+            b.[year],
+
+            t.total_unique_clients,
+            t.total_unique_cadastral_keys,
+
+            COUNT(DISTINCT b.CodCliente_Ingreso) AS clients_with_debt,
+            COUNT(DISTINCT b.ClaveCatastral)     AS total_unique_cadastral_keys_by_year,
+
+            SUM(months_past_due) AS total_months_past_due,
+            SUM(total_debt_amount) AS total_debt_amount,
+
+            SUM(total_epaa_value) AS total_epaa_value,
+            SUM(total_trash_rate) AS total_trash_rate,
+            SUM(total_surcharge) AS total_surcharge,
+            SUM(total_old_surcharge) AS total_old_surcharge,
+            SUM(total_improvements_interest) AS total_improvements_interest,
+
+            AVG(CAST(months_past_due AS DECIMAL(10,2))) AS avg_months_past_due,
+            MAX(months_past_due) AS max_months_in_debt,
+            MIN(months_past_due) AS min_months_in_debt,
+
+            COUNT(DISTINCT CASE WHEN months_past_due >= 6 THEN b.CodCliente_Ingreso END)  AS clients_over_6_months,
+            COUNT(DISTINCT CASE WHEN months_past_due >= 12 THEN b.CodCliente_Ingreso END) AS clients_over_1_year,
+
+            MAX(DATEDIFF(DAY, oldest_due_date, @Today)) AS max_days_in_debt,
+
+            CAST(AVG(CAST(total_debt_amount AS DECIMAL(18,2))) AS DECIMAL(18,2)) AS avg_debt_per_client
+
+        FROM (
+            SELECT
+                di.CodCliente_Ingreso,
+                di.ClaveCatastral,
+                YEAR(di.Fecha_Venc_Interes) AS [year],
+
+                COUNT(*) AS months_past_due,
+
+                SUM(ISNULL(di.Valor_Titulo, 0)) AS total_epaa_value,
+                SUM(ISNULL(di.ValorTerceros, 0)) AS total_terceros,
+                SUM(ISNULL(di.tasa_basura, 0)) AS total_trash_rate,
+                SUM(ISNULL(di.Recargo, 0)) AS total_surcharge,
+                SUM(ISNULL(di.Recargo_old, 0)) AS total_old_surcharge,
+                SUM(ISNULL(di.interes_mejoras, 0)) AS total_improvements_interest,
+
+                SUM(
+                    ISNULL(di.Valor_Titulo, 0)
+                  + ISNULL(di.ValorTerceros, 0)
+                  + ISNULL(di.tasa_basura, 0)
+                  + ISNULL(di.Recargo, 0)
+                  + ISNULL(di.Recargo_old, 0)
+                  + ISNULL(di.interes_mejoras, 0)
+                ) AS total_debt_amount,
+
+                MIN(di.Fecha_Venc_Interes) AS oldest_due_date
+
+            FROM Datos_ingreso di
+            INNER JOIN (
+                SELECT
+                    CodCliente_Ingreso,
+                    ClaveCatastral
+                FROM Datos_ingreso
+                WHERE Fecha_Pago IS NULL
+                  AND Estado_Ingreso IS NULL
+                  AND convenio IS NULL
+                  AND Fecha_Venc_Interes <= @Today
+                GROUP BY CodCliente_Ingreso, ClaveCatastral
+                HAVING COUNT(*) > 1
+            ) AS cv ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
+                  AND di.ClaveCatastral = cv.ClaveCatastral
+
+            WHERE di.Fecha_Pago IS NULL
+              AND di.Estado_Ingreso IS NULL
+              AND di.convenio IS NULL
+              AND di.Fecha_Venc_Interes <= @Today
+
+            GROUP BY
+                di.CodCliente_Ingreso,
+                di.ClaveCatastral,
+                YEAR(di.Fecha_Venc_Interes)
+        ) AS b
+        CROSS JOIN (
+            SELECT
+                COUNT(DISTINCT CodCliente_Ingreso) AS total_unique_clients,
+                COUNT(DISTINCT ClaveCatastral)     AS total_unique_cadastral_keys
+            FROM (
+                SELECT
+                    di.CodCliente_Ingreso,
+                    di.ClaveCatastral
+                FROM Datos_ingreso di
+                INNER JOIN (
+                    SELECT
+                        CodCliente_Ingreso,
+                        ClaveCatastral
+                    FROM Datos_ingreso
+                    WHERE Fecha_Pago IS NULL
+                      AND Estado_Ingreso IS NULL
+                      AND convenio IS NULL
+                      AND Fecha_Venc_Interes <= @Today
+                    GROUP BY CodCliente_Ingreso, ClaveCatastral
+                    HAVING COUNT(*) > 1
+                ) AS cv ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
+                      AND di.ClaveCatastral = cv.ClaveCatastral
+                WHERE di.Fecha_Pago IS NULL
+                  AND di.Estado_Ingreso IS NULL
+                  AND di.convenio IS NULL
+                  AND di.Fecha_Venc_Interes <= @Today
+                GROUP BY
+                    di.CodCliente_Ingreso,
+                    di.ClaveCatastral
+            ) AS base_totales
+        ) AS t
+
+        GROUP BY
+            b.[year],
+            t.total_unique_clients,
+            t.total_unique_cadastral_keys
+
+        ORDER BY b.[year] DESC;
+      `;
+
+      const result =
+        await this.sqlServerService.query<YearlyOverdueSummarySqlResult>(query);
+
+      if (result.length === 0) {
+        return [];
+      }
+
+      const response: YearlyOverdueSummaryResponse[] = result.map((item) =>
+        SQLServerReadingAdapter.fromYearlySummarySqlResultToYearlySummaryResponse(
+          item,
+        ),
+      );
+
+      return response;
+    } catch (error) {
+      console.error(
+        'Error al buscar el resumen anual de lecturas vencidas:',
+        error,
+      );
       throw error;
     }
   }

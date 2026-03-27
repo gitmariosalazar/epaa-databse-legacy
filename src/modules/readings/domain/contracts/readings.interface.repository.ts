@@ -1,10 +1,12 @@
 import { FindCurrentReadingParams } from '../schemas/dto/request/find-current-reading.paramss';
 import {
   OverduePaymentResponse,
+  OverdueSummaryResponse,
   PaymentReadingResponse,
   PaymentResponse,
   PendingReadingResponse,
   ReadingResponse,
+  YearlyOverdueSummaryResponse,
 } from '../schemas/dto/response/readings.response';
 import { ReadingModel } from '../schemas/model/sqlserver/reading.model';
 
@@ -69,4 +71,7 @@ export interface InterfaceReadingsRepository {
     limit?: number,
     offset?: number,
   ): Promise<OverduePaymentResponse[]>;
+
+  findOverdueSummary(): Promise<OverdueSummaryResponse | null>;
+  findYearlyOverdueSummary(): Promise<YearlyOverdueSummaryResponse[]>;
 }

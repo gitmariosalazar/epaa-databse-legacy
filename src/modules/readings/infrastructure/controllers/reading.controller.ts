@@ -273,4 +273,18 @@ export class ReadingController {
     );
     return this.readingService.findAllOverduePayments(data.limit, data.offset);
   }
+
+  @Get('find-overdue-summary')
+  @MessagePattern('epaa-legacy.reading.find-overdue-summary')
+  findOverdueSummary() {
+    console.log(`Received findOverdueSummary request`);
+    return this.readingService.findOverdueSummary();
+  }
+
+  @Get('find-yearly-overdue-summary')
+  @MessagePattern('epaa-legacy.reading.find-yearly-overdue-summary')
+  findYearlyOverdueSummary() {
+    console.log(`Received findYearlyOverdueSummary request`);
+    return this.readingService.findYearlyOverdueSummary();
+  }
 }
