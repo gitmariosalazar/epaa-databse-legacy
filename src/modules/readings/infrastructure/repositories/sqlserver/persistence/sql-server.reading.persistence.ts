@@ -1778,7 +1778,7 @@ export class ReadingSQLServer2022Persistence
                   + ISNULL(di.ValorTerceros, 0)
                   + ISNULL(di.tasa_basura, 0)
                   + ISNULL(di.Recargo, 0)
-                  + ISNULL(di.Recargo_old, 0)
+                  --+ ISNULL(di.Recargo_old, 0)
                   + ISNULL(di.interes_mejoras, 0)
                 ) AS total_debt_amount,
 
@@ -1883,7 +1883,7 @@ export class ReadingSQLServer2022Persistence
                   + ISNULL(di.ValorTerceros, 0)
                   + ISNULL(di.tasa_basura, 0)
                   + ISNULL(di.Recargo, 0)
-                  + ISNULL(di.Recargo_old, 0)
+                  --+ ISNULL(di.Recargo_old, 0)
                   + ISNULL(di.interes_mejoras, 0)
                 ) AS total_debt_amount,
 
