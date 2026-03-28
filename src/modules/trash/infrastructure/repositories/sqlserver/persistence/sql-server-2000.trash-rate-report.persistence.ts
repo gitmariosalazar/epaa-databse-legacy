@@ -613,7 +613,7 @@ export class SqlServerTrash2000RateReportPersistence
         -- 3. MAIN CATEGORIES
         -- CATEGORY 1: Globales (Emitidos) por fecha de emisión no se toma en cuenta la fecha de pago
         SELECT 
-            'Globales (Emitidos Fecha de Emisión ${initDateTime} - ${endDateTime})' AS category_name,
+            'Globales (Emitidos Fecha de Emisión ${startDate} - ${endDate})' AS category_name,
             COUNT(di.Cod_Ingreso) AS total_bills,
             COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
             SUM(di.tasa_basura) AS source_trash_rate,
@@ -644,7 +644,7 @@ export class SqlServerTrash2000RateReportPersistence
 
         -- CATEGORY 2: Recaudación (Pagados en Período por fecha de pago) no se toma en cuenta la fecha de emisión
         SELECT 
-            'Recaudación (Pagados Fecha de Pago ${initDateTime} - ${endDateTime})' AS category_name,
+            'Recaudación (Pagados Fecha de Pago ${startDate} - ${endDate})' AS category_name,
             COUNT(di.Cod_Ingreso) AS total_bills,
             COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
             SUM(di.tasa_basura) AS source_trash_rate,
@@ -677,7 +677,7 @@ export class SqlServerTrash2000RateReportPersistence
         -- CATEGORY 3: Cumplimiento (Emitidos y Pagados en Período por fecha de pago y emisión) 
         -- Se toma en cuenta la fecha de pago y la fecha de emisión, el resultado debe ser todas las facturas que fueron emitidas en el período y pagadas en el período
         SELECT 
-            'Cumplimiento (Emitidos y Pagados Fecha de Emisión y Pago ${initDateTime} - ${endDateTime})' AS category_name,
+            'Cumplimiento (Emitidos y Pagados Fecha de Emisión y Pago ${startDate} - ${endDate})' AS category_name,
             COUNT(di.Cod_Ingreso) AS total_bills,
             COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
             SUM(di.tasa_basura) AS source_trash_rate,
@@ -723,7 +723,6 @@ export class SqlServerTrash2000RateReportPersistence
       throw error;
     }
   }
-
 
   async getCollectorPerformanceKPI(
     startDate: string,
