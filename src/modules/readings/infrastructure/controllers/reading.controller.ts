@@ -287,4 +287,11 @@ export class ReadingController {
     console.log(`Received findYearlyOverdueSummary request`);
     return this.readingService.findYearlyOverdueSummary();
   }
+
+  @Get('find-monthly-debt-summary')
+  @MessagePattern('epaa-legacy.reading.find-monthly-debt-summary')
+  findMonthlyDebtSummary() {
+    console.log(`Received findMonthlyDebtSummary request`);
+    return this.readingService.findMonthlyDebtSummary();
+  }
 }

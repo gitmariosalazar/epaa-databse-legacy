@@ -1,5 +1,6 @@
 import { FindCurrentReadingParams } from '../schemas/dto/request/find-current-reading.paramss';
 import {
+  MonthlyDebtSummaryResponse,
   OverduePaymentResponse,
   OverdueSummaryResponse,
   PaymentReadingResponse,
@@ -74,4 +75,5 @@ export interface InterfaceReadingsRepository {
 
   findOverdueSummary(): Promise<OverdueSummaryResponse | null>;
   findYearlyOverdueSummary(): Promise<YearlyOverdueSummaryResponse[]>;
+  findMonthlyDebtSummary(): Promise<MonthlyDebtSummaryResponse[]>;
 }

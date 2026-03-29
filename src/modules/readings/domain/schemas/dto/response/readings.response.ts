@@ -172,3 +172,34 @@ export interface YearlyOverdueSummaryResponse {
   maxDaysInDebt: number;
   avgDebtPerClient: number;
 }
+
+export interface MonthlyDebtSummaryResponse {
+  year: number;
+  month: number;
+  monthName: string; // ENERO, FEBRERO, etc.
+
+  totalUniqueClients: number;
+  totalUniqueCadastralKeys: number;
+
+  clientsWithDebtThisMonth: number;
+  uniqueCadastralKeysThisMonth: number;
+
+  totalMonthsPastDue: number;
+  totalDebtAmount: number;
+
+  totalEpaaValue: number;
+  totalTrashRate: number;
+  totalSurcharge: number;
+  totalOldSurcharge: number;
+  totalImprovementsInterest: number;
+
+  avgMonthsPastDue: number | null;
+  maxMonthsInDebt: number;
+  minMonthsInDebt: number;
+
+  clientsOver6Months: number;
+  clientsOver1Year: number;
+
+  maxDaysInDebt: number;
+  avgDebtPerClient: number;
+}

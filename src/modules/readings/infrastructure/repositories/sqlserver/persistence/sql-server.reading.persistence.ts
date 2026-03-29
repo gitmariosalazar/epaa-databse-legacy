@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SQLServerReadingAdapter } from '../adapters/sql-server.reading.adapter';
 import {
+  MonthlyDebtSummarySqlResult,
   OverduePaymentSqlResponse,
   OverdueSummarySqlResult,
   PaymentReadingSqlResponse,
@@ -14,6 +15,7 @@ import {
 import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
 import { DatabaseServiceSQLServer2022 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
 import {
+  MonthlyDebtSummaryResponse,
   OverduePaymentResponse,
   OverdueSummaryResponse,
   PaymentReadingResponse,
@@ -1970,6 +1972,144 @@ export class ReadingSQLServer2022Persistence
         'Error al buscar el resumen anual de lecturas vencidas:',
         error,
       );
+      throw error;
+    }
+  }
+
+  async findMonthlyDebtSummary(): Promise<MonthlyDebtSummaryResponse[]> {
+    try {
+      const query: string = `
+        SET NOCOUNT ON;
+
+        DECLARE @Today DATE = GETDATE();
+
+        ;WITH clientes_validos AS (
+            SELECT
+                CodCliente_Ingreso,
+                ClaveCatastral
+            FROM Datos_ingreso
+            WHERE Fecha_Pago IS NULL
+              AND Estado_Ingreso IS NULL
+              AND convenio IS NULL
+              AND Fecha_Venc_Interes <= @Today
+            GROUP BY CodCliente_Ingreso, ClaveCatastral
+            HAVING COUNT(*) > 1
+        ),
+        base AS (
+            SELECT
+                di.CodCliente_Ingreso,
+                di.ClaveCatastral,
+                YEAR(di.Fecha_Venc_Interes)     AS [year],
+                MONTH(di.Fecha_Venc_Interes)    AS [month],
+                DATENAME(MONTH, di.Fecha_Venc_Interes) AS month_name,
+
+                COUNT(*) AS months_past_due,
+
+                SUM(ISNULL(di.Valor_Titulo, 0))          AS total_epaa_value,
+                SUM(ISNULL(di.ValorTerceros, 0))         AS total_terceros,
+                SUM(ISNULL(di.tasa_basura, 0))           AS total_trash_rate,
+                SUM(ISNULL(di.Recargo, 0))               AS total_surcharge,
+                SUM(ISNULL(di.Recargo_old, 0))           AS total_old_surcharge,
+                SUM(ISNULL(di.interes_mejoras, 0))       AS total_improvements_interest,
+
+                SUM(
+                    ISNULL(di.Valor_Titulo, 0)
+                  + ISNULL(di.ValorTerceros, 0)
+                  + ISNULL(di.tasa_basura, 0)
+                  + ISNULL(di.Recargo, 0)
+                  --+ ISNULL(di.Recargo_old, 0)
+                  + ISNULL(di.interes_mejoras, 0)
+                ) AS total_debt_amount,
+
+                MIN(di.Fecha_Venc_Interes) AS oldest_due_date
+
+            FROM Datos_ingreso di
+            INNER JOIN clientes_validos cv
+                ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
+              AND di.ClaveCatastral = cv.ClaveCatastral
+
+            WHERE di.Fecha_Pago IS NULL
+              AND di.Estado_Ingreso IS NULL
+              AND di.convenio IS NULL
+              AND di.Fecha_Venc_Interes <= @Today
+
+            GROUP BY
+                di.CodCliente_Ingreso,
+                di.ClaveCatastral,
+                YEAR(di.Fecha_Venc_Interes),
+                MONTH(di.Fecha_Venc_Interes),
+                DATENAME(MONTH, di.Fecha_Venc_Interes)
+        ),
+        totales AS (
+            SELECT
+                COUNT(DISTINCT CodCliente_Ingreso) AS total_unique_clients,
+                COUNT(DISTINCT ClaveCatastral)     AS total_unique_cadastral_keys
+            FROM base
+        )
+
+        SELECT
+            b.[year],
+            b.[month],
+            b.month_name,
+
+            t.total_unique_clients,
+            t.total_unique_cadastral_keys,
+
+            COUNT(DISTINCT b.CodCliente_Ingreso) AS clients_with_debt_this_month,
+            COUNT(DISTINCT b.ClaveCatastral)     AS unique_cadastral_keys_this_month,
+
+            SUM(b.months_past_due)               AS total_months_past_due,
+            SUM(b.total_debt_amount)             AS total_debt_amount,
+
+            SUM(b.total_epaa_value)              AS total_epaa_value,
+            SUM(b.total_trash_rate)              AS total_trash_rate,
+            SUM(b.total_surcharge)               AS total_surcharge,
+            SUM(b.total_old_surcharge)           AS total_old_surcharge,
+            SUM(b.total_improvements_interest)   AS total_improvements_interest,
+
+            AVG(CAST(b.months_past_due AS DECIMAL(10,2))) AS avg_months_past_due,
+            MAX(b.months_past_due)                        AS max_months_in_debt,
+            MIN(b.months_past_due)                        AS min_months_in_debt,
+
+            COUNT(DISTINCT CASE WHEN b.months_past_due >= 6 THEN b.CodCliente_Ingreso END)
+                AS clients_over_6_months,
+
+            COUNT(DISTINCT CASE WHEN b.months_past_due >= 12 THEN b.CodCliente_Ingreso END)
+                AS clients_over_1_year,
+
+            MAX(DATEDIFF(DAY, b.oldest_due_date, @Today)) AS max_days_in_debt,
+
+            CAST(AVG(CAST(b.total_debt_amount AS DECIMAL(18,2))) AS DECIMAL(18,2))
+                AS avg_debt_per_client
+
+        FROM base b
+        CROSS JOIN totales t
+
+        GROUP BY
+            b.[year],
+            b.[month],
+            b.month_name,
+            t.total_unique_clients,
+            t.total_unique_cadastral_keys
+
+        ORDER BY b.[year] DESC, b.[month] DESC;
+      `;
+
+      const result =
+        await this.sqlServerService.query<MonthlyDebtSummarySqlResult>(query);
+
+      if (result.length === 0) {
+        return [];
+      }
+
+      const response: MonthlyDebtSummaryResponse[] = result.map((item) =>
+        SQLServerReadingAdapter.fromMonthlySummarySqlResultToMonthlySummaryResponse(
+          item,
+        ),
+      );
+
+      return response;
+    } catch (error) {
       throw error;
     }
   }

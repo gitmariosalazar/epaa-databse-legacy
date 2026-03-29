@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InterfaceReadingUseCase } from '../usecases/reading.use-case.interface';
 import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/create.reading.request';
 import {
+  MonthlyDebtSummaryResponse,
   OverduePaymentResponse,
   OverdueSummaryResponse,
   PaymentReadingResponse,
@@ -635,6 +636,22 @@ export class ReadingService
         throw new RpcException({
           statusCode: statusCode.NOT_FOUND,
           message: `Yearly overdue summary not found`,
+        });
+      }
+      return summary;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findMonthlyDebtSummary(): Promise<MonthlyDebtSummaryResponse[]> {
+    try {
+      const summary: MonthlyDebtSummaryResponse[] =
+        await this.readingsRepository.findMonthlyDebtSummary();
+      if (!summary) {
+        throw new RpcException({
+          statusCode: statusCode.NOT_FOUND,
+          message: `Monthly debt summary not found`,
         });
       }
       return summary;

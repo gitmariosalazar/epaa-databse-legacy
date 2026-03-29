@@ -1,4 +1,5 @@
 import {
+  MonthlyDebtSummaryResponse,
   OverduePaymentResponse,
   OverdueSummaryResponse,
   PaymentReadingResponse,
@@ -8,6 +9,7 @@ import {
   YearlyOverdueSummaryResponse,
 } from '../../../../domain/schemas/dto/response/readings.response';
 import {
+  MonthlyDebtSummarySqlResult,
   OverduePaymentSqlResponse,
   OverdueSummarySqlResult,
   PaymentReadingSqlResponse,
@@ -323,6 +325,71 @@ export class SQLServerReadingAdapter {
         data.total_improvements_interest != null
           ? Number(data.total_improvements_interest)
           : 0,
+      avgMonthsPastDue:
+        data.avg_months_past_due != null ? Number(data.avg_months_past_due) : 0,
+      maxMonthsInDebt:
+        data.max_months_in_debt != null ? Number(data.max_months_in_debt) : 0,
+      minMonthsInDebt:
+        data.min_months_in_debt != null ? Number(data.min_months_in_debt) : 0,
+      clientsOver6Months:
+        data.clients_over_6_months != null
+          ? Number(data.clients_over_6_months)
+          : 0,
+      clientsOver1Year:
+        data.clients_over_1_year != null ? Number(data.clients_over_1_year) : 0,
+      maxDaysInDebt:
+        data.max_days_in_debt != null ? Number(data.max_days_in_debt) : 0,
+      avgDebtPerClient:
+        data.avg_debt_per_client != null ? Number(data.avg_debt_per_client) : 0,
+    };
+  }
+
+  static fromMonthlySummarySqlResultToMonthlySummaryResponse(
+    data: MonthlyDebtSummarySqlResult,
+  ): MonthlyDebtSummaryResponse {
+    return {
+      year: data.year != null ? Number(data.year) : 0,
+      month: data.month != null ? Number(data.month) : 0,
+      monthName: data.month_name ? String(data.month_name).trim() : '',
+
+      totalUniqueClients:
+        data.total_unique_clients != null
+          ? Number(data.total_unique_clients)
+          : 0,
+      totalUniqueCadastralKeys:
+        data.total_unique_cadastral_keys != null
+          ? Number(data.total_unique_cadastral_keys)
+          : 0,
+
+      clientsWithDebtThisMonth:
+        data.clients_with_debt_this_month != null
+          ? Number(data.clients_with_debt_this_month)
+          : 0,
+      uniqueCadastralKeysThisMonth:
+        data.unique_cadastral_keys_this_month != null
+          ? Number(data.unique_cadastral_keys_this_month)
+          : 0,
+
+      totalMonthsPastDue:
+        data.total_months_past_due != null
+          ? Number(data.total_months_past_due)
+          : 0,
+      totalDebtAmount:
+        data.total_debt_amount != null ? Number(data.total_debt_amount) : 0,
+
+      totalEpaaValue:
+        data.total_epaa_value != null ? Number(data.total_epaa_value) : 0,
+      totalTrashRate:
+        data.total_trash_rate != null ? Number(data.total_trash_rate) : 0,
+      totalSurcharge:
+        data.total_surcharge != null ? Number(data.total_surcharge) : 0,
+      totalOldSurcharge:
+        data.total_old_surcharge != null ? Number(data.total_old_surcharge) : 0,
+      totalImprovementsInterest:
+        data.total_improvements_interest != null
+          ? Number(data.total_improvements_interest)
+          : 0,
+
       avgMonthsPastDue:
         data.avg_months_past_due != null ? Number(data.avg_months_past_due) : 0,
       maxMonthsInDebt:

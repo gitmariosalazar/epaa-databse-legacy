@@ -2,6 +2,7 @@ import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/cre
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import {
+  MonthlyDebtSummaryResponse,
   OverduePaymentResponse,
   OverdueSummaryResponse,
   PaymentReadingResponse,
@@ -67,4 +68,5 @@ export interface InterfaceReadingUseCase {
   ): Promise<OverduePaymentResponse[]>;
   findOverdueSummary(): Promise<OverdueSummaryResponse | null>;
   findYearlyOverdueSummary(): Promise<YearlyOverdueSummaryResponse[]>;
+  findMonthlyDebtSummary(): Promise<MonthlyDebtSummaryResponse[]>;
 }
