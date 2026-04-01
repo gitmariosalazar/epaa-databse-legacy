@@ -1772,7 +1772,7 @@ export class ReadingSQLServer2022Persistence
                 SUM(ISNULL(di.ValorTerceros, 0)) AS total_terceros,
                 SUM(ISNULL(di.tasa_basura, 0)) AS total_trash_rate,
                 SUM(ISNULL(di.Recargo, 0)) AS total_surcharge,
-                SUM(ISNULL(di.Recargo_old, 0)) AS total_old_surcharge,
+                --SUM(ISNULL(di.Recargo_old, 0)) AS total_old_surcharge,
                 SUM(ISNULL(di.interes_mejoras, 0)) AS total_improvements_interest,
 
                 SUM(

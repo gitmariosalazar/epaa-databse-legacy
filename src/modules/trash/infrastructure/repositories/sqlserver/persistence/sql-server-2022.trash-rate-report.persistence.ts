@@ -727,7 +727,6 @@ export class SqlServer2022TrashRateReportPersistence
     }
   }
 
-
   async getCollectorPerformanceKPI(
     startDate: string,
     endDate: string,
@@ -800,6 +799,7 @@ export class SqlServer2022TrashRateReportPersistence
               di.Fecha_Pago >= @startDate
             AND di.Fecha_Pago <= @endDate
             AND di.tasa_basura IS NOT NULL
+            AND di.Estado_Ingreso = 'P'
           GROUP BY di.User_Cobro;
   
           -- 4. FINAL RESULTS WITH RANKING (SQL 2000 Manual Rank)
