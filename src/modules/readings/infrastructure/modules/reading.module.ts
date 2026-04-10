@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ReadingService } from '../../application/services/reading.service';
 import { ReadingController } from '../controllers/reading.controller';
 import { ReadingSQLServer2000Persistence } from '../repositories/sqlserver/persistence/sql-server-2000.reading.persistence';
-import { ExternalPayrollPersistence } from '../repositories/http/persistence/external-payroll.persistence';
 import { KafkaServiceModule } from '../../../../shared/kafka/kafka-service.module';
 import { DatabaseServiceSQLServer2000 } from '../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
 
@@ -15,14 +14,6 @@ import { DatabaseServiceSQLServer2000 } from '../../../../shared/connections/dat
     DatabaseServiceSQLServer2000,
     {
       provide: 'ReadingsRepository',
-      useClass: ReadingSQLServer2000Persistence,
-    },
-    {
-      provide: 'ExternalPayrollRepository',
-      useClass: ExternalPayrollPersistence,
-    },
-    {
-      provide: 'EntryDataRepository',
       useClass: ReadingSQLServer2000Persistence,
     },
   ],

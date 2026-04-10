@@ -19,11 +19,17 @@ async function bootstrap() {
     transport: Transport.KAFKA,
     options: {
       client: {
-        clientId: environments.EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID,
+        clientId: `${environments.EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID}-v3`,
         brokers: [environments.KAFKA_BROKER_URL],
       },
+      producer: {
+        maxInFlightRequests: 1,
+        idempotent: false,
+        allowAutoTopicCreation: true,
+        maxRequestSize: 10485760, // 10MB
+      },
       consumer: {
-        groupId: environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
+        groupId: `${environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID}-v3`,
         allowAutoTopicCreation: true,
         maxBytesPerPartition: 52428800, // 50MB
         maxBytes: 52428800, // 50MB,

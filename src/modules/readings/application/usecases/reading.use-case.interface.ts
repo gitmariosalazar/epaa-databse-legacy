@@ -2,14 +2,7 @@ import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/cre
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import {
-  MonthlyDebtSummaryResponse,
-  OverduePaymentResponse,
-  OverdueSummaryResponse,
-  PaymentReadingResponse,
-  PaymentResponse,
-  PendingReadingResponse,
   ReadingResponse,
-  YearlyOverdueSummaryResponse,
 } from '../../domain/schemas/dto/response/readings.response';
 
 export interface InterfaceReadingUseCase {
@@ -29,44 +22,4 @@ export interface InterfaceReadingUseCase {
     cadastralKey: string,
     consumptionM3: number,
   ): Promise<number>;
-  findPendingReadingsByCadastralKey(
-    cadastralKey: string,
-  ): Promise<PendingReadingResponse[]>;
-  findPendingReadingsByCardId(
-    cardId: string,
-  ): Promise<PendingReadingResponse[]>;
-  findPendingReadingsByCadastralKeyOrCardId(
-    searchValue: string,
-  ): Promise<PendingReadingResponse[]>;
-
-  findPendingReadingsByCadastralKeyOrCardIdAll(
-    searchValue: string,
-  ): Promise<PendingReadingResponse[]>;
-
-  verifyReadingExists(searchValue: string): Promise<boolean>;
-
-  findAllPaymentReadingPayrollsByDate(
-    paymentDate: string,
-  ): Promise<PaymentReadingResponse[]>;
-
-  findAllPaymentByDateAndOrderValue(
-    paymentDate: string,
-    orderValue: number,
-  ): Promise<PaymentResponse[]>;
-
-  findAllPaymentByDate(paymentDate: string): Promise<PaymentResponse[]>;
-
-  findAllPaymentByInitDateAndEndDate(
-    initDate: string,
-    endDate: string,
-    limit?: number,
-    offset?: number,
-  ): Promise<PaymentResponse[]>;
-  findAllOverduePayments(
-    limit?: number,
-    offset?: number,
-  ): Promise<OverduePaymentResponse[]>;
-  findOverdueSummary(): Promise<OverdueSummaryResponse | null>;
-  findYearlyOverdueSummary(): Promise<YearlyOverdueSummaryResponse[]>;
-  findMonthlyDebtSummary(): Promise<MonthlyDebtSummaryResponse[]>;
 }

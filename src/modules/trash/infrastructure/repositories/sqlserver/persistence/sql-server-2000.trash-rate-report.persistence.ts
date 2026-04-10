@@ -56,6 +56,7 @@ export class SqlServerTrash2000RateReportPersistence
       // Step 3: re-order ascending
       const query = `
         SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
         DECLARE @fechaInicio DATETIME
         DECLARE @fechaFin DATETIME
         SET @fechaInicio = CONVERT(DATETIME, '${initDateTime}', 120)
@@ -150,6 +151,7 @@ export class SqlServerTrash2000RateReportPersistence
       // SQL Server 2000 pagination: double TOP on the aggregated result
       const query = `
         SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
         DECLARE @fechaInicio DATETIME
         SET @fechaInicio = CONVERT(DATETIME, '${initDateTime}', 120)
 
@@ -248,6 +250,7 @@ export class SqlServerTrash2000RateReportPersistence
     try {
       const query = `
       SET NOCOUNT ON;
+      SET ANSI_WARNINGS OFF;
       DECLARE @searchParam VARCHAR(50)
       SET @searchParam = '${searchParams}'
 
@@ -320,6 +323,8 @@ export class SqlServerTrash2000RateReportPersistence
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
+        SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
         DECLARE @fechaInicioKPI DATETIME
         DECLARE @fechaFinKPI DATETIME
         SET @fechaInicioKPI = CONVERT(DATETIME, '${initDateTime}', 120)
@@ -411,6 +416,7 @@ export class SqlServerTrash2000RateReportPersistence
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
         SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
         DECLARE @fechaInicio3 DATETIME
         DECLARE @fechaFin3 DATETIME
         SET @fechaInicio3 = CONVERT(DATETIME, '${initDateTime}', 120)
@@ -467,6 +473,8 @@ export class SqlServerTrash2000RateReportPersistence
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
+        SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
         DECLARE @fechaInicio2 DATETIME
         DECLARE @fechaFin2 DATETIME
         SET @fechaInicio2 = CONVERT(DATETIME, '${initDateTime}', 120)
@@ -516,6 +524,8 @@ export class SqlServerTrash2000RateReportPersistence
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
+        SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
         DECLARE @fechaInicioTop DATETIME
         DECLARE @fechaFinTop DATETIME
         SET @fechaInicioTop = CONVERT(DATETIME, '${initDateTime}', 120)
@@ -561,6 +571,8 @@ export class SqlServerTrash2000RateReportPersistence
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
+        SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
         -- 1. CONFIGURATION & PARAMETERS
         DECLARE @Date_Start     DATETIME
         DECLARE @Date_End       DATETIME
@@ -729,13 +741,17 @@ export class SqlServerTrash2000RateReportPersistence
     endDate: string,
   ): Promise<CollectorPerformanceKPIModel[]> {
     try {
-      const initDateTime = `${String(startDate)} 00:00:00.000`;
-      const endDateTime = `${String(endDate)} 23:59:59.997`;
+      const isoStartDate = String(startDate).replace(/-/g, '');
+      const isoEndDate = String(endDate).replace(/-/g, '');
+      const initDateTime = `${isoStartDate}`;
+      const endDateTime = `${isoEndDate} 23:59:59.997`;
       const query = `
-        DECLARE @startDate VARCHAR(50)
-        DECLARE @endDate VARCHAR(50)
-        SET @startDate = CONVERT(DATETIME, '${initDateTime}', 120)
-        SET @endDate    = CONVERT(DATETIME, '${endDateTime}', 120)
+        SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
+        DECLARE @startDate DATETIME
+        DECLARE @endDate DATETIME
+        SET @startDate = CONVERT(DATETIME, '${initDateTime}', 112)
+        SET @endDate    = CONVERT(DATETIME, '${endDateTime}')
 
         -- 1. CONFIGURATION
         DECLARE @Service_Order  INT
@@ -752,7 +768,7 @@ export class SqlServerTrash2000RateReportPersistence
           AND di.tasa_basura IS NOT NULL;
 
         -- Ensure no zero-division
-        SET @Global_Total_Collection = CASE WHEN @Global_Total_Collection = 0 THEN 1 ELSE @Global_Total_Collection END;
+        SET @Global_Total_Collection = CASE WHEN ISNULL(@Global_Total_Collection, 0) = 0 THEN 1 ELSE @Global_Total_Collection END;
 
         -- 3. PRODUCTIVITY AGGREGATION
         SELECT
@@ -763,8 +779,8 @@ export class SqlServerTrash2000RateReportPersistence
             COUNT(DISTINCT di.ClaveCatastral)                       AS unique_customers_served,
 
             -- Financial Performance & Integrity Audit
-            SUM(di.tasa_basura)                                     AS source_trash_rate_total,
-            SUM(V.Valor)                                            AS valor_table_total,
+            SUM(COALESCE(di.tasa_basura, 0))                        AS source_trash_rate_total,
+            SUM(COALESCE(V.Valor, 0))                               AS valor_table_total,
             SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_amount,
 
             SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_amount,
@@ -775,7 +791,7 @@ export class SqlServerTrash2000RateReportPersistence
 
             -- Productivity KPIs
             ROUND(
-                (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / COUNT(di.Cod_Ingreso))
+                (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / CAST(COUNT(di.Cod_Ingreso) AS FLOAT))
             , 2)                                                    AS avg_ticket_size,
 
             ROUND(
@@ -799,17 +815,19 @@ export class SqlServerTrash2000RateReportPersistence
           AND di.Estado_Ingreso = 'P'
         GROUP BY di.User_Cobro;
 
-        -- 4. FINAL RESULTS WITH RANKING (SQL 2000 Manual Rank)
-        SELECT
-            (SELECT COUNT(*) + 1
-            FROM #CollectorKPIs C2
-            WHERE C2.net_collection_total > C1.net_collection_total) AS performance_rank,
+        -- 4. FINAL RESULTS WITH RANKING (SQL 2000 Highly Performant Rank via IDENTITY)
+        SELECT 
+            IDENTITY(INT, 1, 1) AS performance_rank,
             C1.*
+        INTO #RankedKPIs
         FROM #CollectorKPIs C1
-        ORDER BY performance_rank ASC;
+        ORDER BY C1.net_collection_total DESC;
+
+        SELECT * FROM #RankedKPIs ORDER BY performance_rank ASC;
 
         -- Cleanup
         DROP TABLE #CollectorKPIs;
+        DROP TABLE #RankedKPIs;
       `;
 
       const result: CollectorPerformanceKPISqlResult[] =
@@ -837,6 +855,8 @@ export class SqlServerTrash2000RateReportPersistence
       const initDateTime = `${String(startDate)} 00:00:00.000`;
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
+        SET NOCOUNT ON;
+        SET ANSI_WARNINGS OFF;
         DECLARE @startDate DATETIME
         DECLARE @endDate DATETIME
         SET @startDate = CONVERT(DATETIME, '${initDateTime}', 120)
@@ -854,8 +874,8 @@ export class SqlServerTrash2000RateReportPersistence
             COUNT(di.Cod_Ingreso)                                   AS transactions_count,
 
             -- Financial Totals & Integrity Audit
-            SUM(di.tasa_basura)                                     AS source_trash_rate_daily,
-            SUM(V.Valor)                                            AS valor_table_daily,
+            SUM(COALESCE(di.tasa_basura, 0))                        AS source_trash_rate_daily,
+            SUM(COALESCE(V.Valor, 0))                               AS valor_table_daily,
             SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_daily,
 
             SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_daily_total,

@@ -3,7 +3,6 @@ import { ReadingService } from '../../application/services/reading.service';
 import { ReadingController } from '../controllers/reading.controller';
 import { ReadingSQLServer2022Persistence } from '../repositories/sqlserver/persistence/sql-server.reading.persistence';
 import { DatabaseServiceSQLServer2022 } from '../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
-import { ExternalPayrollPersistence } from '../repositories/http/persistence/external-payroll.persistence';
 import { KafkaServiceModule } from '../../../../shared/kafka/kafka-service.module';
 
 @Module({
@@ -15,14 +14,6 @@ import { KafkaServiceModule } from '../../../../shared/kafka/kafka-service.modul
     DatabaseServiceSQLServer2022,
     {
       provide: 'ReadingsRepository',
-      useClass: ReadingSQLServer2022Persistence,
-    },
-    {
-      provide: 'ExternalPayrollRepository',
-      useClass: ExternalPayrollPersistence,
-    },
-    {
-      provide: 'EntryDataRepository',
       useClass: ReadingSQLServer2022Persistence,
     },
   ],

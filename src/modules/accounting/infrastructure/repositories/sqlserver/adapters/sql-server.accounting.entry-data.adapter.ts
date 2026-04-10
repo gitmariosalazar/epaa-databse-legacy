@@ -9,9 +9,9 @@ import {
   DailyGroupedReportSQLResult,
   DailyPaymentMethodReportSQLResult,
   FullBreakdownReportSQLResult,
-} from '../../../interfaces/entry-data.sql.response';
+} from '../../../interfaces/sql/entry-data.sql.response';
 
-export class SQLServerEntryDataAdapter {
+export class SQLServerAccountingEntryDataAdapter {
   static toDomainDailyGroupedReport(
     data: DailyGroupedReportSQLResult,
   ): DailyGroupedReport {
