@@ -22,7 +22,7 @@ import { SQLServerGeneralCollectionAdapter } from '../adapters/sql-server.genera
 import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
 
 @Injectable()
-export class SqlServerGeneralCollectionPersistence
+export class SqlServer2000GeneralCollectionPersistence
   implements InterfaceGeneralCollectionRepository
 {
   // Aquí puedes agregar métodos para interactuar con la base de datos SQL Server
@@ -41,7 +41,10 @@ export class SqlServerGeneralCollectionPersistence
         Number.isInteger(params.offset) && params.offset! >= 0
           ? params.offset!
           : 0;
-      const safeLimit = Number.isInteger(params.limit) && params.limit! > 0 ? params.limit! : 100000;
+      const safeLimit =
+        Number.isInteger(params.limit) && params.limit! > 0
+          ? params.limit!
+          : 100000;
       const queryDateFilter =
         params.dateFilter === 'incomeDate' ? 'Fecha_Ingreso' : 'Fecha_Pago';
 
