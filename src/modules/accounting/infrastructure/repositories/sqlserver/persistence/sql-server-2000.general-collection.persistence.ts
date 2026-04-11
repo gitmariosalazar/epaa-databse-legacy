@@ -610,6 +610,7 @@ export class SqlServer2000GeneralCollectionPersistence
                 SELECT 1 FROM Datos_ingreso di_sub
                 WHERE di_sub.ClaveCatastral = nc_in.Cuenta
                   AND (di_sub.Cod_Titulo_Datos = @code OR @code = '' OR @code IS NULL)
+                  AND YEAR(di_sub.${queryDateFilter}) BETWEEN @startYear AND @endYear
             )
         ) nc
         WHERE (@code = '' OR @code IS NULL OR di.Cod_Titulo_Datos = @code) AND YEAR(di.${queryDateFilter}) BETWEEN @startYear AND @endYear
@@ -816,6 +817,7 @@ export class SqlServer2000GeneralCollectionPersistence
                     FROM Datos_ingreso di_sub
                     WHERE di_sub.ClaveCatastral = nc_in.Cuenta
                       AND YEAR(di_sub.${queryDateFilter}) BETWEEN @startYear AND @endYear
+                      AND (di_sub.Cod_Titulo_Datos = @code OR @code = '' OR @code IS NULL)
                     )
                 ) nc
             WHERE YEAR(di.${queryDateFilter}) BETWEEN @startYear AND @endYear
@@ -883,7 +885,6 @@ export class SqlServer2000GeneralCollectionPersistence
         FROM (
             SELECT  
                 YEAR(${queryDateFilter}) AS year,  
-                CONVERT(VARCHAR(10), ${queryDateFilter}, 120)      AS date,  
                 User_Cobro                                 AS collector,  
                 Cod_Titulo_Datos                           AS title_code,  
                 FormaDePago                                AS payment_method,  
@@ -906,7 +907,6 @@ export class SqlServer2000GeneralCollectionPersistence
               ${titleCodeFilter}  
             GROUP BY  
                 YEAR(${queryDateFilter}),  
-                CONVERT(VARCHAR(10), ${queryDateFilter}, 120),  
                 User_Cobro,  
                 Cod_Titulo_Datos,  
                 FormaDePago,  
@@ -993,7 +993,6 @@ export class SqlServer2000GeneralCollectionPersistence
             SELECT  
                 CONVERT(VARCHAR(2), ${queryDateFilter}, 101) AS month,
                 YEAR(${queryDateFilter}) AS year,  
-                CONVERT(VARCHAR(10), ${queryDateFilter}, 120)      AS date,  
                 User_Cobro                                 AS collector,  
                 Cod_Titulo_Datos                           AS title_code,  
                 FormaDePago                                AS payment_method,  
@@ -1017,7 +1016,6 @@ export class SqlServer2000GeneralCollectionPersistence
             GROUP BY  
                 CONVERT(VARCHAR(2), ${queryDateFilter}, 101), 
                 YEAR(${queryDateFilter}),  
-                CONVERT(VARCHAR(10), ${queryDateFilter}, 120),  
                 User_Cobro,  
                 Cod_Titulo_Datos,  
                 FormaDePago,  

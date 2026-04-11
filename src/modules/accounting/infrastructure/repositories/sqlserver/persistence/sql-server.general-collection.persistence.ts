@@ -44,7 +44,9 @@ export class SqlServerGeneralCollectionPersistence
       const safeLimit =
         Number.isInteger(params.limit) && params.limit! > 0
           ? params.limit!
-          : 1000000;
+          : 100000;
+      const queryDateFilter =
+        params.dateFilter === 'incomeDate' ? 'Fecha_Ingreso' : 'Fecha_Pago';
 
       const query = `
         SET NOCOUNT ON;
@@ -71,20 +73,20 @@ export class SqlServerGeneralCollectionPersistence
           di.Comentario AS comment  
         FROM Datos_ingreso di  
             --INNER JOIN Valor V on di.Cod_Ingreso = V.cod_Ingreso
-        WHERE di.Fecha_Pago >= CONVERT(DATETIME, '${initDateTime}', 120)  
-          AND di.Fecha_Pago <= CONVERT(DATETIME, '${endDateTime}', 120)
+        WHERE di.${queryDateFilter} >= CONVERT(DATETIME, '${initDateTime}', 120)  
+          AND di.${queryDateFilter} <= CONVERT(DATETIME, '${endDateTime}', 120)
           ${
             safeOffset > 0
               ? `AND di.Cod_Ingreso NOT IN (
               SELECT TOP ${safeOffset} inner_di.Cod_Ingreso
               FROM Datos_ingreso inner_di
-              WHERE inner_di.Fecha_Pago >= CONVERT(DATETIME, '${initDateTime}', 120)  
-                AND inner_di.Fecha_Pago <= CONVERT(DATETIME, '${endDateTime}', 120)
-              ORDER BY inner_di.Fecha_Ingreso DESC
+              WHERE inner_di.${queryDateFilter} >= CONVERT(DATETIME, '${initDateTime}', 120)  
+                AND inner_di.${queryDateFilter} <= CONVERT(DATETIME, '${endDateTime}', 120)
+              ORDER BY inner_di.${queryDateFilter} DESC
           )`
               : ''
           }
-        ORDER BY di.Fecha_Ingreso DESC;
+        ORDER BY di.${queryDateFilter} DESC;
       `;
 
       const queryParameters: any[] = [];
@@ -144,8 +146,8 @@ export class SqlServerGeneralCollectionPersistence
         INTO #TempOrdered
         FROM (
             SELECT  
-                CONVERT(VARCHAR(8),  Fecha_Pago, 112)      AS day,  
-                CONVERT(VARCHAR(10), Fecha_Pago, 120)      AS date,  
+                CONVERT(VARCHAR(8),  ${queryDateFilter}, 112)      AS day,  
+                CONVERT(VARCHAR(10), ${queryDateFilter}, 120)      AS date,  
                 User_Cobro                                 AS collector,  
                 Cod_Titulo_Datos                           AS title_code,  
                 FormaDePago                                AS payment_method,  
@@ -168,8 +170,8 @@ export class SqlServerGeneralCollectionPersistence
               AND ${queryDateFilter} <= CONVERT(DATETIME, '${endDateTime}',  120)
               ${titleCodeFilter}  
             GROUP BY  
-                CONVERT(VARCHAR(8),  Fecha_Pago, 112),  
-                CONVERT(VARCHAR(10), Fecha_Pago, 120),  
+                CONVERT(VARCHAR(8),  ${queryDateFilter}, 112),  
+                CONVERT(VARCHAR(10), ${queryDateFilter}, 120),  
                 User_Cobro,  
                 Cod_Titulo_Datos,  
                 FormaDePago,  
@@ -608,6 +610,7 @@ export class SqlServerGeneralCollectionPersistence
                 SELECT 1 FROM Datos_ingreso di_sub
                 WHERE di_sub.ClaveCatastral = nc_in.Cuenta
                   AND (di_sub.Cod_Titulo_Datos = @code OR @code = '' OR @code IS NULL)
+                  AND YEAR(di_sub.${queryDateFilter}) BETWEEN @startYear AND @endYear
             )
         ) nc
         WHERE (@code = '' OR @code IS NULL OR di.Cod_Titulo_Datos = @code) AND YEAR(di.${queryDateFilter}) BETWEEN @startYear AND @endYear
@@ -814,6 +817,7 @@ export class SqlServerGeneralCollectionPersistence
                     FROM Datos_ingreso di_sub
                     WHERE di_sub.ClaveCatastral = nc_in.Cuenta
                       AND YEAR(di_sub.${queryDateFilter}) BETWEEN @startYear AND @endYear
+                      AND (di_sub.Cod_Titulo_Datos = @code OR @code = '' OR @code IS NULL)
                     )
                 ) nc
             WHERE YEAR(di.${queryDateFilter}) BETWEEN @startYear AND @endYear
@@ -881,7 +885,6 @@ export class SqlServerGeneralCollectionPersistence
         FROM (
             SELECT  
                 YEAR(${queryDateFilter}) AS year,  
-                CONVERT(VARCHAR(10), ${queryDateFilter}, 120)      AS date,  
                 User_Cobro                                 AS collector,  
                 Cod_Titulo_Datos                           AS title_code,  
                 FormaDePago                                AS payment_method,  
@@ -904,7 +907,6 @@ export class SqlServerGeneralCollectionPersistence
               ${titleCodeFilter}  
             GROUP BY  
                 YEAR(${queryDateFilter}),  
-                CONVERT(VARCHAR(10), ${queryDateFilter}, 120),  
                 User_Cobro,  
                 Cod_Titulo_Datos,  
                 FormaDePago,  
@@ -991,7 +993,6 @@ export class SqlServerGeneralCollectionPersistence
             SELECT  
                 CONVERT(VARCHAR(2), ${queryDateFilter}, 101) AS month,
                 YEAR(${queryDateFilter}) AS year,  
-                CONVERT(VARCHAR(10), ${queryDateFilter}, 120)      AS date,  
                 User_Cobro                                 AS collector,  
                 Cod_Titulo_Datos                           AS title_code,  
                 FormaDePago                                AS payment_method,  
@@ -1015,7 +1016,6 @@ export class SqlServerGeneralCollectionPersistence
             GROUP BY  
                 CONVERT(VARCHAR(2), ${queryDateFilter}, 101), 
                 YEAR(${queryDateFilter}),  
-                CONVERT(VARCHAR(10), ${queryDateFilter}, 120),  
                 User_Cobro,  
                 Cod_Titulo_Datos,  
                 FormaDePago,  
