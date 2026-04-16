@@ -67,6 +67,7 @@ export class TrashRateReportMapper {
       incomeCode: model.incomeCode,
       cadastralKey: model.cadastralKey,
       cardId: model.cardId,
+      dataTitleCode: model.dataTitleCode,
       customerName: model.customerName,
       issueDate: model.issueDate,
       paymentDate: model.paymentDate,

@@ -30,6 +30,7 @@ export interface MissingValorRowSqlResult {
   income_code: number;
   cadastral_key: string;
   card_id: string;
+  data_title_code: string;
   customer_name: string;
   issue_date: string;
   payment_date: string | null;

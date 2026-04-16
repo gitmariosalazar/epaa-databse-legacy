@@ -68,6 +68,7 @@ export class TrashRateReportAdapter {
       incomeCode: response.income_code,
       cadastralKey: response.cadastral_key,
       cardId: response.card_id,
+      dataTitleCode: response.data_title_code,
       customerName: response.customer_name,
       issueDate: response.issue_date,
       paymentDate: response.payment_date,

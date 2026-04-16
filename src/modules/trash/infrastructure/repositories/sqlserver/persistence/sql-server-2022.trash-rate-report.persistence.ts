@@ -428,7 +428,7 @@ export class SqlServer2022TrashRateReportPersistence
             di.Cod_Ingreso                                          AS income_code,
             di.ClaveCatastral                                       AS cadastral_key,
             di.CodCliente_Ingreso                                   AS card_id,
-            di.Cod_Titulo_Datos,
+            di.Cod_Titulo_Datos                                     AS data_title_code,
             di.nombre                                               AS customer_name,
             CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
             CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,

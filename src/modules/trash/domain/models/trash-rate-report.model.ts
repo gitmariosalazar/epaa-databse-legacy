@@ -35,6 +35,7 @@ export class MissingValorRowModel {
     public readonly incomeCode: number,
     public readonly cadastralKey: string,
     public readonly cardId: string,
+    public readonly dataTitleCode: string,
     public readonly customerName: string,
     public readonly issueDate: string,
     public readonly paymentDate: string | null,

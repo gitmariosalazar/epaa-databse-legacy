@@ -30,6 +30,7 @@ export interface MissingValorRowResponse {
   incomeCode: number;
   cadastralKey: string;
   cardId: string;
+  dataTitleCode: string;
   customerName: string;
   issueDate: string;
   paymentDate: string | null;
