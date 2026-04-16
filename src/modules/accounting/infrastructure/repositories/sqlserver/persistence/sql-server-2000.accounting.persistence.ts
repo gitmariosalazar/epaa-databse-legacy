@@ -1025,7 +1025,8 @@ export class SQLServer2000AccountingPersistence
         SET @searchParam = '${String(searchValue.trim())}'
 
         SELECT
-            di.Cod_Ingreso                  AS income_code,
+            -- ── Identificación del cliente y suministro ──────────────────────────────────
+			      di.Cod_Ingreso                  AS income_code,
             c.CED_IDENT_CIUDADANO           AS card_id,
             c.NOMBRES_CIUDADANO             AS name,
             c.APELLIDOS_CIUDADANO           AS last_name,
@@ -1033,6 +1034,7 @@ export class SQLServer2000AccountingPersistence
             di.Direccion                    AS address,
             a.Tarifa                        AS rate,
 
+            -- ── Período de facturación ────────────────────────────────────────────────────
             l.Mes                           AS month,
             l.Anio                          AS year,
 
@@ -1047,6 +1049,7 @@ export class SQLServer2000AccountingPersistence
             di.Fecha_Venc_Interes           AS due_date,
             di.Fecha_Pago                   AS payment_date,
 
+            -- ── Lectura del medidor ───────────────────────────────────────────────────────
             l.LecturaActual                 AS current_reading,
             l.LecturaAnterior               AS previous_reading,
             CASE
@@ -1064,10 +1067,16 @@ export class SQLServer2000AccountingPersistence
                 ELSE 'No disponible'
             END                             AS reading_status,
 
+            -- ── EPAA: valor del servicio de agua ─────────────────────────────────────────
+            -- Valor por consumo de agua (según lectura del medidor)
             CASE WHEN l.LecturaActual IS NOT NULL THEN di.Valor_Titulo    ELSE NULL END AS epaa_value,
+            -- Valor por servicios de terceros (alcantarillado, etc.)
             CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros   ELSE NULL END AS third_party_value,
+            -- Valor unitario por m³ consumido
             l.ValorAPagar                   AS reading_value,
+            -- Recargo por mora u otro concepto general
             di.Recargo                      AS surcharge,
+            -- Total EPAA: agua + terceros (sin basura ni ajuste de tarifa)
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
@@ -1075,8 +1084,12 @@ export class SQLServer2000AccountingPersistence
                 ELSE NULL
             END                             AS total_epaa_value,
 
+            -- ── Tasa de recolección de basura ─────────────────────────────────────────────
+            -- Tarifa de basura OFICIAL (para mostrar como información de la tabla)
             CASE WHEN l.LecturaActual IS NOT NULL THEN ISNULL(v.Valor, di.tasa_basura)     ELSE NULL END AS trash_rate_official,
             
+            -- Lo que EFECTIVAMENTE paga el usuario por basura este mes 
+            -- (Si hay saldo a favor y cubre todo, paga 0)
             CASE WHEN l.LecturaActual IS NOT NULL 
                 THEN 
                     CASE 
@@ -1085,73 +1098,95 @@ export class SQLServer2000AccountingPersistence
                                 WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
                                 ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
                             END
-                        ELSE di.tasa_basura
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
                     END
-                ELSE NULL
+                ELSE NULL 
             END                             AS trash_rate,
 
-            anc.Valor                       AS trash_rate_previous,
-            anc.saldo_favor_actual          AS balance_in_favor_current_month,
-            anc.saldo_favor_prox_mes        AS balance_in_favor_next_month,
-            anc.saldo_contra_prox_mes       AS balance_against_next_month,
-            anc.descuento_tasa_basura       AS discount_trash_rate,
-
-            CASE WHEN l.LecturaActual IS NOT NULL 
-                THEN
-                  CASE 
-                    WHEN COALESCE(anc.Valor, 0) > 0 THEN 
-                        CASE 
-                            WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
-                            ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
-                        END
-                    ELSE di.tasa_basura
-                  END
+            -- Crédito original que arrastra del pasado (sólo informativo)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
+            -- Saldo a favor actual
+            CASE WHEN l.LecturaActual IS NOT NULL THEN anc.Valor ELSE NULL END AS balance_in_favor_current_month,
+            -- Saldo a favor sobrante para el PRÓXIMO MES
+            CASE WHEN l.LecturaActual IS NOT NULL AND COALESCE(anc.Valor, 0) > 0
+                THEN 
+                    CASE 
+                        WHEN anc.Valor > ISNULL(v.Valor, di.tasa_basura) THEN anc.Valor - ISNULL(v.Valor, di.tasa_basura)
+                        ELSE 0
+                    END
                 ELSE NULL
-            END                             AS total_trash_rate,
+            END                             AS balance_in_favor_next_month,
 
-            CASE WHEN l.LecturaActual IS NOT NULL
-                THEN COALESCE(di.Valor_Titulo, 0)
-                   + COALESCE(di.ValorTerceros, 0)
-                   + COALESCE(di.Recargo, 0)
-                   + COALESCE(di.tasa_basura, 0)
-                ELSE NULL
-            END                             AS total,
-
-            di.Estado_Ingreso               AS income_status,
-            di.Fecha_Ingreso                AS income_date,
-
+            -- Saldo en contra: se anula por completo (nunca hay saldo a favor de la empresa)
+            NULL                            AS balance_against_next_month,
+            -- Descuento aplicado sobre la tasa de basura (solo en registros pagados, aquí siempre 0)
+            COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,
+            -- Total neto de basura = lo que le toca pagar finalmente este mes
             CASE WHEN l.LecturaActual IS NOT NULL 
                 THEN 
-                    (COALESCE(di.Valor_Titulo, 0) + COALESCE(di.ValorTerceros, 0) + COALESCE(di.Recargo, 0)) + 
-                    (CASE 
+                    CASE 
                         WHEN COALESCE(anc.Valor, 0) > 0 THEN 
                             CASE 
                                 WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
                                 ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
                             END
-                        ELSE di.tasa_basura
-                    END)
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL 
+            END                             AS total_trash_rate,
+
+            -- ── Totales de la planilla ────────────────────────────────────────────────────
+            -- Total base: EPAA + terceros + basura actual + recargo (sin ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                   + COALESCE(di.ValorTerceros, 0)
+                   + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                   + COALESCE(di.Recargo, 0)
+                -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
-            END                             AS adjusted_total
+            END                             AS total,
+
+            -- Total ajustado: Total consolidado del cliente
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                   + COALESCE(di.ValorTerceros, 0)
+                   + COALESCE(di.Recargo, 0)
+                   + CASE 
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN 
+                            CASE 
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                     END
+                ELSE NULL
+            END                             AS adjusted_total,
+
+            -- ── Metadatos de ingreso ──────────────────────────────────────────────────────
+            di.Estado_Ingreso               AS income_status,
+            di.Fecha_Ingreso                AS income_date
 
         FROM Datos_ingreso di
-        INNER JOIN CIUDADANO c 
+        INNER JOIN CIUDADANO c
             ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
+
         INNER JOIN AP_ACOMETIDAS a
-            ON a.Sector = 
-                CASE 
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+            ON a.Sector =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
                         AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
+                        AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
                     THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
                     ELSE -1
                 END
-            AND a.Cuenta = 
-                CASE 
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
+            AND a.Cuenta =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
                         AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
                     THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
                     ELSE -1
                 END
+
         LEFT JOIN AP_LECTURAS l
             ON l.ClaveCatastral = di.ClaveCatastral
           AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
@@ -1163,12 +1198,14 @@ export class SQLServer2000AccountingPersistence
                     WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
                 END
             )
-        LEFT JOIN Valor v 
-            ON v.cod_Ingreso = di.Cod_Ingreso AND v.orden = 1
-        LEFT JOIN AP_NotasCredito anc
-            ON anc.Cod_Ingreso = di.Cod_Ingreso
 
-        WHERE 
+        LEFT JOIN AP_NotasCredito anc
+            ON di.ClaveCatastral = anc.Cuenta
+
+        LEFT JOIN Valor v
+            ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
+
+        WHERE
             (
                 (CHARINDEX('-', @searchParam) = 0 AND di.CodCliente_Ingreso = @searchParam)
                 OR
@@ -1178,7 +1215,7 @@ export class SQLServer2000AccountingPersistence
             AND di.convenio   IS NULL
             AND di.Estado_Ingreso IS NULL
 
-        ORDER BY 
+        ORDER BY
             di.ClaveCatastral,
             di.Fecha_Venc_Interes DESC;
       `;
