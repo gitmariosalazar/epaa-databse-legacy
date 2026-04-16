@@ -36,10 +36,11 @@ export interface MissingValorRowResponse {
   trashRate: number;
   paymentStatusCode: string | null;
   paymentStatus: string;
-  diagnostic: string;
   valorOrder: number | null;
-  rateInIncome: number;
-  rateInValorTable: null;
+  rateInIncome: number | null;
+  rateInValorTable: number | null;
+  integrityGapIndivual: number;
+  finalDiagnosis: string;
 }
 
 export interface CreditNoteRowResponse {

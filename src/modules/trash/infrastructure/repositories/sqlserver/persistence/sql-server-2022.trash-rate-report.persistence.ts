@@ -416,15 +416,19 @@ export class SqlServer2022TrashRateReportPersistence
       const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
         SET NOCOUNT ON;
-        DECLARE @fechaInicio3 DATETIME
-        DECLARE @fechaFin3 DATETIME
-        SET @fechaInicio3 = CONVERT(DATETIME, '${initDateTime}', 120)
-        SET @fechaFin3    = CONVERT(DATETIME, '${endDateTime}', 120)
+        DECLARE @Date_Start DATETIME
+        DECLARE @Date_End   DATETIME
+        DECLARE @Service_Order INT
+
+        SET @Date_Start = CONVERT(DATETIME, '${initDateTime}', 120)
+        SET @Date_End   = CONVERT(DATETIME, '${endDateTime}', 120)
+        SET @Service_Order = 10 
 
         SELECT
             di.Cod_Ingreso                                          AS income_code,
             di.ClaveCatastral                                       AS cadastral_key,
             di.CodCliente_Ingreso                                   AS card_id,
+            di.Cod_Titulo_Datos,
             di.nombre                                               AS customer_name,
             CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
             CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,
@@ -434,19 +438,31 @@ export class SqlServer2022TrashRateReportPersistence
                 WHEN di.Fecha_Pago IS NULL THEN 'PENDING'
                 ELSE 'PAID'
             END                                                     AS payment_status,
-            'No record in Valor Table (Ord 10)'                     AS diagnostic,
             V.orden                                                 AS valor_order,
             di.tasa_basura                                          AS rate_in_income,
-            V.Valor                                                 AS rate_in_valor_table
+            V.Valor                                                 AS rate_in_valor_table,
+            (ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0))        AS integrity_gap_indivual,
+            CASE
+                WHEN di.tasa_basura IS NULL THEN 'CRITICAL: Trash rate NOT ADDED to this bill'
+                WHEN V.cod_Ingreso IS NULL THEN 'MISSING: No record in Valor Table (Orden 10)'
+                WHEN ABS(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0)) > 0.01 THEN 'DISCREPANCY: Different amount charged'
+                ELSE 'OK'
+            END AS final_diagnosis
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
-            ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Pago >= @fechaInicio3
-          AND di.Fecha_Pago <= @fechaFin3
-          AND di.tasa_basura IS NOT NULL
-          AND V.cod_Ingreso IS NULL   -- Only those without a match
-        -- AND di.Estado_Ingreso = 'N' -- uncomment for pending only
-        ORDER BY di.Estado_Ingreso, di.ClaveCatastral;
+            ON di.Cod_Ingreso = V.cod_Ingreso
+            AND V.orden = @Service_Order
+        WHERE (
+              (di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End)
+          )
+          AND (
+              V.cod_Ingreso IS NULL
+              OR di.tasa_basura IS NULL
+              OR ABS(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0)) > 0.01
+          )
+        AND di.ClaveCatastral <> '0'
+        AND di.Cod_Titulo_Datos = 'AGP'
+        ORDER BY integrity_gap_indivual DESC;
       `;
 
       const result: MissingValorRowSqlResult[] =
@@ -620,7 +636,7 @@ export class SqlServer2022TrashRateReportPersistence
           COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
           SUM(di.tasa_basura) AS source_trash_rate,
           SUM(COALESCE(V.Valor, di.tasa_basura)) AS valor_table_amount,
-          SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, di.tasa_basura, 0)) AS integrity_gap,
+          SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) AS integrity_gap,
           SUM(COALESCE(V.Valor, di.tasa_basura)) AS gross_amount,
           SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) AS net_amount,
           SUM(COALESCE(di.descuento_tb, 0)) AS discounts,
@@ -651,7 +667,7 @@ export class SqlServer2022TrashRateReportPersistence
           COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
           SUM(di.tasa_basura) AS source_trash_rate,
           SUM(COALESCE(V.Valor, di.tasa_basura)) AS valor_table_amount,
-          SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, di.tasa_basura, 0)) AS integrity_gap,
+          SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) AS integrity_gap,
           SUM(COALESCE(V.Valor, di.tasa_basura)) AS gross_amount,
           SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) AS net_amount,
           SUM(COALESCE(di.descuento_tb, 0)) AS discounts,
@@ -684,7 +700,7 @@ export class SqlServer2022TrashRateReportPersistence
           COUNT(DISTINCT di.ClaveCatastral) AS unique_cadastral_keys,
           SUM(di.tasa_basura) AS source_trash_rate,
           SUM(COALESCE(V.Valor, di.tasa_basura)) AS valor_table_amount,
-          SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, di.tasa_basura, 0)) AS integrity_gap,
+          SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) AS integrity_gap,
           SUM(COALESCE(V.Valor, di.tasa_basura)) AS gross_amount,
           SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) AS net_amount,
           SUM(COALESCE(di.descuento_tb, 0)) AS discounts,
@@ -768,7 +784,7 @@ export class SqlServer2022TrashRateReportPersistence
               -- Financial Performance & Integrity Audit
               SUM(di.tasa_basura)                                     AS source_trash_rate_total,
               SUM(V.Valor)                                            AS valor_table_total,
-              SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_amount,
+              SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0))  AS integrity_gap_amount,
   
               SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_amount,
               SUM(COALESCE(di.descuento_tb, 0))                       AS total_discounts_applied,
@@ -859,7 +875,7 @@ export class SqlServer2022TrashRateReportPersistence
             -- Financial Totals & Integrity Audit
             SUM(di.tasa_basura)                                     AS source_trash_rate_daily,
             SUM(V.Valor)                                            AS valor_table_daily,
-            SUM(COALESCE(V.Valor, 0) - COALESCE(di.tasa_basura, 0))  AS integrity_gap_daily,
+            SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0))  AS integrity_gap_daily,
 
             SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_daily_total,
             SUM(COALESCE(di.descuento_tb, 0))                       AS discounts_daily_total,

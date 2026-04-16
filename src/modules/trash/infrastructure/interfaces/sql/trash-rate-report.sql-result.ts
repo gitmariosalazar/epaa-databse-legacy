@@ -36,10 +36,11 @@ export interface MissingValorRowSqlResult {
   trash_rate: number;
   payment_status_code: string | null;
   payment_status: string;
-  diagnostic: string;
   valor_order: number | null;
-  rate_in_income: number;
-  rate_in_valor_table: null;
+  rate_in_income: number | null;
+  rate_in_valor_table: number | null;
+  integrity_gap_indivual: number;
+  final_diagnosis: string;
 }
 
 export interface CreditNoteRowSqlResult {

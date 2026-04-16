@@ -83,7 +83,7 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       try {
         DatabaseServiceSQLServer2000.pool = await odbc.pool({
           connectionString,
-          connectionTimeout: 10,
+          connectionTimeout: 60, // 60 segundos (Ojo: en ODBC esto usa segundos, no ms)
           loginTimeout: 5,
         });
 

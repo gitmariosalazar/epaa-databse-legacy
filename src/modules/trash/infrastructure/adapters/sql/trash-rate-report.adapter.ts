@@ -74,10 +74,11 @@ export class TrashRateReportAdapter {
       trashRate: response.trash_rate,
       paymentStatusCode: response.payment_status_code,
       paymentStatus: response.payment_status,
-      diagnostic: response.diagnostic,
       valorOrder: response.valor_order,
       rateInIncome: response.rate_in_income,
       rateInValorTable: response.rate_in_valor_table,
+      integrityGapIndivual: response.integrity_gap_indivual,
+      finalDiagnosis: response.final_diagnosis,
     };
   }
 

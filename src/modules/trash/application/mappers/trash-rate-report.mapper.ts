@@ -73,10 +73,11 @@ export class TrashRateReportMapper {
       trashRate: model.trashRate,
       paymentStatusCode: model.paymentStatusCode,
       paymentStatus: model.paymentStatus,
-      diagnostic: model.diagnostic,
       valorOrder: model.valorOrder,
       rateInIncome: model.rateInIncome,
       rateInValorTable: model.rateInValorTable,
+      integrityGapIndivual: model.integrityGapIndivual,
+      finalDiagnosis: model.finalDiagnosis,
     };
   }
 

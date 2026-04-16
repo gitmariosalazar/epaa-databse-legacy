@@ -71,7 +71,7 @@ export class SqlServerGeneralCollectionPersistence
           --v.orden AS order_value,    
           di.FormaDePago AS payment_method,  
           di.Comentario AS comment  
-        FROM Datos_ingreso di  
+        FROM Datos_ingreso di WITH (NOLOCK)
             --INNER JOIN Valor V on di.Cod_Ingreso = V.cod_Ingreso
         WHERE di.${queryDateFilter} >= CONVERT(DATETIME, '${initDateTime}', 120)  
           AND di.${queryDateFilter} <= CONVERT(DATETIME, '${endDateTime}', 120)
@@ -79,7 +79,7 @@ export class SqlServerGeneralCollectionPersistence
             safeOffset > 0
               ? `AND di.Cod_Ingreso NOT IN (
               SELECT TOP ${safeOffset} inner_di.Cod_Ingreso
-              FROM Datos_ingreso inner_di
+              FROM Datos_ingreso inner_di WITH (NOLOCK)
               WHERE inner_di.${queryDateFilter} >= CONVERT(DATETIME, '${initDateTime}', 120)  
                 AND inner_di.${queryDateFilter} <= CONVERT(DATETIME, '${endDateTime}', 120)
               ORDER BY inner_di.${queryDateFilter} DESC
@@ -165,7 +165,7 @@ export class SqlServerGeneralCollectionPersistence
                     COALESCE(descuento_tb,  0)  
                 )                                          AS total_value,  
                 COUNT(Cod_Ingreso)                         AS record_count  
-            FROM Datos_ingreso  
+            FROM Datos_ingreso WITH (NOLOCK)
             WHERE ${queryDateFilter} >= CONVERT(DATETIME, '${initDateTime}', 120)  
               AND ${queryDateFilter} <= CONVERT(DATETIME, '${endDateTime}',  120)
               ${titleCodeFilter}  
@@ -391,15 +391,15 @@ export class SqlServerGeneralCollectionPersistence
             MAX(nc.count_notes) AS count_notes,  
             MAX(nc.total_notes_amount) AS total_notes_amount  
           
-        FROM Datos_ingreso di  
+        FROM Datos_ingreso di WITH (NOLOCK)
         CROSS JOIN (
             SELECT  
                 ISNULL(SUM(Valor), 0) AS total_notes_amount,  
                 COUNT(*) AS count_notes  
-            FROM AP_NotasCredito nc_in
+            FROM AP_NotasCredito nc_in WITH (NOLOCK)
             WHERE EXISTS (
                 SELECT 1
-                FROM Datos_ingreso di_sub
+                FROM Datos_ingreso di_sub WITH (NOLOCK)
                 WHERE di_sub.ClaveCatastral = nc_in.Cuenta
                   AND di_sub.${queryDateFilter.replace('di.', '')} BETWEEN @fechaInicioKPI AND @fechaFinKPI
                   ${titleCodeFilter.replace('di.', 'di_sub.')}
@@ -441,17 +441,24 @@ export class SqlServerGeneralCollectionPersistence
       const referenceStartYear = params.startYear || new Date().getFullYear();
       const referenceEndYear = params.endYear || new Date().getFullYear();
 
+      const startDateStr = `${referenceStartYear}-01-01 00:00:00.000`;
+      const endDateStr = `${referenceEndYear}-12-31 23:59:59.997`;
+
       const queryDateFilter =
         params.dateFilter === 'incomeDate' ? 'Fecha_Ingreso' : 'Fecha_Pago';
 
       const query = `
         SET NOCOUNT ON;
 
+        DECLARE @startDate DATETIME;
+        SET @startDate = CONVERT(DATETIME, '${startDateStr}', 120);
+        DECLARE @endDate DATETIME;
+        SET @endDate = CONVERT(DATETIME, '${endDateStr}', 120);
         DECLARE @startYear INTEGER;
-        SET @startYear = '${referenceStartYear}';  
-        DECLARE @endYear    INTEGER;
-        SET @endYear = '${referenceEndYear}';  
-        DECLARE @code           VARCHAR(5);
+        SET @startYear = ${referenceStartYear};  
+        DECLARE @endYear INTEGER;
+        SET @endYear = ${referenceEndYear};  
+        DECLARE @code VARCHAR(5);
         SET @code = '${params.titleCode || ''}';  
 
         SELECT  
@@ -600,20 +607,20 @@ export class SqlServerGeneralCollectionPersistence
             MAX(nc.count_notes) AS count_notes,  
             MAX(nc.total_notes_amount) AS total_notes_amount  
           
-        FROM Datos_ingreso di  
+        FROM Datos_ingreso di WITH (NOLOCK)
         CROSS JOIN (
             SELECT
                 ISNULL(SUM(Valor), 0) AS total_notes_amount,
                 COUNT(*) AS count_notes
-            FROM AP_NotasCredito nc_in
+            FROM AP_NotasCredito nc_in WITH (NOLOCK)
             WHERE EXISTS (
-                SELECT 1 FROM Datos_ingreso di_sub
+                SELECT 1 FROM Datos_ingreso di_sub WITH (NOLOCK)
                 WHERE di_sub.ClaveCatastral = nc_in.Cuenta
                   AND (di_sub.Cod_Titulo_Datos = @code OR @code = '' OR @code IS NULL)
-                  AND YEAR(di_sub.${queryDateFilter}) BETWEEN @startYear AND @endYear
+                  AND di_sub.${queryDateFilter} >= @startDate AND di_sub.${queryDateFilter} <= @endDate
             )
         ) nc
-        WHERE (@code = '' OR @code IS NULL OR di.Cod_Titulo_Datos = @code) AND YEAR(di.${queryDateFilter}) BETWEEN @startYear AND @endYear
+        WHERE (@code = '' OR @code IS NULL OR di.Cod_Titulo_Datos = @code) AND di.${queryDateFilter} >= @startDate AND di.${queryDateFilter} <= @endDate
         GROUP BY
             YEAR(di.${queryDateFilter}), -- Cambiado a función YEAR para agrupar por años naturales
             CASE WHEN @code = '' OR @code IS NULL THEN '1' ELSE di.Cod_Titulo_Datos END
@@ -646,17 +653,24 @@ export class SqlServerGeneralCollectionPersistence
       const referenceStartYear = params.startYear || new Date().getFullYear();
       const referenceEndYear = params.endYear || new Date().getFullYear();
 
+      const startDateStr = `${referenceStartYear}-01-01 00:00:00.000`;
+      const endDateStr = `${referenceEndYear}-12-31 23:59:59.997`;
+
       const queryDateFilter =
         params.dateFilter === 'incomeDate' ? 'Fecha_Ingreso' : 'Fecha_Pago';
 
       const query = `
         SET NOCOUNT ON;
 
+        DECLARE @startDate DATETIME;
+        SET @startDate = CONVERT(DATETIME, '${startDateStr}', 120);
+        DECLARE @endDate DATETIME;
+        SET @endDate = CONVERT(DATETIME, '${endDateStr}', 120);
         DECLARE @startYear INT;
         SET @startYear = ${referenceStartYear};
         DECLARE @endYear INT;
         SET @endYear = ${referenceEndYear};
-        DECLARE @code           VARCHAR(5);
+        DECLARE @code VARCHAR(5);
         SET @code = '${params.titleCode || ''}';
 
         SELECT
@@ -806,21 +820,21 @@ export class SqlServerGeneralCollectionPersistence
             MAX(nc.count_notes) AS count_notes,
             MAX(nc.total_notes_amount) AS total_notes_amount
 
-            FROM Datos_ingreso di
+            FROM Datos_ingreso di WITH (NOLOCK)
             CROSS JOIN (
                 SELECT
                     ISNULL(SUM(Valor), 0) AS total_notes_amount,
                     COUNT(*) AS count_notes
-                FROM AP_NotasCredito nc_in
+                FROM AP_NotasCredito nc_in WITH (NOLOCK)
                 WHERE EXISTS (
                     SELECT 1
-                    FROM Datos_ingreso di_sub
+                    FROM Datos_ingreso di_sub WITH (NOLOCK)
                     WHERE di_sub.ClaveCatastral = nc_in.Cuenta
-                      AND YEAR(di_sub.${queryDateFilter}) BETWEEN @startYear AND @endYear
+                      AND di_sub.${queryDateFilter} >= @startDate AND di_sub.${queryDateFilter} <= @endDate
                       AND (di_sub.Cod_Titulo_Datos = @code OR @code = '' OR @code IS NULL)
                     )
                 ) nc
-            WHERE YEAR(di.${queryDateFilter}) BETWEEN @startYear AND @endYear
+            WHERE di.${queryDateFilter} >= @startDate AND di.${queryDateFilter} <= @endDate
                 AND (di.Cod_Titulo_Datos = @code OR @code = '' OR @code IS NULL)
             GROUP BY
                 YEAR(di.${queryDateFilter}),
@@ -853,6 +867,8 @@ export class SqlServerGeneralCollectionPersistence
     try {
       const referenceStartYear = params.startYear || new Date().getFullYear();
       const referenceEndYear = params.endYear || new Date().getFullYear();
+      const startDateStr = `${referenceStartYear}-01-01 00:00:00.000`;
+      const endDateStr = `${referenceEndYear}-12-31 23:59:59.997`;
 
       const safeOffset =
         Number.isInteger(params.offset) && params.offset! >= 0
@@ -902,8 +918,9 @@ export class SqlServerGeneralCollectionPersistence
                     COALESCE(descuento_tb,  0)  
                 )                                          AS total_value,  
                 COUNT(Cod_Ingreso)                         AS record_count  
-            FROM Datos_ingreso  
-            WHERE YEAR(${queryDateFilter}) BETWEEN ${referenceStartYear} AND ${referenceEndYear}
+            FROM Datos_ingreso WITH (NOLOCK)
+            WHERE ${queryDateFilter} >= CONVERT(DATETIME, '${startDateStr}', 120)
+              AND ${queryDateFilter} <= CONVERT(DATETIME, '${endDateStr}', 120)
               ${titleCodeFilter}  
             GROUP BY  
                 YEAR(${queryDateFilter}),  
@@ -960,6 +977,8 @@ export class SqlServerGeneralCollectionPersistence
     try {
       const referenceStartYear = params.startYear || new Date().getFullYear();
       const referenceEndYear = params.endYear || new Date().getFullYear();
+      const startDateStr = `${referenceStartYear}-01-01 00:00:00.000`;
+      const endDateStr = `${referenceEndYear}-12-31 23:59:59.997`;
 
       const safeOffset =
         Number.isInteger(params.offset) && params.offset! >= 0
@@ -1010,8 +1029,9 @@ export class SqlServerGeneralCollectionPersistence
                     COALESCE(descuento_tb,  0)  
                 )                                          AS total_value,  
                 COUNT(Cod_Ingreso)                         AS record_count  
-            FROM Datos_ingreso  
-            WHERE YEAR(${queryDateFilter}) BETWEEN ${referenceStartYear} AND ${referenceEndYear}
+            FROM Datos_ingreso WITH (NOLOCK)
+            WHERE ${queryDateFilter} >= CONVERT(DATETIME, '${startDateStr}', 120)
+              AND ${queryDateFilter} <= CONVERT(DATETIME, '${endDateStr}', 120)
               ${titleCodeFilter}  
             GROUP BY  
                 CONVERT(VARCHAR(2), ${queryDateFilter}, 101), 

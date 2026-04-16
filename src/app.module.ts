@@ -7,8 +7,8 @@ import { ModulesUsingSQLServer2000Module } from './factory/sqlserver/modules-usi
 @Module({
   imports: [
     HomeModule,
-    //ModulesUsingSQLServer2022Module,
     ModulesUsingSQLServer2000Module,
+    //ModulesUsingSQLServer2000Module,
   ],
   controllers: [AppController],
   providers: [AppService],

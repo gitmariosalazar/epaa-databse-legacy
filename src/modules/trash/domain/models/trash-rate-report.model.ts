@@ -41,10 +41,11 @@ export class MissingValorRowModel {
     public readonly trashRate: number,
     public readonly paymentStatusCode: string | null,
     public readonly paymentStatus: string,
-    public readonly diagnostic: string,
     public readonly valorOrder: number | null,
-    public readonly rateInIncome: number,
-    public readonly rateInValorTable: null,
+    public readonly rateInIncome: number | null,
+    public readonly rateInValorTable: number | null,
+    public readonly integrityGapIndivual: number,
+    public readonly finalDiagnosis: string,
   ) {}
 }
 
@@ -138,34 +139,38 @@ export class TrashRateKPIModel {
 }
 
 export class CollectorPerformanceKPIModel {
-  public readonly performanceRank: number;
-  public readonly collectorId: string;
-  public readonly totalTransactions: number;
-  public readonly uniqueCustomersServed: number;
-  public readonly sourceTrashRateTotal: number;
-  public readonly valorTableTotal: number;
-  public readonly integrityGapAmount: number;
-  public readonly grossAmount: number;
-  public readonly totalDiscountsApplied: number;
-  public readonly netCollectionTotal: number;
-  public readonly avgTicketSize: number;
-  public readonly pctOfTotalRevenue: number;
-  public readonly cancelledBillsCount: number;
-  public readonly cancelledBillsValue: number;
+  constructor(
+    public readonly performanceRank: number,
+    public readonly collectorId: string,
+    public readonly totalTransactions: number,
+    public readonly uniqueCustomersServed: number,
+    public readonly sourceTrashRateTotal: number,
+    public readonly valorTableTotal: number,
+    public readonly integrityGapAmount: number,
+    public readonly grossAmount: number,
+    public readonly totalDiscountsApplied: number,
+    public readonly netCollectionTotal: number,
+    public readonly avgTicketSize: number,
+    public readonly pctOfTotalRevenue: number,
+    public readonly cancelledBillsCount: number,
+    public readonly cancelledBillsValue: number,
+  ) {}
 }
 
 export class DailyCollectorDetailModel {
-  public readonly collectorId: string;
-  public readonly paymentDate: string;
-  public readonly incomeStatus: string;
-  public readonly transactionsCount: number;
-  public readonly sourceTrashRateDaily: number;
-  public readonly valorTableDaily: number;
-  public readonly integrityGapDaily: number;
-  public readonly grossDailyTotal: number;
-  public readonly discountsDailyTotal: number;
-  public readonly netDailyCollection: number;
-  public readonly avgTicketDaily: number;
-  public readonly cancelledCountDaily: number;
-  public readonly cancelledValueDaily: number;
+  constructor(
+    public readonly collectorId: string,
+    public readonly paymentDate: string,
+    public readonly incomeStatus: string,
+    public readonly transactionsCount: number,
+    public readonly sourceTrashRateDaily: number,
+    public readonly valorTableDaily: number,
+    public readonly integrityGapDaily: number,
+    public readonly grossDailyTotal: number,
+    public readonly discountsDailyTotal: number,
+    public readonly netDailyCollection: number,
+    public readonly avgTicketDaily: number,
+    public readonly cancelledCountDaily: number,
+    public readonly cancelledValueDaily: number,
+  ) {}
 }
