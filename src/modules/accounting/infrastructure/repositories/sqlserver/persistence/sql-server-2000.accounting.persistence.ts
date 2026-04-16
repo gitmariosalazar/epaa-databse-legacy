@@ -1165,7 +1165,7 @@ export class SQLServer2000AccountingPersistence
             )
         LEFT JOIN Valor v 
             ON v.cod_Ingreso = di.Cod_Ingreso AND v.orden = 1
-        LEFT JOIN AP_NOTAS_CREDITO_BASURA anc
+        LEFT JOIN AP_NOTAS_CREDITO anc
             ON anc.Cod_Ingreso = di.Cod_Ingreso
 
         WHERE 
