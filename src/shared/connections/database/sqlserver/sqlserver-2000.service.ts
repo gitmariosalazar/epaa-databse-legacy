@@ -234,36 +234,61 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
   public async transaction<T>(
     operations: (conn: odbc.Connection) => Promise<T>,
   ): Promise<T> {
-    if (!DatabaseServiceSQLServer2000.pool)
+    if (!DatabaseServiceSQLServer2000.pool) {
       throw new RpcException({
         statusCode: statusCode.INTERNAL_SERVER_ERROR,
         message: 'Database is not connected',
       });
+    }
+
     for (let attempt = 1; attempt <= this.maxQueryRetries; attempt++) {
-      const conn = await DatabaseServiceSQLServer2000.pool.connect();
+      let conn: odbc.Connection | null = null;
       try {
-        await conn.beginTransaction();
+        conn = await DatabaseServiceSQLServer2000.pool.connect();
+
+        // SQL Server 2000 + ODBC Legacy workaround:
+        // Evitamos conn.beginTransaction() porque a menudo falla al intentar apagar autocommit
+        // en drivers antiguos o configuraciones DSN específicas de SQL 2000 (FreeTDS, etc).
+        // Usamos T-SQL puro para el control de la transacción.
+        await conn.query('SET NOCOUNT ON;').catch(() => {});
+        await conn.query('BEGIN TRANSACTION');
+
         const result = await operations(conn);
-        await conn.commit();
-        await conn.close();
+
+        await conn.query('COMMIT TRANSACTION');
+        await conn.close().catch(() => {});
         return result;
       } catch (err: any) {
-        try {
-          await conn.rollback();
-        } catch (_) {
-          /* ignore */
+        console.error(
+          `[Transaction Attempt ${attempt}/${this.maxQueryRetries}]`,
+          err.message,
+        );
+
+        if (conn) {
+          try {
+            // Intentamos rollback solo si la conexión sigue viva y hay una transacción activa
+            await conn.query('IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION');
+            await conn.close().catch(() => {});
+          } catch (rollbackErr) {
+            console.warn(
+              'Error cerrando conexión sucia en transacción:',
+              rollbackErr.message,
+            );
+          }
         }
-        await conn.close();
-        if (attempt === this.maxQueryRetries)
+
+        if (attempt === this.maxQueryRetries) {
           throw new RpcException({
             statusCode: statusCode.INTERNAL_SERVER_ERROR,
             message: `Database error: ${err.message}`,
           });
-        await new Promise((r) =>
-          setTimeout(r, this.queryRetryDelayMs * Math.pow(2, attempt)),
-        );
+        }
+
+        const delay = this.queryRetryDelayMs * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
       }
     }
+
     throw new RpcException({
       statusCode: statusCode.INTERNAL_SERVER_ERROR,
       message: 'Transaction failed after maximum retries',

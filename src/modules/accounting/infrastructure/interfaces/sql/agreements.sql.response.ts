@@ -1,0 +1,31 @@
+export interface AgreementKPIsSqlResult {
+  year: number;
+  month: number | null;
+  day: number | null;
+  total_emitted: number;
+  total_collected: number;
+  total_pending: number;
+  total_principal: number;
+  total_interest: number;
+  total_surcharge: number;
+  principal_collected: number;
+  principal_recovery_pct: number;
+  collection_efficiency_pct: number;
+  collection_amount_pct: number;
+  total_citizens_with_agreements: number;
+  total_installments_count: number;
+  total_installments_pendings: number;
+  total_installments_paid: number;
+  overdue_installments_count: number;
+  overdue_amount: number;
+  avg_overdue_days: number;
+  max_overdue_days: number;
+  overdue_1_30_days: number;
+  overdue_31_60_days: number;
+  overdue_61_90_days: number;
+  overdue_more_90_days: number;
+  critical_overdue_count: number;
+  capital_balance_pending: number;
+  avg_installment_value: number;
+  avg_days_to_pay: number;
+}

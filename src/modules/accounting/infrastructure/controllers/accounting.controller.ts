@@ -3,7 +3,11 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { DateRangeParams } from '../../domain/schemas/dto/response/entry-data.response';
 import { AccountingService } from '../../application/services/accounting.service';
 import { raw } from 'express';
-import { GeneralCollectionsParams, GeneralTrendCollectionsParams } from '../../domain/schemas/dto/request/general-collection.params';
+import {
+  GeneralCollectionsParams,
+  GeneralTrendCollectionsParams,
+} from '../../domain/schemas/dto/request/general-collection.params';
+import { AgreementsParams } from '../../domain/schemas/dto/request/agreements.params';
 
 @Controller('accounting')
 export class AccountingController {
@@ -273,9 +277,7 @@ export class AccountingController {
   }
 
   @Get('get-general-yearly-collection-kpi')
-  @MessagePattern(
-    'epaa-legacy.accounting.get-general-yearly-collection-kpi',
-  )
+  @MessagePattern('epaa-legacy.accounting.get-general-yearly-collection-kpi')
   getGeneralYearlyCollectionKPI(
     @Payload() params: GeneralTrendCollectionsParams,
   ) {
@@ -286,9 +288,7 @@ export class AccountingController {
   }
 
   @Get('get-general-monthly-collection-kpi')
-  @MessagePattern(
-    'epaa-legacy.accounting.get-general-monthly-collection-kpi',
-  )
+  @MessagePattern('epaa-legacy.accounting.get-general-monthly-collection-kpi')
   getGeneralMonthlyCollectionKPI(
     @Payload() params: GeneralTrendCollectionsParams,
   ) {
@@ -296,5 +296,12 @@ export class AccountingController {
       `Received getGeneralMonthlyCollectionKPI request: ${JSON.stringify(params)}`,
     );
     return this.accountingService.getGeneralMonthlyCollectionKPI(params);
+  }
+
+  @Get('get-agreements-kpi')
+  @MessagePattern('epaa-legacy.accounting.get-agreements-kpi')
+  getAgreementsKpi(@Payload() params: AgreementsParams) {
+    console.log(`Received getAgreementsKpi request: ${JSON.stringify(params)}`);
+    return this.accountingService.getAgreementsKpi(params);
   }
 }

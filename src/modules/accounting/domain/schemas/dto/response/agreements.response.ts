@@ -1,0 +1,31 @@
+export interface AgreementKPIsResponse {
+  year: number;
+  month: number | null;
+  day: number | null;
+  totalEmitted: number;
+  totalCollected: number;
+  totalPending: number;
+  totalPrincipal: number;
+  totalInterest: number;
+  totalSurcharge: number;
+  principalCollected: number;
+  principalRecoveryPct: number;
+  collectionEfficiencyPct: number;
+  collectionAmountPct: number;
+  totalCitizensWithAgreements: number;
+  totalInstallmentsCount: number;
+  totalInstallmentsPendings: number;
+  totalInstallmentsPaid: number;
+  overdueInstallmentsCount: number;
+  overdueAmount: number;
+  avgOverdueDays: number;
+  maxOverdueDays: number;
+  overdue1_30Days: number;
+  overdue31_60Days: number;
+  overdue61_90Days: number;
+  overdueMore90Days: number;
+  criticalOverdueCount: number;
+  capitalBalancePending: number;
+  avgInstallmentValue: number;
+  avgDaysToPay: number;
+}

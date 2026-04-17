@@ -10,6 +10,7 @@ import {
   PendingReadingResponse,
   YearlyOverdueSummaryResponse,
 } from '../../domain/schemas/dto/response/accounting.response';
+import { AgreementKPIsResponse } from '../../domain/schemas/dto/response/agreements.response';
 import { InterfaceAccountingRepository } from '../../domain/contracts/accounting.interface.repository';
 import { InterfaceExternalPayrollRepository } from '../../domain/contracts/external-payroll.interface.repository';
 import { InterfaceEntryDataRepository } from '../../domain/contracts/entry-data.interface.repository';
@@ -37,13 +38,17 @@ import {
   GeneralMonthlyKPIResponse,
   GeneralKPIResponse,
 } from '../../domain/schemas/dto/response/general-collection.response';
+import { InterfaceAgreementsRepository } from '../../domain/contracts/agreements.interface.repository';
+import { InterfaceAgreementsUseCase } from '../usecases/agreements.use-case.interface';
+import { AgreementsParams } from '../../domain/schemas/dto/request/agreements.params';
 
 @Injectable()
 export class AccountingService
   implements
     InterfaceAccountingUseCase,
     InterfaceEntryDataUseCase,
-    InterfaceGeneralCollectionUseCase
+    InterfaceGeneralCollectionUseCase,
+    InterfaceAgreementsUseCase
 {
   constructor(
     @Inject('AccountingRepository')
@@ -54,6 +59,8 @@ export class AccountingService
     private readonly entryDataRepository: InterfaceEntryDataRepository,
     @Inject('GeneralCollectionRepository')
     private readonly generalCollectionRepository: InterfaceGeneralCollectionRepository,
+    @Inject('AgreementsRepository')
+    private readonly agreementsRepository: InterfaceAgreementsRepository,
   ) {}
 
   async findAllPaymentByDateAndOrderValue(
@@ -538,6 +545,16 @@ export class AccountingService
       return await this.generalCollectionRepository.getGeneralMonthlyCollectionKPI(
         params,
       );
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getAgreementsKpi(
+    params: AgreementsParams,
+  ): Promise<AgreementKPIsResponse[]> {
+    try {
+      return await this.agreementsRepository.getAgreementsKpi(params);
     } catch (error) {
       throw error;
     }
