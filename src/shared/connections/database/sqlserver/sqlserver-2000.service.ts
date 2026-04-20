@@ -28,7 +28,7 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
   private readonly queryRetryDelayMs = 500;
 
   /** Timeout de queries */
-  private readonly queryTimeoutMs = 60000;
+  private readonly queryTimeoutMs = 60000 * 5; // 5 minutos (ajusta según tu entorno)
 
   public constructor() {
     super();

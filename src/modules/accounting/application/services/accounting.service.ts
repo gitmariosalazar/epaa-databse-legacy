@@ -10,7 +10,16 @@ import {
   PendingReadingResponse,
   YearlyOverdueSummaryResponse,
 } from '../../domain/schemas/dto/response/accounting.response';
-import { AgreementKPIsResponse } from '../../domain/schemas/dto/response/agreements.response';
+import {
+  AgreementInstallmentResponse,
+  AgreementKPIsCustomerResponse,
+  AgreementKPIsResponse,
+  CitizenSummary,
+  CollectorPerformance,
+  Debtor,
+  MonthlyCollectionSummary,
+  PaymentMethodSummary,
+} from '../../domain/schemas/dto/response/agreements.response';
 import { InterfaceAccountingRepository } from '../../domain/contracts/accounting.interface.repository';
 import { InterfaceExternalPayrollRepository } from '../../domain/contracts/external-payroll.interface.repository';
 import { InterfaceEntryDataRepository } from '../../domain/contracts/entry-data.interface.repository';
@@ -40,7 +49,10 @@ import {
 } from '../../domain/schemas/dto/response/general-collection.response';
 import { InterfaceAgreementsRepository } from '../../domain/contracts/agreements.interface.repository';
 import { InterfaceAgreementsUseCase } from '../usecases/agreements.use-case.interface';
-import { AgreementsParams } from '../../domain/schemas/dto/request/agreements.params';
+import {
+  AgreementsCustomerParams,
+  AgreementsParams,
+} from '../../domain/schemas/dto/request/agreements.params';
 
 @Injectable()
 export class AccountingService
@@ -555,6 +567,82 @@ export class AccountingService
   ): Promise<AgreementKPIsResponse[]> {
     try {
       return await this.agreementsRepository.getAgreementsKpi(params);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getAgreementsKpiCustomer(
+    cardId: string,
+    params: AgreementsCustomerParams,
+  ): Promise<AgreementKPIsCustomerResponse[]> {
+    try {
+      return await this.agreementsRepository.getAgreementsKpiCustomer(
+        cardId,
+        params,
+      );
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getAgreementInstallmentDetails(
+    cardId: string,
+    params: DateRangeParams,
+  ): Promise<AgreementInstallmentResponse[]> {
+    try {
+      return await this.agreementsRepository.getAgreementInstallmentDetails(
+        cardId,
+        params,
+      );
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getMonthlyCollectionSummary(
+    monthsBack: number,
+  ): Promise<MonthlyCollectionSummary[]> {
+    try {
+      return await this.agreementsRepository.getMonthlyCollectionSummary(
+        monthsBack,
+      );
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getDebtorsWithRisk(): Promise<Debtor[]> {
+    try {
+      return await this.agreementsRepository.getDebtorsWithRisk();
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCollectorPerformance(
+    params: DateRangeParams,
+  ): Promise<CollectorPerformance[]> {
+    try {
+      return await this.agreementsRepository.getCollectorPerformance(params);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getPaymentMethodSummary(
+    params: DateRangeParams,
+  ): Promise<PaymentMethodSummary[]> {
+    try {
+      return await this.agreementsRepository.getPaymentMethodSummary(params);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCitizenSummary(params: DateRangeParams): Promise<CitizenSummary[]> {
+    try {
+      return await this.agreementsRepository.getCitizenSummary(params);
     } catch (error) {
       throw error;
     }

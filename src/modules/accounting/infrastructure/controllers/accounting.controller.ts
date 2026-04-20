@@ -7,7 +7,10 @@ import {
   GeneralCollectionsParams,
   GeneralTrendCollectionsParams,
 } from '../../domain/schemas/dto/request/general-collection.params';
-import { AgreementsParams } from '../../domain/schemas/dto/request/agreements.params';
+import {
+  AgreementsCustomerParams,
+  AgreementsParams,
+} from '../../domain/schemas/dto/request/agreements.params';
 
 @Controller('accounting')
 export class AccountingController {
@@ -303,5 +306,74 @@ export class AccountingController {
   getAgreementsKpi(@Payload() params: AgreementsParams) {
     console.log(`Received getAgreementsKpi request: ${JSON.stringify(params)}`);
     return this.accountingService.getAgreementsKpi(params);
+  }
+
+  @Get('get-agreements-kpi-customer')
+  @MessagePattern('epaa-legacy.accounting.get-agreements-kpi-customer')
+  getAgreementsKpiCustomer(
+    @Payload() data: { cardId: string; params: AgreementsCustomerParams },
+  ) {
+    console.log(
+      `Received getAgreementsKpiCustomer request: ${JSON.stringify(data)}`,
+    );
+    return this.accountingService.getAgreementsKpiCustomer(
+      data.cardId,
+      data.params,
+    );
+  }
+
+  @Get('get-agreement-installment-details')
+  @MessagePattern('epaa-legacy.accounting.get-agreement-installment-details')
+  getAgreementInstallmentDetails(
+    @Payload() data: { cardId: string; params: DateRangeParams },
+  ) {
+    console.log(
+      `Received getAgreementInstallmentDetails request: ${JSON.stringify(data)}`,
+    );
+    return this.accountingService.getAgreementInstallmentDetails(
+      data.cardId,
+      data.params,
+    );
+  }
+
+  @Get('get-monthly-collection-summary')
+  @MessagePattern('epaa-legacy.accounting.get-monthly-collection-summary')
+  getMonthlyCollectionSummary(@Payload() monthsBack: number) {
+    console.log(
+      `Received getMonthlyCollectionSummary request: ${monthsBack}`,
+    );
+    return this.accountingService.getMonthlyCollectionSummary(monthsBack);
+  }
+
+  @Get('get-debtors-with-risk')
+  @MessagePattern('epaa-legacy.accounting.get-debtors-with-risk')
+  getDebtorsWithRisk() {
+    console.log(`Received getDebtorsWithRisk request`);
+    return this.accountingService.getDebtorsWithRisk();
+  }
+
+  @Get('get-collector-performance')
+  @MessagePattern('epaa-legacy.accounting.get-collector-performance')
+  getCollectorPerformance(@Payload() params: DateRangeParams) {
+    console.log(
+      `Received getCollectorPerformance request: ${JSON.stringify(params)}`,
+    );
+    return this.accountingService.getCollectorPerformance(params);
+  }
+
+  @Get('get-payment-method-summary')
+  @MessagePattern('epaa-legacy.accounting.get-payment-method-summary')
+  getPaymentMethodSummary(@Payload() params: DateRangeParams) {
+    console.log(
+      `Received getPaymentMethodSummary request: ${JSON.stringify(params)}`,
+    );
+    return this.accountingService.getPaymentMethodSummary(params);
+  }
+
+  @Get('get-citizen-summary')
+  @MessagePattern('epaa-legacy.accounting.get-citizen-summary')
+  getCitizenSummary(@Payload() params: DateRangeParams) {
+    console.log(`Received getCitizenSummary request: ${JSON.stringify(params)}`);
+    return this.accountingService.getCitizenSummary(params);
   }
 }
