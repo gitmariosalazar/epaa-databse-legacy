@@ -506,6 +506,8 @@ ORDER BY year DESC, month DESC, day DESC;
   async getCollectorPerformance(
     params: DateRangeParams,
   ): Promise<CollectorPerformance[]> {
+    const initDateTime = `${String(params.startDate)} 00:00:00.000`;
+    const endDateTime = `${String(params.endDate)} 23:59:59.997`;
     try {
       const query = `
         SET NOCOUNT ON;  
@@ -514,8 +516,8 @@ ORDER BY year DESC, month DESC, day DESC;
         DECLARE @Date_End   DATETIME  
         DECLARE @Total_Global DECIMAL(18,4)  
           
-        SET @Date_Start = CONVERT(DATETIME, '${params.startDate}', 120)  
-        SET @Date_End   = CONVERT(DATETIME, '${params.endDate}', 120)  
+        SET @Date_Start = CONVERT(DATETIME, '${initDateTime}', 120)  
+        SET @Date_End   = CONVERT(DATETIME, '${endDateTime}', 120)  
           
         -- Calcular total global primero (necesario en SQL 2000)  
         SELECT @Total_Global = SUM(valor_capital + valor_interes + valor_recargo)  
@@ -559,6 +561,8 @@ ORDER BY year DESC, month DESC, day DESC;
   async getPaymentMethodSummary(
     params: DateRangeParams,
   ): Promise<PaymentMethodSummary[]> {
+    const initDateTime = `${String(params.startDate)} 00:00:00.000`;
+    const endDateTime = `${String(params.endDate)} 23:59:59.997`;
     try {
       const query = `
         SET NOCOUNT ON;
@@ -566,8 +570,8 @@ ORDER BY year DESC, month DESC, day DESC;
         DECLARE @Date_Start DATETIME
         DECLARE @Date_End   DATETIME
 
-        SET @Date_Start = CONVERT(DATETIME, '${params.startDate}', 120)
-        SET @Date_End   = CONVERT(DATETIME, '${params.endDate}', 120)
+        SET @Date_Start = CONVERT(DATETIME, '${initDateTime}', 120)
+        SET @Date_End   = CONVERT(DATETIME, '${endDateTime}', 120)
 
         DECLARE @Total_Global DECIMAL(18,4)
 
@@ -606,6 +610,8 @@ ORDER BY year DESC, month DESC, day DESC;
   }
 
   async getCitizenSummary(params: DateRangeParams): Promise<CitizenSummary[]> {
+    const initDateTime = `${String(params.startDate)} 00:00:00.000`;
+    const endDateTime = `${String(params.endDate)} 23:59:59.997`;
     try {
       const query = `
         SET NOCOUNT ON;
@@ -613,8 +619,8 @@ ORDER BY year DESC, month DESC, day DESC;
         DECLARE @Date_Start DATETIME
         DECLARE @Date_End   DATETIME
 
-        SET @Date_Start = CONVERT(DATETIME, '${params.startDate}', 120)
-        SET @Date_End   = CONVERT(DATETIME, '${params.endDate}', 120)
+        SET @Date_Start = CONVERT(DATETIME, '${initDateTime}', 120)
+        SET @Date_End   = CONVERT(DATETIME, '${endDateTime}', 120)
 
         SELECT
             di.clave_catastral AS cadastral_key,

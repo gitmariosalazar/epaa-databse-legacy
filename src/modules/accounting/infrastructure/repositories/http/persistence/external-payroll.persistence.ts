@@ -18,14 +18,14 @@ export class ExternalPayrollPersistence
     connections: 50, // equivalente a maxSockets en undici
     keepAliveTimeout: 30000, // 30 segundos
     connect: {
-      timeout: 10000, // timeout de conexión
+      timeout: 15000, // timeout de conexión
     },
   });
 
   async getPayrollsByIdentification(
     identification: string,
   ): Promise<ExternalPayrollItem[]> {
-    const maxRetries = 2; // Reducido para evitar timeouts de Kafka (heartbeat de 30s)
+    const maxRetries = 3; // Reducido para evitar timeouts de Kafka (heartbeat de 30s)
     let lastError: any;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {

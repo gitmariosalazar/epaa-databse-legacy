@@ -32,7 +32,9 @@ import {
 export class SqlServerAgreementsPersistence
   implements InterfaceAgreementsRepository
 {
-  constructor(private readonly sqlServerService: DatabaseServiceSQLServer2022) {}
+  constructor(
+    private readonly sqlServerService: DatabaseServiceSQLServer2022,
+  ) {}
 
   async getAgreementsKpi(
     params: AgreementsParams,
@@ -234,7 +236,9 @@ ORDER BY year DESC, month DESC, day DESC;
     }
   }
 
-  async getMonthlyCollectionSummary(monthsBack: number): Promise<MonthlyCollectionSummary[]> {
+  async getMonthlyCollectionSummary(
+    monthsBack: number,
+  ): Promise<MonthlyCollectionSummary[]> {
     try {
       const query = `
         SET NOCOUNT ON;
@@ -257,8 +261,13 @@ ORDER BY year DESC, month DESC, day DESC;
         GROUP BY FORMAT(fecha_emision, 'yyyy-MM')
         ORDER BY month_key DESC;
       `;
-      const rawData = await this.sqlServerService.query<MonthlyCollectionSummarySqlResult>(query);
-      return new SqlServerAgreementsAdapter().adaptMonthlyCollectionSummary(rawData);
+      const rawData =
+        await this.sqlServerService.query<MonthlyCollectionSummarySqlResult>(
+          query,
+        );
+      return new SqlServerAgreementsAdapter().adaptMonthlyCollectionSummary(
+        rawData,
+      );
     } catch (error) {
       throw error;
     }
@@ -297,12 +306,17 @@ ORDER BY year DESC, month DESC, day DESC;
     }
   }
 
-  async getCollectorPerformance(params: DateRangeParams): Promise<CollectorPerformance[]> {
+  async getCollectorPerformance(
+    params: DateRangeParams,
+  ): Promise<CollectorPerformance[]> {
     try {
+      const initDateTime = `${String(params.startDate)} 00:00:00.000`;
+      const endDateTime = `${String(params.endDate)} 23:59:59.997`;
+
       const query = `
         SET NOCOUNT ON;
-        DECLARE @Date_Start DATETIME = '${params.startDate}';
-        DECLARE @Date_End DATETIME = '${params.endDate}';
+        DECLARE @Date_Start DATETIME = '${initDateTime}';
+        DECLARE @Date_End DATETIME = '${endDateTime}';
         DECLARE @Total_Global DECIMAL(18,4);
         SELECT @Total_Global = SUM(valor_capital + valor_interes + valor_recargo)
         FROM Datos_Ingreso_Convenio
@@ -318,19 +332,27 @@ ORDER BY year DESC, month DESC, day DESC;
         GROUP BY usuario_cobro
         ORDER BY total_collected DESC;
       `;
-      const rawData = await this.sqlServerService.query<CollectorPerformanceSqlResult>(query);
-      return new SqlServerAgreementsAdapter().adaptCollectorPerformance(rawData);
+      const rawData =
+        await this.sqlServerService.query<CollectorPerformanceSqlResult>(query);
+      return new SqlServerAgreementsAdapter().adaptCollectorPerformance(
+        rawData,
+      );
     } catch (error) {
       throw error;
     }
   }
 
-  async getPaymentMethodSummary(params: DateRangeParams): Promise<PaymentMethodSummary[]> {
+  async getPaymentMethodSummary(
+    params: DateRangeParams,
+  ): Promise<PaymentMethodSummary[]> {
     try {
+      const initDateTime = `${String(params.startDate)} 00:00:00.000`;
+      const endDateTime = `${String(params.endDate)} 23:59:59.997`;
+
       const query = `
         SET NOCOUNT ON;
-        DECLARE @Date_Start DATETIME = '${params.startDate}';
-        DECLARE @Date_End DATETIME = '${params.endDate}';
+        DECLARE @Date_Start DATETIME = '${initDateTime}';
+        DECLARE @Date_End DATETIME = '${endDateTime}';
         DECLARE @Total_Global DECIMAL(18,4);
         SELECT @Total_Global = SUM(valor_capital + valor_interes + valor_recargo)
         FROM Datos_Ingreso_Convenio
@@ -346,8 +368,11 @@ ORDER BY year DESC, month DESC, day DESC;
         GROUP BY forma_de_pago
         ORDER BY contribution_pct DESC;
       `;
-      const rawData = await this.sqlServerService.query<PaymentMethodSummarySqlResult>(query);
-      return new SqlServerAgreementsAdapter().adaptPaymentMethodSummary(rawData);
+      const rawData =
+        await this.sqlServerService.query<PaymentMethodSummarySqlResult>(query);
+      return new SqlServerAgreementsAdapter().adaptPaymentMethodSummary(
+        rawData,
+      );
     } catch (error) {
       throw error;
     }
@@ -355,10 +380,13 @@ ORDER BY year DESC, month DESC, day DESC;
 
   async getCitizenSummary(params: DateRangeParams): Promise<CitizenSummary[]> {
     try {
+      const initDateTime = `${String(params.startDate)} 00:00:00.000`;
+      const endDateTime = `${String(params.endDate)} 23:59:59.997`;
+
       const query = `
         SET NOCOUNT ON;
-        DECLARE @Date_Start DATETIME = '${params.startDate}';
-        DECLARE @Date_End DATETIME = '${params.endDate}';
+        DECLARE @Date_Start DATETIME = '${initDateTime}';
+        DECLARE @Date_End DATETIME = '${endDateTime}';
         SELECT
             di.clave_catastral AS cadastral_key,
             c.CED_IDENT_CIUDADANO AS card_id,
@@ -383,7 +411,8 @@ ORDER BY year DESC, month DESC, day DESC;
         GROUP BY c.CED_IDENT_CIUDADANO, di.clave_catastral, c.NOMBRES_CIUDADANO, c.APELLIDOS_CIUDADANO
         ORDER BY total_amount_value DESC;
       `;
-      const rawData = await this.sqlServerService.query<CitizenSummarySqlResult>(query);
+      const rawData =
+        await this.sqlServerService.query<CitizenSummarySqlResult>(query);
       return new SqlServerAgreementsAdapter().adaptCitizenSummary(rawData);
     } catch (error) {
       throw error;
