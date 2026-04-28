@@ -12,9 +12,19 @@ export class ReadingController {
 
   @Post('create-reading-legacy')
   @MessagePattern('epaa-legacy.reading.create-reading-legacy')
-  createReading(@Payload() reading: CreateReadingLegacyRequest) {
-    console.log(`Received createReading request: ${JSON.stringify(reading)}`);
-    return this.readingService.createReading(reading);
+  async createReading(@Payload() reading: CreateReadingLegacyRequest) {
+    try {
+      console.log(`Received createReading request: ${JSON.stringify(reading)}`);
+      return await this.readingService.createReading(reading);
+    } catch (error) {
+      console.error(`Error in createReading: ${error.message}`, error);
+      // Retornar un objeto de error en lugar de arrojar una excepción 
+      // evita que Kafka reintente el evento en un bucle infinito.
+      return {
+        statusCode: 500,
+        message: error.message || 'Internal server error',
+      };
+    }
   }
 
   @Get('find-current-reading')

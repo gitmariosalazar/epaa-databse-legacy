@@ -69,6 +69,11 @@ export class ReadingSQLServer2022Persistence
       ];
       const result: ReadingSQLResult[] =
         await this.sqlServerService.query<ReadingSQLResult>(query, params);
+        
+      if (!result || !result[0]) {
+        throw new Error('Reading was inserted but the OUTPUT clause returned no data (possibly due to a trigger).');
+      }
+
       return SQLServerReadingAdapter.toDomain(result[0]);
     } catch (error) {
       throw error;
