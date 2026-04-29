@@ -43,6 +43,7 @@ export class SQLServerAccountingPersistence
             di.ClaveCatastral AS cadastral_key,
             di.Direccion AS address,
             a.Tarifa AS rate,
+            dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
             l.Mes AS month,
             l.Anio AS year,
             l.LecturaActual AS current_reading,
@@ -68,7 +69,8 @@ export class SQLServerAccountingPersistence
             di.tasa_basura AS trash_rate,
             di.Valor_Titulo        AS epaa_value,
             di.ValorTerceros       AS third_party_value,
-            (COALESCE(di.Valor_Titulo, 0) + COALESCE(di.ValorTerceros, 0) + COALESCE(di.tasa_basura, 0)) AS total,
+            dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
+            (COALESCE(di.Valor_Titulo, 0) + COALESCE(di.ValorTerceros, 0) + COALESCE(di.tasa_basura, 0) + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())) AS total,
             di.Fecha_Venc_Interes AS due_date,
             di.Estado_Ingreso AS income_status,
             di.Fecha_Ingreso
@@ -126,6 +128,7 @@ export class SQLServerAccountingPersistence
             di.ClaveCatastral AS cadastral_key,
             di.Direccion AS address,
             a.Tarifa AS rate,
+            dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
             l.Mes AS month,
             l.Anio AS year,
             l.LecturaActual AS current_reading,
@@ -151,7 +154,8 @@ export class SQLServerAccountingPersistence
             di.tasa_basura AS trash_rate,
             di.Valor_Titulo        AS epaa_value,
             di.ValorTerceros       AS third_party_value,
-            (COALESCE(di.Valor_Titulo, 0) + COALESCE(di.ValorTerceros, 0) + COALESCE(di.tasa_basura, 0)) AS total,
+            dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
+            (COALESCE(di.Valor_Titulo, 0) + COALESCE(di.ValorTerceros, 0) + COALESCE(di.tasa_basura, 0) + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())) AS total,
             di.Fecha_Venc_Interes AS due_date,
             di.Estado_Ingreso AS income_status,
             di.Fecha_Ingreso
@@ -217,6 +221,9 @@ export class SQLServerAccountingPersistence
             di.Direccion                    AS address,
             a.Tarifa                        AS rate,
 
+            -- Interés calculado dinámicamente en función al valor del título y la fecha de vencimiento
+            dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
+
             -- ── Período de facturación ────────────────────────────────────────────────────
             l.Mes                           AS month,
             l.Anio                          AS year,
@@ -264,6 +271,7 @@ export class SQLServerAccountingPersistence
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
                    + COALESCE(di.Recargo, 0)
+                   + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
                 ELSE NULL
             END                             AS total_epaa_value,
 
@@ -325,6 +333,7 @@ export class SQLServerAccountingPersistence
                    + COALESCE(di.ValorTerceros, 0)
                    + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
                    + COALESCE(di.Recargo, 0)
+                   + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
                 -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
             END                             AS total,
@@ -334,6 +343,7 @@ export class SQLServerAccountingPersistence
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
                    + COALESCE(di.Recargo, 0)
+                   + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
                    + CASE 
                         WHEN COALESCE(anc.Valor, 0) > 0 THEN 
                             CASE 
@@ -448,6 +458,9 @@ export class SQLServerAccountingPersistence
             di.ClaveCatastral               AS cadastral_key,  
             di.Direccion                    AS address,  
             COALESCE(a.Tarifa, NULL)        AS rate,  
+
+            -- INterés calculado dinámicamente en función al valor del título y la fecha de vencimiento
+            dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
           
             l.Mes                           AS month,  
             l.Anio                          AS year,  
@@ -487,7 +500,8 @@ export class SQLServerAccountingPersistence
           
             -- Total EPAA (muestra aunque no haya lectura)  
             COALESCE(di.Valor_Titulo, 0)  
-            + COALESCE(di.ValorTerceros, 0)  
+            + COALESCE(di.ValorTerceros, 0)
+            + bdbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())  
             + COALESCE(di.Recargo, 0)       AS total_epaa_value,  
           
             -- === Basura ===  
@@ -527,11 +541,13 @@ export class SQLServerAccountingPersistence
             COALESCE(di.Valor_Titulo, 0)  
             + COALESCE(di.ValorTerceros, 0)  
             + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)  
+            + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
             + COALESCE(di.Recargo, 0)       AS total,  
           
             COALESCE(di.Valor_Titulo, 0)  
             + COALESCE(di.ValorTerceros, 0)  
             + COALESCE(di.Recargo, 0)  
+            + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
             + CASE  
                 WHEN COALESCE(anc.Valor, 0) > 0 THEN  
                     CASE  
@@ -707,7 +723,9 @@ export class SQLServerAccountingPersistence
         await this.sqlServerService.query<PaymentSqlResponse>(query);
 
       const response: PaymentResponse[] = result.map((item) =>
-        SQLServerAccountingAdapter.fromPaymentSqlResponseToPaymentResponse(item),
+        SQLServerAccountingAdapter.fromPaymentSqlResponseToPaymentResponse(
+          item,
+        ),
       );
 
       if (response.length === 0) {
@@ -883,7 +901,9 @@ export class SQLServerAccountingPersistence
         await this.sqlServerService.query<PaymentSqlResponse>(query);
 
       const response: PaymentResponse[] = result.map((item) =>
-        SQLServerAccountingAdapter.fromPaymentSqlResponseToPaymentResponse(item),
+        SQLServerAccountingAdapter.fromPaymentSqlResponseToPaymentResponse(
+          item,
+        ),
       );
 
       if (response.length === 0) {
@@ -956,7 +976,9 @@ export class SQLServerAccountingPersistence
         await this.sqlServerService.query<PaymentSqlResponse>(query);
 
       const response: PaymentResponse[] = result.map((item) =>
-        SQLServerAccountingAdapter.fromPaymentSqlResponseToPaymentResponse(item),
+        SQLServerAccountingAdapter.fromPaymentSqlResponseToPaymentResponse(
+          item,
+        ),
       );
 
       if (response.length === 0) {

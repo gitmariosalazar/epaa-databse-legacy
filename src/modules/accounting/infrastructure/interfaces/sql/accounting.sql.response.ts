@@ -146,6 +146,7 @@ export interface PendingReadingSQLResult {
   cadastral_key: string;
   address: string;
   rate: string;
+  interest_value: number;
   month: string;
   year: number;
   current_reading: number;

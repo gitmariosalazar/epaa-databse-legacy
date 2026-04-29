@@ -784,6 +784,7 @@ export class SQLServer2000AccountingPersistence
             di.ClaveCatastral               AS cadastral_key,
             di.Direccion                    AS address,
             a.Tarifa                        AS rate,
+            dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
             l.Mes                           AS month,
             l.Anio                          AS year,
             l.LecturaActual                 AS current_reading,
@@ -822,6 +823,7 @@ export class SQLServer2000AccountingPersistence
             CASE WHEN l.LecturaActual IS NOT NULL 
                 THEN COALESCE(di.Valor_Titulo, 0) + 
                       COALESCE(di.ValorTerceros, 0) + 
+                      dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) +
                       COALESCE(di.tasa_basura, 0) + COALESCE(di.Recargo, 0)
                 ELSE NULL 
             END                             AS total,
@@ -907,6 +909,7 @@ export class SQLServer2000AccountingPersistence
           di.ClaveCatastral               AS cadastral_key,
           di.Direccion                    AS address,
           a.Tarifa                        AS rate,
+          dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
           l.Mes                           AS month,
           l.Anio                          AS year,
           l.LecturaActual                 AS current_reading,
@@ -945,6 +948,7 @@ export class SQLServer2000AccountingPersistence
           CASE WHEN l.LecturaActual IS NOT NULL 
               THEN COALESCE(di.Valor_Titulo, 0) + 
                     COALESCE(di.ValorTerceros, 0) + 
+                    dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) +
                     COALESCE(di.tasa_basura, 0) + COALESCE(di.Recargo, 0)
               ELSE NULL 
           END                             AS total,
@@ -1034,6 +1038,9 @@ export class SQLServer2000AccountingPersistence
             di.Direccion                    AS address,
             a.Tarifa                        AS rate,
 
+            -- Interes
+            dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) AS interest_value,
+
             -- ── Período de facturación ────────────────────────────────────────────────────
             l.Mes                           AS month,
             l.Anio                          AS year,
@@ -1080,6 +1087,7 @@ export class SQLServer2000AccountingPersistence
             CASE WHEN l.LecturaActual IS NOT NULL
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
+                   + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
                    + COALESCE(di.Recargo, 0)
                 ELSE NULL
             END                             AS total_epaa_value,
@@ -1141,6 +1149,7 @@ export class SQLServer2000AccountingPersistence
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
                    + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                   + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
                    + COALESCE(di.Recargo, 0)
                 -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
                 ELSE NULL
@@ -1151,6 +1160,7 @@ export class SQLServer2000AccountingPersistence
                 THEN COALESCE(di.Valor_Titulo, 0)
                    + COALESCE(di.ValorTerceros, 0)
                    + COALESCE(di.Recargo, 0)
+                   + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
                    + CASE 
                         WHEN COALESCE(anc.Valor, 0) > 0 THEN 
                             CASE 

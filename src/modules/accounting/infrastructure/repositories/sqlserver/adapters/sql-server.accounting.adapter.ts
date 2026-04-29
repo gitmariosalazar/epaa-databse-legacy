@@ -36,6 +36,7 @@ export class SQLServerAccountingAdapter {
       cadastralKey: String(data.cadastral_key).trim(),
       address: data.address ? String(data.address).trim() : '',
       rate: data.rate ? String(data.rate).trim() : '',
+      interestValue: data.interest_value ? Number(data.interest_value) : 0,
 
       // ── Período de Facturación e Ingresos ──────────────────────────────────────
       month: data.month ? String(data.month).trim() : '',

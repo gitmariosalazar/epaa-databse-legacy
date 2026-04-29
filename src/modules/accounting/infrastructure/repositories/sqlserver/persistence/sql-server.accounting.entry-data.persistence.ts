@@ -20,7 +20,9 @@ import { SQLServerAccountingEntryDataAdapter } from '../adapters/sql-server.acco
 export class SQLServerEntryDataPersistence
   implements InterfaceEntryDataRepository
 {
-  constructor(private readonly sqlServerService: DatabaseServiceSQLServer2022) {}
+  constructor(
+    private readonly sqlServerService: DatabaseServiceSQLServer2022,
+  ) {}
 
   async getDailyCollectorSummary(
     params: DateRangeParams,
@@ -292,7 +294,9 @@ export class SQLServerEntryDataPersistence
         );
 
       const response: DailyPaymentMethodReport[] = result.map((item) =>
-        SQLServerAccountingEntryDataAdapter.toDomainDailyPaymentMethodReport(item),
+        SQLServerAccountingEntryDataAdapter.toDomainDailyPaymentMethodReport(
+          item,
+        ),
       );
 
       return response;
