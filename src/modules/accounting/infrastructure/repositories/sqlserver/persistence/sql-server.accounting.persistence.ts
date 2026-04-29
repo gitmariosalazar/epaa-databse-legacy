@@ -501,7 +501,7 @@ export class SQLServerAccountingPersistence
             -- Total EPAA (muestra aunque no haya lectura)  
             COALESCE(di.Valor_Titulo, 0)  
             + COALESCE(di.ValorTerceros, 0)
-            + bdbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())  
+            + dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())  
             + COALESCE(di.Recargo, 0)       AS total_epaa_value,  
           
             -- === Basura ===  
