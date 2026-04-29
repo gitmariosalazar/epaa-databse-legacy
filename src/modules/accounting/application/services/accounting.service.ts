@@ -347,7 +347,7 @@ export class AccountingService
         );
 
         if (match) {
-          reading.thirdPartyValue = match.valor_terceros + 4.36;
+          reading.thirdPartyValue = match.valor_terceros;
           reading.total = reading.total + match.valor_terceros;
           reading.adjustedTotal = reading.adjustedTotal + match.valor_terceros;
         }
