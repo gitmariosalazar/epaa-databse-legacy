@@ -69,70 +69,49 @@ export class SqlServer2022TrashRateReportPersistence
         SET NOCOUNT ON;
         DECLARE @fechaInicio DATETIME
         DECLARE @fechaFin DATETIME
-        SET @fechaInicio = CONVERT(DATETIME, '${initDateTime}', 120)
-        SET @fechaFin    = CONVERT(DATETIME, '${endDateTime}', 120)
+        SET @fechaInicio = CONVERT(DATETIME, '${initDateTime}', 121)
+        SET @fechaFin    = CONVERT(DATETIME, '${endDateTime}', 121)
 
-        SELECT *
-        FROM (
-            SELECT TOP ${pageSize}
-                t.income_code,
-                t.cadastral_key,
-                t.card_id,
-                t.customer_name,
-                t.issue_date,
-                t.payment_date,
-                t.payment_status_code,
-                t.payment_status,
-                t.rate_in_income,
-                t.rate_in_valor_table,
-                t.difference,
-                t.diagnostic,
-                t.discount_applied,
-                t.credit_note_balance
-            FROM (
-                SELECT TOP ${totalRows}
-                    di.Cod_Ingreso                                          AS income_code,
-                    di.ClaveCatastral                                       AS cadastral_key,
-                    di.CodCliente_Ingreso                                   AS card_id,
-                    di.nombre                                               AS customer_name,
-                    CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
-                    CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,
-                    di.Estado_Ingreso                                       AS payment_status_code,
-                    CASE
-                        WHEN di.Fecha_Pago IS NULL THEN 'PENDING'
-                        ELSE 'PAID'
-                    END                                                     AS payment_status,
-                    di.tasa_basura                                          AS rate_in_income,
-                    V.Valor                                                 AS rate_in_valor_table,
-                    di.descuento_tb                                         AS discount_applied,
-                    nc.Total_NC                                             AS credit_note_balance,
-                    ROUND(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0), 2)
-                                                                            AS difference,
-                    CASE
-                        WHEN V.cod_Ingreso IS NULL
-                            THEN 'No record in Valor (Ord 10)'
-                        WHEN ABS(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) < 0.01
-                            THEN 'Correct Match'
-                        ELSE 'Different Value - Review'
-                    END                                                     AS diagnostic
-                FROM Datos_ingreso di
-                LEFT JOIN dbo.Valor V
-                    ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-                OUTER APPLY (
-                    SELECT SUM(ISNULL(Valor, 0)) as Total_NC
-                    FROM AP_NotasCredito
-                    WHERE Cuenta = di.ClaveCatastral
-                ) nc
-                WHERE di.Fecha_Pago >= @fechaInicio
-                  AND di.Fecha_Pago <= @fechaFin
-                  AND di.tasa_basura IS NOT NULL
-                  AND di.Estado_Ingreso = 'P'
-                  ${extraFilter}
-                ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
-            ) t
-            --ORDER BY t.cadastral_key DESC, t.income_code DESC
-        ) r
-        ORDER BY r.cadastral_key ASC, r.income_code ASC;
+        SELECT 
+            di.Cod_Ingreso                                          AS income_code,
+            di.ClaveCatastral                                       AS cadastral_key,
+            di.CodCliente_Ingreso                                   AS card_id,
+            di.nombre                                               AS customer_name,
+            CONVERT(VARCHAR(10), di.Fecha_Ingreso, 120)             AS issue_date,
+            CONVERT(VARCHAR(10), di.Fecha_Pago, 120)                AS payment_date,
+            di.Estado_Ingreso                                       AS payment_status_code,
+            CASE
+                WHEN di.Fecha_Pago IS NULL THEN 'PENDING'
+                ELSE 'PAID'
+            END                                                     AS payment_status,
+            di.tasa_basura                                          AS rate_in_income,
+            V.Valor                                                 AS rate_in_valor_table,
+            di.descuento_tb                                         AS discount_applied,
+            nc.Total_NC                                             AS credit_note_balance,
+            ROUND(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0), 2)
+                                                                    AS difference,
+            CASE
+                WHEN V.cod_Ingreso IS NULL
+                    THEN 'No record in Valor (Ord 10)'
+                WHEN ABS(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) < 0.01
+                    THEN 'Correct Match'
+                ELSE 'Different Value - Review'
+            END                                                     AS diagnostic
+        FROM Datos_ingreso di
+        LEFT JOIN dbo.Valor V
+            ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
+        OUTER APPLY (
+            SELECT SUM(ISNULL(Valor, 0)) as Total_NC
+            FROM AP_NotasCredito
+            WHERE Cuenta = di.ClaveCatastral
+        ) nc
+        WHERE di.Fecha_Ingreso >= @fechaInicio
+          AND di.Fecha_Ingreso <= @fechaFin
+          AND di.tasa_basura IS NOT NULL
+          AND di.Estado_Ingreso = 'P'
+          ${extraFilter}
+        ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
+        OFFSET ${safeOffset} ROWS FETCH NEXT ${pageSize} ROWS ONLY;
       `;
 
       const result: TrashRateAuditRowSqlResult[] =

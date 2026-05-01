@@ -120,8 +120,8 @@ export class SqlServerTrash2000RateReportPersistence
                 FROM Datos_ingreso di
                 LEFT JOIN dbo.Valor V
                     ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-                WHERE di.Fecha_Pago >= @fechaInicio
-                  AND di.Fecha_Pago <= @fechaFin
+                WHERE di.Fecha_Ingreso >= @fechaInicio
+                  AND di.Fecha_Ingreso <= @fechaFin
                   AND di.tasa_basura IS NOT NULL
                   AND di.Estado_Ingreso = 'P'
                   ${extraFilter}
