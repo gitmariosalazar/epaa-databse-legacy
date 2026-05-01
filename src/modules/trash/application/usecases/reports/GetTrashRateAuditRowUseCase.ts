@@ -16,6 +16,7 @@ export class GetTrashRateAuditRowUseCase {
     endDate: string,
     limit: number,
     offset: number,
+    diagnosticFilter: 'DIFFERENT_AND_NO_RECORD' | 'ALL',
   ): Promise<TrashRateAuditRowModel[]> {
     const modelResult: TrashRateAuditRowModel[] =
       await this.trashRateReportRepository.getTrashRateAuditReport(
@@ -23,6 +24,7 @@ export class GetTrashRateAuditRowUseCase {
         endDate,
         limit,
         offset,
+        diagnosticFilter,
       );
 
     if (modelResult.length === 0) {

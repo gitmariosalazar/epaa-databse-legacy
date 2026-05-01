@@ -40,6 +40,7 @@ export class SqlServer2022TrashRateReportPersistence
     endDate: string,
     limit: number = 100,
     offset: number = 0,
+    diagnosticFilter: 'DIFFERENT_AND_NO_RECORD' | 'ALL' = 'ALL',
   ): Promise<TrashRateAuditRowModel[]> {
     try {
       const initDateTime = `${String(startDate)} 00:00:00.000`;
@@ -49,6 +50,16 @@ export class SqlServer2022TrashRateReportPersistence
         Number.isInteger(limit) && limit! > 0 ? limit! : 1000000;
       const pageSize = safeLimit;
       const totalRows = safeOffset + safeLimit;
+
+      let extraFilter = '';
+      if (diagnosticFilter === 'DIFFERENT_AND_NO_RECORD') {
+        extraFilter = `
+        AND (
+          V.cod_Ingreso IS NULL 
+          OR ABS(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) >= 0.01
+        )
+      `;
+      }
 
       // SQL Server 2000 pagination: double TOP technique
       // Step 1: grab the TOP (offset+limit) ordered rows
@@ -116,6 +127,7 @@ export class SqlServer2022TrashRateReportPersistence
                   AND di.Fecha_Pago <= @fechaFin
                   AND di.tasa_basura IS NOT NULL
                   AND di.Estado_Ingreso = 'P'
+                  ${extraFilter}
                 ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
             ) t
             --ORDER BY t.cadastral_key DESC, t.income_code DESC

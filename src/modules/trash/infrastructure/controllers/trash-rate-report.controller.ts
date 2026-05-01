@@ -34,6 +34,7 @@ export class TrashRateReportController {
       endDate: string;
       limit: number;
       offset: number;
+      diagnosticFilter?: 'DIFFERENT_AND_NO_RECORD' | 'ALL';
     },
   ) {
     return this.getTrashRateAuditReportUseCase.execute(
@@ -41,6 +42,7 @@ export class TrashRateReportController {
       payload.endDate,
       payload.limit ?? 100,
       payload.offset ?? 0,
+      payload.diagnosticFilter ?? 'ALL',
     );
   }
 

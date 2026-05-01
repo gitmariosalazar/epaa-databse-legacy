@@ -18,6 +18,7 @@ export interface InterfaceTrashRateReportRepository {
     endDate: string,
     limit: number,
     offset: number,
+    diagnosticFilter: 'DIFFERENT_AND_NO_RECORD' | 'ALL',
   ): Promise<TrashRateAuditRowModel[]>;
 
   getMonthlySummaryReport(
