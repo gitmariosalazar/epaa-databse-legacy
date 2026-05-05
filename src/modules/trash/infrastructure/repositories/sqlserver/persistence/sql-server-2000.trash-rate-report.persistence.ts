@@ -26,6 +26,7 @@ import {
   TrashRateKPISqlResult,
 } from '../../../interfaces/sql/trash-rate-report.sql-result';
 import { TrashRateReportAdapter } from '../../../adapters/sql/trash-rate-report.adapter';
+import { TrashRateAuditReportParams } from '../../../../domain/schemas/params/trash-rate-audit-report.params';
 
 @Injectable()
 export class SqlServerTrash2000RateReportPersistence
@@ -36,35 +37,101 @@ export class SqlServerTrash2000RateReportPersistence
   ) {}
 
   async getTrashRateAuditReport(
-    startDate: string,
-    endDate: string,
-    limit: number = 100,
-    offset: number = 0,
-    diagnosticFilter: 'DIFFERENT_AND_NO_RECORD' | 'ALL' = 'ALL',
+    params: TrashRateAuditReportParams,
   ): Promise<TrashRateAuditRowModel[]> {
     try {
-      const initDateTime = `${String(startDate)} 00:00:00.000`;
-      const endDateTime = `${String(endDate)} 23:59:59.997`;
-      const safeOffset = Number.isInteger(offset) && offset! >= 0 ? offset! : 0;
+      const initDateTime = `${String(params.startDate)} 00:00:00.000`;
+      const endDateTime = `${String(params.endDate)} 23:59:59.997`;
+      const safeOffset =
+        Number.isInteger(params.offset) && params.offset! >= 0
+          ? params.offset!
+          : 0;
       const safeLimit =
-        Number.isInteger(limit) && limit! > 0 ? limit! : 1000000;
+        Number.isInteger(params.limit) && params.limit! > 0
+          ? params.limit!
+          : 1000000;
       const pageSize = safeLimit;
       const totalRows = safeOffset + safeLimit;
 
+      // --- Filtro de diagnóstico (aplica a todos los tipos) ---
       let extraFilter = '';
-      if (diagnosticFilter === 'DIFFERENT_AND_NO_RECORD') {
+      if (params.diagnosticFilter === 'DIFFERENT_AND_NO_RECORD') {
         extraFilter = `
-        AND (
-          V.cod_Ingreso IS NULL 
-          OR ABS(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) >= 0.01
-        )
-      `;
+                  AND (
+                    V.cod_Ingreso IS NULL
+                    OR ABS(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0)) >= 0.01
+                  )`;
+      }
+
+      const queryDateFilter =
+        params.dateFilter === 'incomeDate' ? 'Fecha_Ingreso' : 'Fecha_Pago';
+
+      // Si el usuario filtra "Todos" por Fecha_Pago, solo tienen fecha de pago
+      // los registros efectivamente cobrados → forzar Estado_Ingreso = 'P'.
+      // Si filtra por Fecha_Ingreso, no se restringe el estado.
+      const queryPaymentStatus =
+        params.dateFilter === 'paymentDate'
+          ? `AND di.Estado_Ingreso = 'P'`
+          : '';
+      const monthsInMoraQueryColum =
+        params.auditType === 'En Mora (Cartera Vencida)'
+          ? `CASE WHEN di.Fecha_Venc_Interes < GETDATE() THEN DATEDIFF(MONTH, di.Fecha_Venc_Interes, GETDATE()) ELSE 0 END AS months_in_mora`
+          : `0 AS months_in_mora`;
+
+      // --- WHERE clause según auditType ---
+      // Cada tipo cambia la columna de fecha y/o el filtro de estado de pago.
+      let dateFilter: string;
+
+      switch (params.auditType) {
+        // 1. Pagados — el usuario elige la columna de fecha (emisión o pago)
+        case 'Pagados (Recaudados)':
+          dateFilter = `
+                WHERE di.${queryDateFilter} >= @fechaInicio
+                  AND di.${queryDateFilter} <= @fechaFin
+                  AND di.tasa_basura IS NOT NULL
+                  AND di.Fecha_Pago IS NOT NULL`;
+          break;
+
+        // 2. Cartera corriente — SIEMPRE Fecha_Ingreso (Fecha_Pago IS NULL → no tiene valor)
+        case 'Pendientes (Cartera Corriente)':
+          dateFilter = `
+                WHERE di.Fecha_Ingreso >= @fechaInicio
+                  AND di.Fecha_Ingreso <= @fechaFin
+                  AND di.tasa_basura IS NOT NULL
+                  AND di.Fecha_Pago IS NULL
+                  AND di.Estado_Ingreso <> 'P'`;
+          break;
+
+        // 3. En mora — SIEMPRE Fecha_Ingreso + vencimiento ya superado
+        case 'En Mora (Cartera Vencida)':
+          dateFilter = `
+                WHERE di.Fecha_Ingreso >= @fechaInicio
+                  AND di.Fecha_Ingreso <= @fechaFin
+                  AND di.tasa_basura IS NOT NULL
+                  AND di.Fecha_Pago IS NULL
+                  AND di.Estado_Ingreso <> 'P'
+                  AND di.Fecha_Venc_Interes < GETDATE()`;
+          break;
+
+        // 4. Todos — el usuario elige la columna de fecha
+        case 'Todos (Pagados y Pendientes)':
+          dateFilter = `
+                WHERE di.${queryDateFilter} >= @fechaInicio
+                  AND di.${queryDateFilter} <= @fechaFin
+                  ${queryPaymentStatus}
+                  AND di.tasa_basura IS NOT NULL`;
+          break;
+
+        // Fallback seguro: pagados por fecha de emisión
+        default:
+          dateFilter = `
+                WHERE di.${queryDateFilter} >= @fechaInicio
+                  AND di.${queryDateFilter} <= @fechaFin
+                  AND di.tasa_basura IS NOT NULL
+                  AND di.Estado_Ingreso = 'P'`;
       }
 
       // SQL Server 2000 pagination: double TOP technique
-      // Step 1: grab the TOP (offset+limit) ordered rows
-      // Step 2: from that set reversed, grab TOP (limit)
-      // Step 3: re-order ascending
       const query = `
         SET NOCOUNT ON;
         SET ANSI_WARNINGS OFF;
@@ -108,26 +175,24 @@ export class SqlServerTrash2000RateReportPersistence
                     di.descuento_tb                                         AS discount_applied,
                     (SELECT SUM(ISNULL(Valor, 0)) FROM AP_NotasCredito WHERE Cuenta = di.ClaveCatastral)
                                                                             AS credit_note_balance,
-                    ROUND(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0), 2)
+                    ROUND(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0), 2)
                                                                             AS difference,
+                    ${monthsInMoraQueryColum},
                     CASE
                         WHEN V.cod_Ingreso IS NULL
                             THEN 'No record in Valor (Ord 10)'
-                        WHEN ABS(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0)) < 0.01
+                        WHEN ABS(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0)) < 0.01
                             THEN 'Correct Match'
                         ELSE 'Different Value - Review'
                     END                                                     AS diagnostic
                 FROM Datos_ingreso di
                 LEFT JOIN dbo.Valor V
                     ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-                WHERE di.Fecha_Ingreso >= @fechaInicio
-                  AND di.Fecha_Ingreso <= @fechaFin
-                  AND di.tasa_basura IS NOT NULL
-                  AND di.Estado_Ingreso = 'P'
+                ${dateFilter}
                   ${extraFilter}
+                    AND di.Cod_Titulo_Datos = 'AGP'
                 ORDER BY di.ClaveCatastral ASC, di.Cod_Ingreso ASC
             ) t
-            --ORDER BY t.cadastral_key DESC, t.income_code DESC
         ) r
         ORDER BY r.cadastral_key ASC, r.income_code ASC;
       `;
@@ -218,6 +283,7 @@ export class SqlServerTrash2000RateReportPersistence
                     FROM Datos_ingreso
                     WHERE tasa_basura IS NOT NULL
                       AND Fecha_Pago >= @fechaInicio
+                      AND Cod_Titulo_Datos = 'AGP'
                     GROUP BY ClaveCatastral, CodCliente_Ingreso, nombre
                 ) ia
                 INNER JOIN AP_NotasCredito nc
@@ -308,7 +374,7 @@ export class SqlServerTrash2000RateReportPersistence
               (CHARINDEX('-', @searchParam) > 0 AND di.ClaveCatastral = @searchParam)
           )
         AND di.tasa_basura IS NOT NULL
-        AND di.Fecha_Ingreso >= '20260101'
+        AND di.Cod_Titulo_Datos = 'AGP'
       ORDER BY di.Fecha_Pago DESC;
       `;
 
@@ -343,33 +409,40 @@ export class SqlServerTrash2000RateReportPersistence
         SET @fechaFinKPI    = CONVERT(DATETIME, '${endDateTime}', 120)
 
         SELECT
+            -- 1. Universo de emisión: TODAS las facturas emitidas en el período
             COUNT(di.Cod_Ingreso)                                   AS total_bills_issued,
 
+            -- Monto total a cobrar (emitido en el período)
             SUM(COALESCE(V.Valor, di.tasa_basura))                  AS total_to_collect,
 
+            -- Monto ya cobrado (de las emitidas en el período que tienen Fecha_Pago)
             SUM(CASE
                 WHEN di.Fecha_Pago IS NOT NULL
                     THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
                 ELSE 0
             END)                                                    AS total_collected,
-            -- Total discounts given in the period, for KPI visibility (not subtracted from total_to_collect)
+
+            -- Descuentos aplicados solo a las que ya tienen pago
             SUM(CASE
                 WHEN di.Fecha_Pago IS NOT NULL
                     THEN COALESCE(di.descuento_tb, 0)
                 ELSE 0
             END)                                                    AS total_discounts,
+
+            -- Monto pendiente de cobro (emitidas en el período sin Fecha_Pago)
             SUM(CASE
                 WHEN di.Fecha_Pago IS NULL
                     THEN COALESCE(V.Valor, di.tasa_basura)
                 ELSE 0
             END)                                                    AS total_pending,
 
+            -- % cumplimiento: cobrado / total_emitido * 100
             CASE
                 WHEN SUM(COALESCE(V.Valor, di.tasa_basura)) = 0 THEN 0
                 ELSE ROUND(
                     CAST(SUM(CASE
                         WHEN di.Fecha_Pago IS NOT NULL
-                            THEN COALESCE(V.Valor, di.tasa_basura)
+                            THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)
                         ELSE 0
                     END) AS NUMERIC(18,4))
                     / SUM(COALESCE(V.Valor, di.tasa_basura)) * 100
@@ -378,30 +451,40 @@ export class SqlServerTrash2000RateReportPersistence
 
             COUNT(DISTINCT di.ClaveCatastral)                       AS unique_cadastral_keys,
 
+            -- Facturas pagadas (con Fecha_Pago) del lote emitido en el período
             SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END)
                                                                     AS paid_bills,
 
+            -- Facturas aún pendientes (sin Fecha_Pago) del lote emitido en el período
             SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS pending_bills,
 
             SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)  AS missing_valor_records,
+
+            -- Notas de crédito activas de clientes con facturas emitidas en el período
             (SELECT COUNT(*) FROM AP_NotasCredito
             WHERE Cuenta IN (
                 SELECT ClaveCatastral FROM Datos_ingreso
-                WHERE Fecha_Pago >= @fechaInicioKPI AND Fecha_Pago <= @fechaFinKPI
+                WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
+                  AND tasa_basura IS NOT NULL
+                  AND Cod_Titulo_Datos = 'AGP'
             )) AS count_notes,
 
             (SELECT SUM(Valor) FROM AP_NotasCredito
             WHERE Cuenta IN (
                 SELECT ClaveCatastral FROM Datos_ingreso
-                WHERE Fecha_Pago >= @fechaInicioKPI AND Fecha_Pago <= @fechaFinKPI
+                WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
+                  AND tasa_basura IS NOT NULL
+                  AND Cod_Titulo_Datos = 'AGP'
             )) AS total_notes_amount
 
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-        WHERE di.Fecha_Pago >= @fechaInicioKPI
-          AND di.Fecha_Pago <= @fechaFinKPI
-          AND di.tasa_basura IS NOT NULL;
+        -- Universo correcto: facturas EMITIDAS en el período (no pagadas)
+        WHERE di.Fecha_Ingreso >= @fechaInicioKPI
+          AND di.Fecha_Ingreso <= @fechaFinKPI
+          AND di.tasa_basura IS NOT NULL
+          AND di.Cod_Titulo_Datos = 'AGP';
       `;
 
       const result: TrashDashboardKpiSqlResult[] =
@@ -523,6 +606,7 @@ export class SqlServerTrash2000RateReportPersistence
         WHERE di.Fecha_Pago >= @fechaInicio2
           AND di.Fecha_Pago <= @fechaFin2
           AND di.tasa_basura IS NOT NULL
+          AND di.Cod_Titulo_Datos = 'AGP'
         GROUP BY di.Estado_Ingreso, V.orden
         ORDER BY di.Estado_Ingreso;
       `;
@@ -573,6 +657,7 @@ export class SqlServerTrash2000RateReportPersistence
           AND di.tasa_basura IS NOT NULL
           AND di.Fecha_Ingreso >= @fechaInicioTop
           AND di.Fecha_Ingreso <= @fechaFinTop
+          AND di.Cod_Titulo_Datos = 'AGP'
         GROUP BY di.ClaveCatastral, di.CodCliente_Ingreso, di.nombre
         ORDER BY total_trash_debt DESC;
       `;
@@ -619,6 +704,7 @@ export class SqlServerTrash2000RateReportPersistence
         LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
           AND di.tasa_basura IS NOT NULL
+          AND di.Cod_Titulo_Datos = 'AGP'
         GROUP BY di.Estado_Ingreso;
         IF LEN(@JSON_Global) > 1 SET @JSON_Global = LEFT(@JSON_Global, LEN(@JSON_Global) - 1) + ']' ELSE SET @JSON_Global = '[]'
 
@@ -632,6 +718,7 @@ export class SqlServerTrash2000RateReportPersistence
         WHERE di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
           AND di.Estado_Ingreso = 'P'
+          AND di.Cod_Titulo_Datos = 'AGP'
         GROUP BY di.Estado_Ingreso;
         IF LEN(@JSON_Revenue) > 1 SET @JSON_Revenue = LEFT(@JSON_Revenue, LEN(@JSON_Revenue) - 1) + ']' ELSE SET @JSON_Revenue = '[]'
 
@@ -646,6 +733,7 @@ export class SqlServerTrash2000RateReportPersistence
           AND di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
           AND di.Estado_Ingreso = 'P'
+          AND di.Cod_Titulo_Datos = 'AGP'
         GROUP BY di.Estado_Ingreso;
         IF LEN(@JSON_Compliance) > 1 SET @JSON_Compliance = LEFT(@JSON_Compliance, LEN(@JSON_Compliance) - 1) + ']' ELSE SET @JSON_Compliance = '[]'
 
@@ -678,6 +766,7 @@ export class SqlServerTrash2000RateReportPersistence
         LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
           AND di.tasa_basura IS NOT NULL
+          AND di.Cod_Titulo_Datos = 'AGP'
 
         UNION ALL
 
@@ -710,6 +799,7 @@ export class SqlServerTrash2000RateReportPersistence
         WHERE di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
           AND di.Estado_Ingreso = 'P'
+          AND di.Cod_Titulo_Datos = 'AGP'
 
         UNION ALL
 
@@ -745,7 +835,8 @@ export class SqlServerTrash2000RateReportPersistence
         WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
           AND di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
-          AND di.Estado_Ingreso = 'P';
+          AND di.Estado_Ingreso = 'P'
+          AND di.Cod_Titulo_Datos = 'AGP';
       `;
 
       const result: TrashRateKPISqlResult[] =
@@ -768,82 +859,93 @@ export class SqlServerTrash2000RateReportPersistence
     endDate: string,
   ): Promise<CollectorPerformanceKPIModel[]> {
     try {
-      const isoStartDate = String(startDate).replace(/-/g, '');
-      const isoEndDate = String(endDate).replace(/-/g, '');
-      const initDateTime = `${isoStartDate}`;
-      const endDateTime = `${isoEndDate} 23:59:59.997`;
+      // Usar el mismo formato de fecha que getTrashRateAuditReport → consistencia garantizada
+      const initDateTime = `${String(startDate)} 00:00:00.000`;
+      const endDateTime  = `${String(endDate)} 23:59:59.997`;
       const query = `
         SET NOCOUNT ON;
         SET ANSI_WARNINGS OFF;
         DECLARE @startDate DATETIME
-        DECLARE @endDate DATETIME
-        SET @startDate = CONVERT(DATETIME, '${initDateTime}', 112)
-        SET @endDate    = CONVERT(DATETIME, '${endDateTime}')
+        DECLARE @endDate   DATETIME
+        SET @startDate = CONVERT(DATETIME, '${initDateTime}', 120)
+        SET @endDate   = CONVERT(DATETIME, '${endDateTime}',  120)
 
         -- 1. CONFIGURATION
-        DECLARE @Service_Order  INT
-
+        DECLARE @Service_Order INT
         SET @Service_Order = 10
 
-        -- 2. PRE-CALCULATION OF GLOBAL METRIC (For % Contribution)
+        -- 2. TOTAL GLOBAL (mismo universo que Auditoría Pagados con Fecha_Pago)
+        --    IMPORTANTE: Cod_Titulo_Datos = 'AGP' para circunscribir al mismo
+        --    conjunto de registros que usa getTrashRateAuditReport.
         DECLARE @Global_Total_Collection DECIMAL(18,2)
 
-        SELECT @Global_Total_Collection = SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
-        WHERE di.Fecha_Pago >= @startDate AND di.Fecha_Pago <= @endDate
-          AND di.tasa_basura IS NOT NULL;
-
-        -- Ensure no zero-division
-        SET @Global_Total_Collection = CASE WHEN ISNULL(@Global_Total_Collection, 0) = 0 THEN 1 ELSE @Global_Total_Collection END;
-
-        -- 3. PRODUCTIVITY AGGREGATION
-        SELECT
-            di.User_Cobro                                           AS collector_id,
-
-            -- Volume Metrics
-            COUNT(di.Cod_Ingreso)                                   AS total_transactions,
-            COUNT(DISTINCT di.ClaveCatastral)                       AS unique_customers_served,
-
-            -- Financial Performance & Integrity Audit
-            SUM(COALESCE(di.tasa_basura, 0))                        AS source_trash_rate_total,
-            SUM(COALESCE(V.Valor, 0))                               AS valor_table_total,
-            SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0))  AS integrity_gap_amount,
-
-            SUM(COALESCE(V.Valor, di.tasa_basura))                  AS gross_amount,
-            SUM(COALESCE(di.descuento_tb, 0))                       AS total_discounts_applied,
-
+        SELECT @Global_Total_Collection =
             SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
-                                                                    AS net_collection_total,
+        FROM dbo.Datos_ingreso di
+        LEFT JOIN dbo.Valor V
+            ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        WHERE di.Fecha_Pago      >= @startDate
+          AND di.Fecha_Pago      <= @endDate
+          AND di.tasa_basura     IS NOT NULL
+          AND di.Cod_Titulo_Datos = 'AGP';
 
-            -- Productivity KPIs
+        -- Evitar división por cero
+        SET @Global_Total_Collection =
+            CASE WHEN ISNULL(@Global_Total_Collection, 0) = 0
+                 THEN 1
+                 ELSE @Global_Total_Collection
+            END;
+
+        -- 3. AGREGACIÓN POR COBRADOR
+        SELECT
+            di.User_Cobro                                               AS collector_id,
+
+            -- Volumen
+            COUNT(di.Cod_Ingreso)                                       AS total_transactions,
+            COUNT(DISTINCT di.ClaveCatastral)                           AS unique_customers_served,
+
+            -- Auditoría financiera
+            SUM(COALESCE(di.tasa_basura, 0))                            AS source_trash_rate_total,
+            SUM(COALESCE(V.Valor, 0))                                   AS valor_table_total,
+            SUM(COALESCE(di.tasa_basura, 0) - COALESCE(V.Valor, 0))    AS integrity_gap_amount,
+
+            SUM(COALESCE(V.Valor, di.tasa_basura))                      AS gross_amount,
+            SUM(COALESCE(di.descuento_tb, 0))                           AS total_discounts_applied,
+            SUM(COALESCE(V.Valor, di.tasa_basura)
+                - COALESCE(di.descuento_tb, 0))                         AS net_collection_total,
+
+            -- KPIs de productividad
             ROUND(
-                (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / CAST(COUNT(di.Cod_Ingreso) AS FLOAT))
-            , 2)                                                    AS avg_ticket_size,
+                SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
+                / CAST(COUNT(di.Cod_Ingreso) AS FLOAT)
+            , 2)                                                        AS avg_ticket_size,
 
             ROUND(
-                (SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)) / @Global_Total_Collection) * 100
-            , 2)                                                    AS pct_of_total_revenue,
+                SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
+                / @Global_Total_Collection * 100
+            , 2)                                                        AS pct_of_total_revenue,
 
-            -- Error/Audit Metric
-            SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN 1 ELSE 0 END) AS cancelled_bills_count,
-              -- Total value of cancelled bills (if any)
-            SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS cancelled_bills_value
+            -- Facturas anuladas
+            SUM(CASE WHEN di.Estado_Ingreso IN ('A','B') THEN 1 ELSE 0 END)
+                                                                        AS cancelled_bills_count,
+            SUM(CASE WHEN di.Estado_Ingreso IN ('A','B')
+                     THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0
+                END)                                                    AS cancelled_bills_value
 
         INTO #CollectorKPIs
         FROM dbo.Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
-        WHERE
-            di.Fecha_Pago >= @startDate
-          AND di.Fecha_Pago <= @endDate
-          AND di.tasa_basura IS NOT NULL
-          AND di.Estado_Ingreso = 'P'
+        WHERE di.Fecha_Pago       >= @startDate
+          AND di.Fecha_Pago       <= @endDate
+          AND di.tasa_basura      IS NOT NULL
+          AND di.Estado_Ingreso    = 'P'
+          AND di.Cod_Titulo_Datos  = 'AGP'   -- mismo filtro que Auditoría Pagados
         GROUP BY di.User_Cobro;
 
-        -- 4. FINAL RESULTS WITH RANKING (SQL 2000 Highly Performant Rank via IDENTITY)
-        SELECT 
+        -- 4. RANKING FINAL (técnica IDENTITY de SQL Server 2000)
+        SELECT
             IDENTITY(INT, 1, 1) AS performance_rank,
             C1.*
         INTO #RankedKPIs
@@ -925,10 +1027,10 @@ export class SqlServerTrash2000RateReportPersistence
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
-        WHERE
-            di.Fecha_Pago >= @startDate
+        WHERE di.Fecha_Pago >= @startDate
           AND di.Fecha_Pago <= @endDate
           AND di.tasa_basura IS NOT NULL
+          AND di.Cod_Titulo_Datos = 'AGP'
         GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario'), di.Fecha_Pago, di.Estado_Ingreso
         ORDER BY COALESCE(NULLIF(LTRIM(RTRIM(di.User_Cobro)), ''), 'sin_usuario') ASC, di.Fecha_Pago DESC;
       `;

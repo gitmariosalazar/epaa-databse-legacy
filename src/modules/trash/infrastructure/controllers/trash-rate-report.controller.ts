@@ -10,6 +10,7 @@ import { GetClientTrashDetailRowUseCase } from '../../application/usecases/repor
 import { GetTrashRateKPIUseCase } from '../../application/usecases/reports/GetTrashRateKPIUseCase';
 import { GetDailyCollectorDetailUseCase } from '../../application/usecases/reports/GetDailyCollectorDetailUseCase';
 import { GetCollectorPerformanceKPIUseCase } from '../../application/usecases/reports/GetCollectorPerformanceKPIUseCase';
+import { TrashRateAuditReportParams } from '../../domain/schemas/params/trash-rate-audit-report.params';
 
 @Controller('trash-rate-report')
 export class TrashRateReportController {
@@ -30,20 +31,10 @@ export class TrashRateReportController {
   async getTrashRateAuditReport(
     @Payload()
     payload: {
-      startDate: string;
-      endDate: string;
-      limit: number;
-      offset: number;
-      diagnosticFilter?: 'DIFFERENT_AND_NO_RECORD' | 'ALL';
+      params: TrashRateAuditReportParams;
     },
   ) {
-    return this.getTrashRateAuditReportUseCase.execute(
-      payload.startDate,
-      payload.endDate,
-      payload.limit ?? 100,
-      payload.offset ?? 0,
-      payload.diagnosticFilter ?? 'ALL',
-    );
+    return this.getTrashRateAuditReportUseCase.execute(payload.params);
   }
 
   @MessagePattern('credit-notes')

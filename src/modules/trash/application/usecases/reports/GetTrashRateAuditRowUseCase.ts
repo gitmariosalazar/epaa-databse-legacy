@@ -3,6 +3,7 @@ import { InterfaceTrashRateReportRepository } from '../../../domain/contracts/tr
 import { TrashRateAuditRowModel } from '../../../domain/models/trash-rate-report.model';
 import { RpcException } from '@nestjs/microservices';
 import { statusCode } from '../../../../../settings/environments/status-code';
+import { TrashRateAuditReportParams } from '../../../domain/schemas/params/trash-rate-audit-report.params';
 
 @Injectable()
 export class GetTrashRateAuditRowUseCase {
@@ -12,25 +13,15 @@ export class GetTrashRateAuditRowUseCase {
   ) {}
 
   async execute(
-    startDate: string,
-    endDate: string,
-    limit: number,
-    offset: number,
-    diagnosticFilter: 'DIFFERENT_AND_NO_RECORD' | 'ALL',
+    params: TrashRateAuditReportParams,
   ): Promise<TrashRateAuditRowModel[]> {
     const modelResult: TrashRateAuditRowModel[] =
-      await this.trashRateReportRepository.getTrashRateAuditReport(
-        startDate,
-        endDate,
-        limit,
-        offset,
-        diagnosticFilter,
-      );
+      await this.trashRateReportRepository.getTrashRateAuditReport(params);
 
     if (modelResult.length === 0) {
       throw new RpcException({
         statusCode: statusCode.NOT_FOUND,
-        message: `No results found for the given start date ${startDate} and end date ${endDate}`,
+        message: `No results found for the given start date ${params.startDate} and end date ${params.endDate} with diagnostic filter ${params.diagnosticFilter} and audit type ${params.auditType}.`,
       });
     }
     return modelResult;

@@ -11,14 +11,11 @@ import {
   CollectorPerformanceKPIModel,
   DailyCollectorDetailModel,
 } from '../models/trash-rate-report.model';
+import { TrashRateAuditReportParams } from '../schemas/params/trash-rate-audit-report.params';
 
 export interface InterfaceTrashRateReportRepository {
   getTrashRateAuditReport(
-    startDate: string,
-    endDate: string,
-    limit: number,
-    offset: number,
-    diagnosticFilter: 'DIFFERENT_AND_NO_RECORD' | 'ALL',
+    params: TrashRateAuditReportParams,
   ): Promise<TrashRateAuditRowModel[]>;
 
   getMonthlySummaryReport(
