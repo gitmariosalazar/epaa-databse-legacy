@@ -4,14 +4,18 @@ import { Logger } from '@nestjs/common';
 import { Transport } from '@nestjs/microservices';
 import { environments } from './settings/environments/environments';
 import * as morgan from 'morgan';
+import { DatabaseAbstract } from './shared/connections/database/abstract/abstract.database';
 
 async function bootstrap() {
   const logger: Logger = new Logger('Epaa-Database-Legacy-Main');
 
   const app = await NestFactory.create(AppModule);
 
-  await app.listen(environments.NODE_ENV === 'production' ? 3009 : 4009);
   app.use(morgan('dev'));
+  await app.listen(environments.NODE_ENV === 'production' ? 3009 : 4009);
+
+  const dbService = app.get(DatabaseAbstract);
+  logger.log(await dbService.connect());
   logger.log(
     `🚀🎉 The Epaa Database Legacy microservice is running: http://localhost:${environments.NODE_ENV === 'production' ? 3009 : 4009}✅`,
   );

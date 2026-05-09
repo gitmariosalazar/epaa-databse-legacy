@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseServiceSQLServer2022 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import { InterfaceEntryDataRepository } from '../../../../domain/contracts/entry-data.interface.repository';
 import {
   DailyCollectorSummary,
@@ -21,7 +21,7 @@ export class SQLServerEntryDataPersistence
   implements InterfaceEntryDataRepository
 {
   constructor(
-    private readonly sqlServerService: DatabaseServiceSQLServer2022,
+    private readonly sqlServerService: DatabaseAbstract,
   ) {}
 
   async getDailyCollectorSummary(

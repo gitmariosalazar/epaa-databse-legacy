@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { statusCode } from '../../../../../../settings/environments/status-code';
-import { DatabaseServiceSQLServer2022 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import { InterfaceAccountingRepository } from '../../../../domain/contracts/accounting.interface.repository';
 import {
   MonthlyDebtSummaryResponse,
@@ -28,7 +28,7 @@ export class SQLServerAccountingPersistence
   implements InterfaceAccountingRepository
 {
   constructor(
-    private readonly sqlServerService: DatabaseServiceSQLServer2022,
+    private readonly sqlServerService: DatabaseAbstract,
   ) {}
 
   async findPendingReadingsByCardId(

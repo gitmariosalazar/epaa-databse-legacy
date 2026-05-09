@@ -19,7 +19,7 @@ import {
   GeneralKPIResponseSQLResult,
 } from '../../../interfaces/sql/general-collection.sql.response';
 import { SQLServerGeneralCollectionAdapter } from '../adapters/sql-server.general-collection.adapter';
-import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 
 @Injectable()
 export class SqlServer2000GeneralCollectionPersistence
@@ -27,7 +27,7 @@ export class SqlServer2000GeneralCollectionPersistence
 {
   // Aquí puedes agregar métodos para interactuar con la base de datos SQL Server
   // por ejemplo, métodos para ejecutar consultas y mapear resultados a las interfaces definidas.
-  constructor(private readonly sqlServerService: DatabaseServiceSQLServer2000) {
+  constructor(private readonly sqlServerService: DatabaseAbstract) {
     // Aquí puedes inyectar dependencias como un cliente de base de datos, si es necesario.
   }
 

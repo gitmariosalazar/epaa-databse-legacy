@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InterfaceGeneralCollectionRepository } from '../../../../domain/contracts/general-collection.interface.repository';
-import { DatabaseServiceSQLServer2022 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import {
   GeneralCollectionsParams,
   GeneralTrendCollectionsParams,
@@ -27,7 +27,7 @@ export class SqlServerGeneralCollectionPersistence
 {
   // Aquí puedes agregar métodos para interactuar con la base de datos SQL Server
   // por ejemplo, métodos para ejecutar consultas y mapear resultados a las interfaces definidas.
-  constructor(private readonly sqlServerService: DatabaseServiceSQLServer2022) {
+  constructor(private readonly sqlServerService: DatabaseAbstract) {
     // Aquí puedes inyectar dependencias como un cliente de base de datos, si es necesario.
   }
 

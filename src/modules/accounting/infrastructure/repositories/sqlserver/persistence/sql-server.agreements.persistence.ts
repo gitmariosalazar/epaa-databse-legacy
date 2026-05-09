@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseServiceSQLServer2022 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import { InterfaceAgreementsRepository } from '../../../../domain/contracts/agreements.interface.repository';
 import {
   AgreementsCustomerParams,
@@ -33,7 +33,7 @@ export class SqlServerAgreementsPersistence
   implements InterfaceAgreementsRepository
 {
   constructor(
-    private readonly sqlServerService: DatabaseServiceSQLServer2022,
+    private readonly sqlServerService: DatabaseAbstract,
   ) {}
 
   async getAgreementsKpi(

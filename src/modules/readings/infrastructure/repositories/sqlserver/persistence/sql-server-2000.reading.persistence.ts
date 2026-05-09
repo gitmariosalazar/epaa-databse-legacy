@@ -7,7 +7,7 @@ import {
   TarifaSQLResult,
 } from '../../../interfaces/reading.sql.response';
 import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
-import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading.model';
 import { ReadingResponse } from '../../../../domain/schemas/dto/response/readings.response';
 import { formatDateForSQLServer } from '../../../../../../shared/utils/format-date';
@@ -29,7 +29,7 @@ export class ReadingSQLServer2000Persistence
   implements InterfaceReadingsRepository
 {
   constructor(
-    private readonly sqlServerService: DatabaseServiceSQLServer2000,
+    private readonly sqlServerService: DatabaseAbstract,
   ) {}
 
   private validateReading(reading: ReadingModel): void {

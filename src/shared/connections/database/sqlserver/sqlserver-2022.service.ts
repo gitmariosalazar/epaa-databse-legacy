@@ -1,215 +1,143 @@
-import { ConnectionPool, IResult, config, Transaction } from 'mssql';
-import { DatabaseAbstract } from '../abstract/abstract.database';
+import { ConnectionPool, Transaction, Request, config } from 'mssql';
+import { DatabaseAbstract, IDatabaseClient, MutationResponse } from '../abstract/abstract.database';
 import { RpcException } from '@nestjs/microservices';
 import { environments } from '../../../../settings/environments/environments';
 import { statusCode } from '../../../../settings/environments/status-code';
 
-class DatabaseError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-  ) {
-    super(message);
-    this.name = 'DatabaseError';
+export class MSSQLClientWrapper implements IDatabaseClient {
+  constructor(private readonly poolOrTransaction: ConnectionPool | Transaction) {}
+
+  async query<T>(
+    sql: string,
+    params?: any[],
+  ): Promise<T[]> {
+    const request = new Request(this.poolOrTransaction);
+    let translatedSql = sql;
+
+    if (params && params.length > 0) {
+      params.forEach((param, idx) => {
+        if (param && typeof param === 'object' && 'name' in param && 'value' in param) {
+          request.input(param.name, param.value);
+        } else {
+          const paramName = `p${idx}`;
+          request.input(paramName, param);
+          translatedSql = translatedSql.replace('?', `@${paramName}`);
+        }
+      });
+    }
+
+    const result = await request.query<T>(translatedSql);
+    return result.recordset;
+  }
+
+  async execute(sql: string, params?: any[]): Promise<MutationResponse> {
+    const request = new Request(this.poolOrTransaction);
+    let translatedSql = sql;
+    if (params && params.length > 0) {
+      params.forEach((param, idx) => {
+        if (param && typeof param === 'object' && 'name' in param && 'value' in param) {
+          request.input(param.name, param.value);
+        } else {
+          const paramName = `p${idx}`;
+          request.input(paramName, param);
+          translatedSql = translatedSql.replace('?', `@${paramName}`);
+        }
+      });
+    }
+    const result = await request.query(translatedSql);
+    return {
+      affectedRows: result.rowsAffected[0] || 0,
+    };
+  }
+
+  async release(): Promise<void> {
   }
 }
 
 export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
-  private static instance: DatabaseServiceSQLServer2022;
   private pool: ConnectionPool;
   private isConnected: boolean = false;
-  private readonly maxRetries: number = 3;
-  private readonly retryDelayMs: number = 1000;
-  private readonly queryTimeoutMs: number = 60000;
 
-  public constructor() {
+  constructor() {
     super();
-    this.validateConfig();
     const poolConfig: config = {
       user: environments.DATABASE_USER,
       password: environments.DATABASE_PASSWORD,
       server: environments.DATABASE_HOST,
       database: environments.DATABASE_NAME,
-      port: environments.DATABASE_PORT,
-      requestTimeout: 60000, // <--- Movido a la raíz para que mssql lo reconozca
-      pool: {
-        max: 20,
-        min: 0,
-        idleTimeoutMillis: 30000,
-      },
+      port: Number(environments.DATABASE_PORT),
       options: {
         encrypt: false,
         trustServerCertificate: true,
       },
+      connectionTimeout: 5000,
     };
-
     this.pool = new ConnectionPool(poolConfig);
-    this.pool.on('error', (err) => {
-      console.error('Unexpected error on idle client', err);
-      this.isConnected = false;
-    });
-  }
-
-  public static getInstance(): DatabaseServiceSQLServer2022 {
-    if (!DatabaseServiceSQLServer2022.instance) {
-      DatabaseServiceSQLServer2022.instance =
-        new DatabaseServiceSQLServer2022();
-    }
-    return DatabaseServiceSQLServer2022.instance;
-  }
-
-  private validateConfig(): void {
-    const requiredConfigs = {
-      databaseUsername: environments.DATABASE_USER,
-      databaseHostname: environments.DATABASE_HOST,
-      databasePassword: environments.DATABASE_PASSWORD,
-      databaseName: environments.DATABASE_NAME,
-      databasePort: environments.DATABASE_PORT,
-    };
-
-    for (const [key, value] of Object.entries(requiredConfigs)) {
-      if (!value) {
-        throw new RpcException({
-          statusCode: statusCode.INTERNAL_SERVER_ERROR,
-          message: `Database configuration error: Missing ${key}`,
-        });
-      }
-    }
-  }
-
-  async onModuleInit(): Promise<void> {
-    await this.connect();
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.close();
   }
 
   public async connect(): Promise<void> {
-    if (this.isConnected) {
-      console.log('Already connected to SQL Server');
-      return;
-    }
-
-    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
-      try {
-        await this.pool.connect();
-        await this.pool.request().query('SELECT GETDATE()');
-        this.isConnected = true;
-        console.log('🛢️ Connected to SQL Server successfully 🎉!');
-        return;
-      } catch (error) {
-        const errorMessage = `Attempt ${attempt}/${this.maxRetries} - Failed to connect to SQL Server: ${error.message}`;
-        console.error(errorMessage);
-
-        if (attempt === this.maxRetries) {
-          throw new RpcException({
-            statusCode: statusCode.INTERNAL_SERVER_ERROR,
-            message:
-              'Database connection failed after maximum retries: ' +
-              error.message,
-          });
-        }
-
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.retryDelayMs * Math.pow(2, attempt)),
-        );
-      }
+    if (this.isConnected) return;
+    try {
+      await this.pool.connect();
+      this.isConnected = true;
+      console.log('🛢️ Connected to SQL Server 2022');
+    } catch (error) {
+      console.error('❌ SQL Server 2022 Connection Failed (Non-fatal at startup):', error.message);
+      this.isConnected = false;
     }
   }
 
-  public async transaction<T>(
-    operations: (request: Request) => Promise<T>,
-  ): Promise<T> {
-    if (!this.isConnected)
-      throw new RpcException({
-        statusCode: statusCode.INTERNAL_SERVER_ERROR,
-        message: 'Database is not connected',
-      });
-    const transaction = new Transaction(this.pool);
-    await transaction.begin();
+  public async query<T>(sql: string, params: any[] = []): Promise<T[]> {
+    if (!this.isConnected) {
+        await this.connect();
+        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2022 is down' });
+    }
+    const client = new MSSQLClientWrapper(this.pool);
+    return await client.query<T>(sql, params);
+  }
 
+  public async execute(sql: string, params: any[] = []): Promise<MutationResponse> {
+    if (!this.isConnected) {
+        await this.connect();
+        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2022 is down' });
+    }
+    const client = new MSSQLClientWrapper(this.pool);
+    return await client.execute(sql, params);
+  }
+
+  public async transaction<T>(
+    operations: (client: IDatabaseClient) => Promise<T>,
+  ): Promise<T> {
+    if (!this.isConnected) {
+        await this.connect();
+        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2022 is down' });
+    }
+    const transaction = new Transaction(this.pool);
     try {
-      const request = new Request(transaction);
-      const result = await operations(request);
+      await transaction.begin();
+      const wrapper = new MSSQLClientWrapper(transaction);
+      const result = await operations(wrapper);
       await transaction.commit();
       return result;
     } catch (error) {
       await transaction.rollback();
-      const errorMessage = `Transaction failed: ${error.message}`;
-      console.error(errorMessage);
       throw new RpcException({
         statusCode: statusCode.INTERNAL_SERVER_ERROR,
-        message: errorMessage,
+        message: error.message,
       });
     }
   }
 
-  public async query<T>(
-    sql: string,
-    params: { name: string; value: any }[] = [],
-  ): Promise<T[]> {
+  public async getClient(): Promise<IDatabaseClient> {
     if (!this.isConnected) {
-      throw new RpcException({
-        statusCode: statusCode.INTERNAL_SERVER_ERROR,
-        message: 'Database is not connected',
-      });
+        await this.connect();
+        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2022 is down' });
     }
-
-    try {
-      const request = this.pool.request();
-      params.forEach((param) => {
-        request.input(param.name, param.value);
-      });
-
-      const result: IResult<T> = (await Promise.race([
-        request.query<T>(sql),
-        new Promise((_, reject) =>
-          setTimeout(
-            () =>
-              reject(
-                new RpcException({
-                  statusCode: statusCode.INTERNAL_SERVER_ERROR,
-                  message: 'Query timeout',
-                }),
-              ),
-            this.queryTimeoutMs,
-          ),
-        ),
-      ])) as IResult<T>;
-
-      console.log(`Query executed successfully: ${sql.slice(0, 50)}...`);
-      return result.recordset;
-    } catch (error) {
-      const errorMessage = `Database query failed: ${error.message}`;
-      console.error(errorMessage, { sql, params });
-      throw new RpcException({
-        statusCode: statusCode.INTERNAL_SERVER_ERROR,
-        message: errorMessage,
-      });
-    }
+    return new MSSQLClientWrapper(this.pool);
   }
 
   public async close(): Promise<void> {
-    if (!this.isConnected) {
-      console.log('Database connection already closed');
-      return;
-    }
-
-    try {
-      await this.pool.close();
-      this.isConnected = false;
-      console.log('Database connection closed successfully');
-    } catch (error) {
-      console.error(`Failed to close database connection: ${error.message}`);
-      throw new RpcException({
-        statusCode: statusCode.INTERNAL_SERVER_ERROR,
-        message: 'Failed to close database connection: ' + error.message,
-      });
-    }
-  }
-
-  public getConnectionStatus(): boolean {
-    return this.isConnected;
+    await this.pool.close();
+    this.isConnected = false;
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InterfaceTrashRateReportRepository } from '../../../../domain/contracts/trash-rate-report.interface.repository';
-import { DatabaseServiceSQLServer2022 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2022.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import {
   ClientTrashDetailRowModel,
   CollectorPerformanceKPIModel,
@@ -33,7 +33,7 @@ export class SqlServer2022TrashRateReportPersistence
   implements InterfaceTrashRateReportRepository
 {
   constructor(
-    private readonly sqlServerService: DatabaseServiceSQLServer2022,
+    private readonly sqlServerService: DatabaseAbstract,
   ) {}
 
   async getTrashRateAuditReport(

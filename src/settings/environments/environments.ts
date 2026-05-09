@@ -25,13 +25,14 @@ interface EnvironmentsVariables {
   EPAA_LEGACY_READINGS_KAFKA_CLIENT: string;
   KAFKA_BROKER_INTERNAL: string;
   KAFKA_BROKER_EXTERNAL: string;
+  DATABASE_TYPE: 'sqlserver_2000' | 'sqlserver_2022';
 }
 
 const environmentsSchema = Joi.object<EnvironmentsVariables>({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test', 'provision')
     .required(),
-  DATABASE_PORT: Joi.number().default(5432),
+  DATABASE_PORT: Joi.number().default(1433),
   DATABASE_HOST: Joi.string().required(),
   DATABASE_USER: Joi.string().required(),
   DATABASE_PASSWORD: Joi.string().required(),
@@ -46,6 +47,7 @@ const environmentsSchema = Joi.object<EnvironmentsVariables>({
   EPAA_LEGACY_READINGS_KAFKA_CLIENT: Joi.string().required(),
   KAFKA_BROKER_INTERNAL: Joi.string().required(),
   KAFKA_BROKER_EXTERNAL: Joi.string().required(),
+  DATABASE_TYPE: Joi.string().valid('sqlserver_2000', 'sqlserver_2022').default('sqlserver_2022'),
 }).unknown(true);
 
 const { error, value: envVars } = environmentsSchema.validate(process.env);
@@ -74,4 +76,5 @@ export const environments: EnvironmentsVariables = {
   EPAA_LEGACY_READINGS_KAFKA_CLIENT: envVars.EPAA_LEGACY_READINGS_KAFKA_CLIENT,
   KAFKA_BROKER_EXTERNAL: envVars.KAFKA_BROKER_EXTERNAL,
   KAFKA_BROKER_INTERNAL: envVars.KAFKA_BROKER_INTERNAL,
+  DATABASE_TYPE: envVars.DATABASE_TYPE as 'sqlserver_2000' | 'sqlserver_2022',
 };

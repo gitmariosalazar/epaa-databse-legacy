@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InterfaceTrashRateReportRepository } from '../../../../domain/contracts/trash-rate-report.interface.repository';
-import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import {
   ClientTrashDetailRowModel,
   CollectorPerformanceKPIModel,
@@ -32,9 +32,7 @@ import { TrashRateAuditReportParams } from '../../../../domain/schemas/params/tr
 export class SqlServerTrash2000RateReportPersistence
   implements InterfaceTrashRateReportRepository
 {
-  constructor(
-    private readonly sqlServerService: DatabaseServiceSQLServer2000,
-  ) {}
+  constructor(private readonly sqlServerService: DatabaseAbstract) {}
 
   async getTrashRateAuditReport(
     params: TrashRateAuditReportParams,
@@ -89,6 +87,7 @@ export class SqlServerTrash2000RateReportPersistence
                 WHERE di.${queryDateFilter} >= @fechaInicio
                   AND di.${queryDateFilter} <= @fechaFin
                   AND di.tasa_basura IS NOT NULL
+                  AND di.Estado_Ingreso = 'P'
                   AND di.Fecha_Pago IS NOT NULL`;
           break;
 
@@ -861,7 +860,7 @@ export class SqlServerTrash2000RateReportPersistence
     try {
       // Usar el mismo formato de fecha que getTrashRateAuditReport → consistencia garantizada
       const initDateTime = `${String(startDate)} 00:00:00.000`;
-      const endDateTime  = `${String(endDate)} 23:59:59.997`;
+      const endDateTime = `${String(endDate)} 23:59:59.997`;
       const query = `
         SET NOCOUNT ON;
         SET ANSI_WARNINGS OFF;

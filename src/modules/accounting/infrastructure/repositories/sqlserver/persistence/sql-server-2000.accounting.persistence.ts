@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import { InterfaceAccountingRepository } from '../../../../domain/contracts/accounting.interface.repository';
 import {
   MonthlyDebtSummaryResponse,
@@ -28,7 +28,7 @@ export class SQLServer2000AccountingPersistence
   implements InterfaceAccountingRepository
 {
   constructor(
-    private readonly sqlServerService: DatabaseServiceSQLServer2000,
+    private readonly sqlServerService: DatabaseAbstract,
   ) {}
 
   async findAllPaymentByDateAndOrderValue(

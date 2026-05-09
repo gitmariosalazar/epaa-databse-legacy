@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseServiceSQLServer2000 } from '../../../../../../shared/connections/database/sqlserver/sqlserver-2000.service';
+import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import { InterfaceEntryDataRepository } from '../../../../domain/contracts/entry-data.interface.repository';
 import {
   DailyCollectorSummary,
@@ -20,7 +20,7 @@ import { SQLServerAccountingEntryDataAdapter } from '../adapters/sql-server.acco
 export class SQLServer2000EntryDataPersistence
   implements InterfaceEntryDataRepository
 {
-  constructor(private readonly sqlServerService: DatabaseServiceSQLServer2000) {}
+  constructor(private readonly sqlServerService: DatabaseAbstract) {}
 
   async getDailyCollectorSummary(
     params: DateRangeParams,
