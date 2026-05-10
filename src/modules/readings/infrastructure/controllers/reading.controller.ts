@@ -18,7 +18,7 @@ export class ReadingController {
       return await this.readingService.createReading(reading);
     } catch (error) {
       console.error(`Error in createReading: ${error.message}`, error);
-      // Retornar un objeto de error en lugar de arrojar una excepción 
+      // Retornar un objeto de error en lugar de arrojar una excepción
       // evita que Kafka reintente el evento en un bucle infinito.
       return {
         statusCode: 500,
@@ -56,9 +56,11 @@ export class ReadingController {
     },
   ) {
     try {
+      /*
       console.log(
         `Received updateCurrentReading request: ${JSON.stringify(data)}`,
       );
+      */
       return await this.readingService.updateCurrentReading(
         data.params,
         data.request,

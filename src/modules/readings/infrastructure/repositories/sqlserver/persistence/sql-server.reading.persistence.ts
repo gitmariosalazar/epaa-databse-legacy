@@ -7,21 +7,15 @@ import {
 } from '../../../interfaces/reading.sql.response';
 import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
 import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
-import {
-  ReadingResponse,
-} from '../../../../domain/schemas/dto/response/readings.response';
+import { ReadingResponse } from '../../../../domain/schemas/dto/response/readings.response';
 import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading.model';
 import { FindCurrentReadingParams } from '../../../../domain/schemas/dto/request/find-current-reading.paramss';
 import { RpcException } from '@nestjs/microservices';
 import { statusCode } from '../../../../../../settings/environments/status-code';
 
 @Injectable()
-export class ReadingSQLServer2022Persistence
-  implements InterfaceReadingsRepository
-{
-  constructor(
-    private readonly sqlServerService: DatabaseAbstract,
-  ) {}
+export class ReadingSQLServer2022Persistence implements InterfaceReadingsRepository {
+  constructor(private readonly sqlServerService: DatabaseAbstract) {}
   async createReading(reading: ReadingModel): Promise<ReadingResponse> {
     try {
       const query: string = `
@@ -69,9 +63,11 @@ export class ReadingSQLServer2022Persistence
       ];
       const result: ReadingSQLResult[] =
         await this.sqlServerService.query<ReadingSQLResult>(query, params);
-        
+
       if (!result || !result[0]) {
-        throw new Error('Reading was inserted but the OUTPUT clause returned no data (possibly due to a trigger).');
+        throw new Error(
+          'Reading was inserted but the OUTPUT clause returned no data (possibly due to a trigger).',
+        );
       }
 
       return SQLServerReadingAdapter.toDomain(result[0]);
@@ -129,14 +125,17 @@ export class ReadingSQLServer2022Persistence
     reading: ReadingModel,
   ): Promise<ReadingResponse> {
     try {
+      /*
       console.log(
         'Received updateCurrentReading request in Persistence:',
         reading,
       );
+      /*
       console.log(
         'Received updateCurrentReading params in Persistence:',
         params,
       );
+      */
       const query: string = `
       UPDATE AP_LECTURAS
       SET
@@ -190,7 +189,7 @@ export class ReadingSQLServer2022Persistence
       const updatedReading =
         await this.sqlServerService.query<ReadingSQLResult>(query, queryParams);
 
-      console.log('Updated reading result:', updatedReading);
+      //console.log('Updated reading result:', updatedReading);
 
       if (!updatedReading) {
         throw new RpcException({

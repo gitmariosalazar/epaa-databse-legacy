@@ -101,7 +101,7 @@ export class ReadingService implements InterfaceReadingUseCase {
     request: UpdateReadingRequest,
   ): Promise<ReadingResponse> {
     try {
-      console.log('Received updateCurrentReading request in Service:', request);
+      //console.log('Received updateCurrentReading request in Service:', request);
       const requiredFieldsToUpdate: string[] = [
         'currentReading',
         'novelty',
@@ -164,7 +164,7 @@ export class ReadingService implements InterfaceReadingUseCase {
         updatedReadingModel,
       );
 
-      console.log(updatedReading);
+      //console.log(updatedReading);
 
       if (!updatedReading) {
         throw new Error('Failed to update the reading');
