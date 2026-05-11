@@ -13,6 +13,8 @@ export interface TrashRateAuditRowResponse {
   diagnostic: string;
   discountApplied: number;
   creditNoteBalance: number | null;
+  paymentMethod: string | null;
+  collector: string | null;
 }
 
 export interface MonthlySummaryRowResponse {

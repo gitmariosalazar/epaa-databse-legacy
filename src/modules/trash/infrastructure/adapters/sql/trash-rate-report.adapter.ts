@@ -43,6 +43,8 @@ export class TrashRateReportAdapter {
       diagnostic: response.diagnostic,
       discountApplied: response.discount_applied,
       creditNoteBalance: response.credit_note_balance,
+      paymentMethod: response.payment_method,
+      collector: response.collector,
     };
   }
 

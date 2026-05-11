@@ -29,9 +29,7 @@ import { TrashRateReportAdapter } from '../../../adapters/sql/trash-rate-report.
 import { TrashRateAuditReportParams } from '../../../../domain/schemas/params/trash-rate-audit-report.params';
 
 @Injectable()
-export class SqlServerTrash2000RateReportPersistence
-  implements InterfaceTrashRateReportRepository
-{
+export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRateReportRepository {
   constructor(private readonly sqlServerService: DatabaseAbstract) {}
 
   async getTrashRateAuditReport(
@@ -176,6 +174,8 @@ export class SqlServerTrash2000RateReportPersistence
                                                                             AS credit_note_balance,
                     ROUND(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0), 2)
                                                                             AS difference,
+                    di.FormaDePago                                            AS payment_method,
+                    di.User_Cobro                                            AS collector,
                     ${monthsInMoraQueryColum},
                     CASE
                         WHEN V.cod_Ingreso IS NULL

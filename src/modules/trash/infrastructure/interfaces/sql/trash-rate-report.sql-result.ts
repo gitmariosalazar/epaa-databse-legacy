@@ -13,6 +13,8 @@ export interface TrashRateAuditRowSqlResult {
   diagnostic: string;
   discount_applied: number;
   credit_note_balance: number | null;
+  payment_method: string | null;
+  collector: string | null;
 }
 
 export interface MonthlySummaryRowSqlResult {

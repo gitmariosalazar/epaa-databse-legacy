@@ -14,6 +14,8 @@ export class TrashRateAuditRowModel {
     public readonly diagnostic: string,
     public readonly discountApplied: number,
     public readonly creditNoteBalance: number | null,
+    public readonly paymentMethod: string | null,
+    public readonly collector: string | null,
   ) {}
 }
 

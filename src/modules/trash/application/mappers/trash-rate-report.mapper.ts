@@ -42,6 +42,8 @@ export class TrashRateReportMapper {
       diagnostic: model.diagnostic,
       discountApplied: model.discountApplied,
       creditNoteBalance: model.creditNoteBalance,
+      paymentMethod: model.paymentMethod,
+      collector: model.collector,
     };
   }
 

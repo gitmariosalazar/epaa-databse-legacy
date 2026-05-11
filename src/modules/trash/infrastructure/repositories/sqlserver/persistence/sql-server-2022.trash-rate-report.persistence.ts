@@ -159,7 +159,10 @@ export class SqlServer2022TrashRateReportPersistence
                 WHEN ABS(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0)) < 0.01
                     THEN 'Correct Match'
                 ELSE 'Different Value - Review'
-            END                                                     AS diagnostic
+            END                                                     AS diagnostic,
+            di.FormaDePago                                            AS payment_method,
+            di.User_Cobro                                            AS collector,
+              ${monthsInMoraQueryColum}
         FROM Datos_ingreso di
         LEFT JOIN dbo.Valor V
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
