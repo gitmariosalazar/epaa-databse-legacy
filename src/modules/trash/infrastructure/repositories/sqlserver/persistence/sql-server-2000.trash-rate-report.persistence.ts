@@ -153,7 +153,9 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                 t.difference,
                 t.diagnostic,
                 t.discount_applied,
-                t.credit_note_balance
+                t.credit_note_balance,
+                t.payment_method,
+                t.collector
             FROM (
                 SELECT TOP ${totalRows}
                     di.Cod_Ingreso                                          AS income_code,
