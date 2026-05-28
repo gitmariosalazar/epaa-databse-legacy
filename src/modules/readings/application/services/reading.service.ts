@@ -12,6 +12,7 @@ import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import { ReadingNotFoundException } from '../../domain/exceptions/reading-not-found.exception';
 import { RpcException } from '@nestjs/microservices';
+import { Logger } from 'winston';
 
 @Injectable()
 export class ReadingService implements InterfaceReadingUseCase {
@@ -20,7 +21,7 @@ export class ReadingService implements InterfaceReadingUseCase {
     private readonly readingsRepository: InterfaceReadingsRepository,
   ) {}
 
-  createReading(request: CreateReadingLegacyRequest): Promise<ReadingResponse> {
+  async createReading(request: CreateReadingLegacyRequest): Promise<ReadingResponse> {
     try {
       const requiredFields: string[] = [
         'previousReading',
@@ -50,12 +51,29 @@ export class ReadingService implements InterfaceReadingUseCase {
       request.readingTime = hour;
       request.month = MONTHS[now.getMonth() + 1];
       request.year = now.getFullYear();
-      request.sector = request.cadastralKey.split('-')[0]
+      const sectorVal = request.cadastralKey.split('-')[0]
         ? parseInt(request.cadastralKey.split('-')[0])
         : 1;
-      request.account = request.cadastralKey.split('-')[1]
+      const accountVal = request.cadastralKey.split('-')[1]
         ? parseInt(request.cadastralKey.split('-')[1])
         : 1;
+      request.sector = sectorVal;
+      request.account = accountVal;
+
+      const existingReading = await this.readingsRepository.findCurrentReading({
+        sector: sectorVal,
+        account: accountVal,
+        year: request.year,
+        month: request.month,
+        previousReading: request.previousReading,
+      });
+      if (existingReading) {
+        // En lugar de fallar o duplicar, retornamos exitosamente la lectura previa
+        console.warn(
+          `[Idempotency Check] Reading already exists for Sector ${sectorVal}, Account ${accountVal} in ${request.month}/${request.year}. Skipping duplicate insert.`
+        );
+        return existingReading;
+      }
 
       const readingModel: ReadingModel =
         ReadingMapper.fromCreateReadingRequestToReadingModel(request);
