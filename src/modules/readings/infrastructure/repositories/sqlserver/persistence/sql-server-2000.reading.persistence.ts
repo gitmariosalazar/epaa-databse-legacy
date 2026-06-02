@@ -225,7 +225,6 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
         AND Anio = '${Number(params.year)}'
         AND Mes = '${String(params.month)}'
         AND LecturaAnterior = ${Number(params.previousReading)}
-        --AND FechaCaptura IS NULL
       ORDER BY FechaCaptura DESC
     `;
 
@@ -255,21 +254,13 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
           SET
             LecturaActual = ${Number(reading.getCurrentReading())},
             Novedad = '${String(reading.getNovelty() || '')}',
-            --ValorAPagar = ${reading.getReadingValue() != null ? Number(reading.getReadingValue()) : null},
-            --TasaAlcantarillado = ${reading.getSewerRate() != null ? Number(reading.getSewerRate()) : null},
-            --Reconexion = ${reading.getReconnection() != null ? Number(reading.getReconnection()) : null},
-            --FechaCaptura = '${formatDateForSQLServer(reading.getReadingDate())}',
-            --HoraCaptura = '${String(reading.getReadingTime() || '')}',
             ClaveCatastral = '${String(reading.getCadastralKey() || '')}'
-            -- Es el numero del mes la siguiente actualizacion
-            --LecturaSugerida = ${Number(MONTHS_REVERSE[String(reading.getMonth())])} -- numero de mes actual de lectura
           WHERE
             Sector = ${Number(params.sector)}
             AND Cuenta = ${Number(params.account)}
             AND Anio = '${Number(params.year)}'
             AND Mes = '${String(params.month)}'
             AND LecturaAnterior = ${Number(params.previousReading)}
-            --AND FechaCaptura IS NULL
         `;
 
           //console.log('Here AM i Last Query: ', updateQuery);
