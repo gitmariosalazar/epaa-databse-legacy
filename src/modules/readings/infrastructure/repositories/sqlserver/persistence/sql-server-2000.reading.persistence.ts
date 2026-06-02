@@ -25,12 +25,8 @@ class DatabaseError extends Error {
 }
 
 @Injectable()
-export class ReadingSQLServer2000Persistence
-  implements InterfaceReadingsRepository
-{
-  constructor(
-    private readonly sqlServerService: DatabaseAbstract,
-  ) {}
+export class ReadingSQLServer2000Persistence implements InterfaceReadingsRepository {
+  constructor(private readonly sqlServerService: DatabaseAbstract) {}
 
   private validateReading(reading: ReadingModel): void {
     const requiredFields = [
@@ -229,7 +225,7 @@ export class ReadingSQLServer2000Persistence
         AND Anio = '${Number(params.year)}'
         AND Mes = '${String(params.month)}'
         AND LecturaAnterior = ${Number(params.previousReading)}
-        AND FechaCaptura IS NULL
+        --AND FechaCaptura IS NULL
       ORDER BY FechaCaptura DESC
     `;
 
