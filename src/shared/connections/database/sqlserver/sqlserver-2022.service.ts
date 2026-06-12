@@ -1,22 +1,30 @@
 import { ConnectionPool, Transaction, Request, config } from 'mssql';
-import { DatabaseAbstract, IDatabaseClient, MutationResponse } from '../abstract/abstract.database';
+import {
+  DatabaseAbstract,
+  IDatabaseClient,
+  MutationResponse,
+} from '../abstract/abstract.database';
 import { RpcException } from '@nestjs/microservices';
 import { environments } from '../../../../settings/environments/environments';
 import { statusCode } from '../../../../settings/environments/status-code';
 
 export class MSSQLClientWrapper implements IDatabaseClient {
-  constructor(private readonly poolOrTransaction: ConnectionPool | Transaction) {}
+  constructor(
+    private readonly poolOrTransaction: ConnectionPool | Transaction,
+  ) {}
 
-  async query<T>(
-    sql: string,
-    params?: any[],
-  ): Promise<T[]> {
+  async query<T>(sql: string, params?: any[]): Promise<T[]> {
     const request = new Request(this.poolOrTransaction);
     let translatedSql = sql;
 
     if (params && params.length > 0) {
       params.forEach((param, idx) => {
-        if (param && typeof param === 'object' && 'name' in param && 'value' in param) {
+        if (
+          param &&
+          typeof param === 'object' &&
+          'name' in param &&
+          'value' in param
+        ) {
           request.input(param.name, param.value);
         } else {
           const paramName = `p${idx}`;
@@ -35,7 +43,12 @@ export class MSSQLClientWrapper implements IDatabaseClient {
     let translatedSql = sql;
     if (params && params.length > 0) {
       params.forEach((param, idx) => {
-        if (param && typeof param === 'object' && 'name' in param && 'value' in param) {
+        if (
+          param &&
+          typeof param === 'object' &&
+          'name' in param &&
+          'value' in param
+        ) {
           request.input(param.name, param.value);
         } else {
           const paramName = `p${idx}`;
@@ -50,13 +63,13 @@ export class MSSQLClientWrapper implements IDatabaseClient {
     };
   }
 
-  async release(): Promise<void> {
-  }
+  async release(): Promise<void> {}
 }
 
 export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
   private pool: ConnectionPool;
   private isConnected: boolean = false;
+  private readonly requestTimeoutMs = 120000;
 
   constructor() {
     super();
@@ -71,6 +84,7 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
         trustServerCertificate: true,
       },
       connectionTimeout: 5000,
+      requestTimeout: this.requestTimeoutMs,
     };
     this.pool = new ConnectionPool(poolConfig);
   }
@@ -82,24 +96,38 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
       this.isConnected = true;
       console.log('🛢️ Connected to SQL Server 2022');
     } catch (error) {
-      console.error('❌ SQL Server 2022 Connection Failed (Non-fatal at startup):', error.message);
+      console.error(
+        '❌ SQL Server 2022 Connection Failed (Non-fatal at startup):',
+        error.message,
+      );
       this.isConnected = false;
     }
   }
 
   public async query<T>(sql: string, params: any[] = []): Promise<T[]> {
     if (!this.isConnected) {
-        await this.connect();
-        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2022 is down' });
+      await this.connect();
+      if (!this.isConnected)
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'SQL Server 2022 is down',
+        });
     }
     const client = new MSSQLClientWrapper(this.pool);
     return await client.query<T>(sql, params);
   }
 
-  public async execute(sql: string, params: any[] = []): Promise<MutationResponse> {
+  public async execute(
+    sql: string,
+    params: any[] = [],
+  ): Promise<MutationResponse> {
     if (!this.isConnected) {
-        await this.connect();
-        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2022 is down' });
+      await this.connect();
+      if (!this.isConnected)
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'SQL Server 2022 is down',
+        });
     }
     const client = new MSSQLClientWrapper(this.pool);
     return await client.execute(sql, params);
@@ -109,8 +137,12 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
     operations: (client: IDatabaseClient) => Promise<T>,
   ): Promise<T> {
     if (!this.isConnected) {
-        await this.connect();
-        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2022 is down' });
+      await this.connect();
+      if (!this.isConnected)
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'SQL Server 2022 is down',
+        });
     }
     const transaction = new Transaction(this.pool);
     try {
@@ -130,8 +162,12 @@ export class DatabaseServiceSQLServer2022 extends DatabaseAbstract {
 
   public async getClient(): Promise<IDatabaseClient> {
     if (!this.isConnected) {
-        await this.connect();
-        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2022 is down' });
+      await this.connect();
+      if (!this.isConnected)
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'SQL Server 2022 is down',
+        });
     }
     return new MSSQLClientWrapper(this.pool);
   }

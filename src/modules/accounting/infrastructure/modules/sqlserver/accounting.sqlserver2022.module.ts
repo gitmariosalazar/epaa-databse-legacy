@@ -6,11 +6,10 @@ import { SQLServerEntryDataPersistence } from '../../repositories/sqlserver/pers
 import { SqlServerGeneralCollectionPersistence } from '../../repositories/sqlserver/persistence/sql-server.general-collection.persistence';
 import { SqlServerAgreementsPersistence } from '../../repositories/sqlserver/persistence/sql-server.agreements.persistence';
 import { ExternalPayrollPersistence } from '../../repositories/http/persistence/external-payroll.persistence';
-import { KafkaServiceModule } from '../../../../../shared/kafka/kafka-service.module';
 import { DatabasePersistenceModule } from '../../../../../shared/connections/database/database-persistence.module';
 
 @Module({
-  imports: [KafkaServiceModule, DatabasePersistenceModule],
+  imports: [DatabasePersistenceModule],
   controllers: [AccountingController],
   providers: [
     AccountingService,

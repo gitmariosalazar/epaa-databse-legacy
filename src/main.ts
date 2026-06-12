@@ -24,17 +24,23 @@ async function bootstrap() {
     strategy: new CustomServerKafka(
       {
         client: {
-        clientId: environments.EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID,
-        brokers: [environments.KAFKA_BROKER_URL],
+          clientId: environments.EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID,
+          brokers: [environments.KAFKA_BROKER_URL],
+          retry: { retries: 25, initialRetryTime: 1000 },
+        },
+        consumer: {
+          groupId: environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
+          allowAutoTopicCreation: true,
+          // More tolerant settings for heavy handlers (SQL reports) to avoid
+          // transient coordinator membership loss during rebalances.
+          sessionTimeout: 60000,
+          heartbeatInterval: 10000,
+          rebalanceTimeout: 120000,
+        },
       },
-      consumer: {
-        groupId: environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
-        allowAutoTopicCreation: true,
-      }
-      },
-      environments.KAFKA_TOPIC
+      environments.KAFKA_TOPIC,
     ),
-  }); //
+  });
 
   await microservice.listen();
   logger.log(`Nest application successfully started`);

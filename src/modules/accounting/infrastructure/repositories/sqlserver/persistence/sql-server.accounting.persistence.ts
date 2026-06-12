@@ -24,12 +24,8 @@ import {
 } from '../../../interfaces/sql/accounting.sql.response';
 
 @Injectable()
-export class SQLServerAccountingPersistence
-  implements InterfaceAccountingRepository
-{
-  constructor(
-    private readonly sqlServerService: DatabaseAbstract,
-  ) {}
+export class SQLServerAccountingPersistence implements InterfaceAccountingRepository {
+  constructor(private readonly sqlServerService: DatabaseAbstract) {}
 
   async findPendingReadingsByCardId(
     cardId: string,
@@ -1057,51 +1053,52 @@ export class SQLServerAccountingPersistence
 
         DECLARE @Corte DATE = GETDATE();
 
-        ;WITH clientes_validos AS (
-            SELECT CodCliente_Ingreso
-            FROM Datos_ingreso
-            WHERE Fecha_Pago IS NULL
-              AND Estado_Ingreso IS NULL
-              AND convenio IS NULL
-              AND Fecha_Venc_Interes <= @Corte
-            GROUP BY CodCliente_Ingreso
-            HAVING COUNT(*) > 1
-        ),
-        base AS (
+        ;WITH filtered AS (
             SELECT
                 di.CodCliente_Ingreso,
                 di.ClaveCatastral,
-
-                COUNT(*) AS months_past_due,
-
-                SUM(ISNULL(di.Valor_Titulo, 0)) AS total_epaa_value,
-                SUM(ISNULL(di.ValorTerceros, 0)) AS total_terceros,
-                SUM(ISNULL(di.tasa_basura, 0)) AS total_trash_rate,
-                SUM(ISNULL(di.Recargo, 0)) AS total_surcharge,
-                SUM(ISNULL(di.interes_mejoras, 0)) AS total_improvements_interest,
-
-                SUM(
-                    ISNULL(di.Valor_Titulo, 0)
-                  + ISNULL(di.ValorTerceros, 0)
-                  + ISNULL(di.tasa_basura, 0)
-                  + ISNULL(di.Recargo, 0)
-                  + ISNULL(di.interes_mejoras, 0)
-                ) AS total_debt_amount,
-
-                MIN(di.Fecha_Venc_Interes) AS oldest_due_date
-
+                di.Valor_Titulo,
+                di.ValorTerceros,
+                di.tasa_basura,
+                di.Recargo,
+                di.interes_mejoras,
+                di.Fecha_Venc_Interes,
+                COUNT(*) OVER (PARTITION BY di.CodCliente_Ingreso) AS client_debt_rows
             FROM Datos_ingreso di
-            INNER JOIN clientes_validos cv
-                ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
-
             WHERE di.Fecha_Pago IS NULL
               AND di.Estado_Ingreso IS NULL
               AND di.convenio IS NULL
               AND di.Fecha_Venc_Interes <= @Corte
+        ),
+        base AS (
+            SELECT
+                f.CodCliente_Ingreso,
+                f.ClaveCatastral,
+
+                COUNT(*) AS months_past_due,
+
+                SUM(ISNULL(f.Valor_Titulo, 0)) AS total_epaa_value,
+                SUM(ISNULL(f.ValorTerceros, 0)) AS total_terceros,
+                SUM(ISNULL(f.tasa_basura, 0)) AS total_trash_rate,
+                SUM(ISNULL(f.Recargo, 0)) AS total_surcharge,
+                SUM(ISNULL(f.interes_mejoras, 0)) AS total_improvements_interest,
+
+                SUM(
+                    ISNULL(f.Valor_Titulo, 0)
+                  + ISNULL(f.ValorTerceros, 0)
+                  + ISNULL(f.tasa_basura, 0)
+                  + ISNULL(f.Recargo, 0)
+                  + ISNULL(f.interes_mejoras, 0)
+                ) AS total_debt_amount,
+
+                MIN(f.Fecha_Venc_Interes) AS oldest_due_date
+
+            FROM filtered f
+            WHERE f.client_debt_rows > 1
 
             GROUP BY
-                di.CodCliente_Ingreso,
-                di.ClaveCatastral
+                f.CodCliente_Ingreso,
+                f.ClaveCatastral
             HAVING COUNT(*) > 1
         )
 
@@ -1127,7 +1124,8 @@ export class SQLServerAccountingPersistence
             MAX(DATEDIFF(DAY, oldest_due_date, @Corte)) AS max_days_in_debt,
             AVG(total_debt_amount) AS avg_debt_per_client
 
-        FROM base;
+        FROM base
+        OPTION (RECOMPILE);
       `;
 
       const result =

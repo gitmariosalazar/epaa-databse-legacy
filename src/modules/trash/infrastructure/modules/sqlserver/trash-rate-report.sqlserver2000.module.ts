@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { KafkaServiceModule } from '../../../../../shared/kafka/kafka-service.module';
 import { TrashRateReportController } from '../../controllers/trash-rate-report.controller';
 import { DatabasePersistenceModule } from '../../../../../shared/connections/database/database-persistence.module';
 import { SqlServerTrash2000RateReportPersistence } from '../../repositories/sqlserver/persistence/sql-server-2000.trash-rate-report.persistence';
@@ -15,7 +14,7 @@ import { GetDailyCollectorDetailUseCase } from '../../../application/usecases/re
 import { GetCollectorPerformanceKPIUseCase } from '../../../application/usecases/reports/GetCollectorPerformanceKPIUseCase';
 
 @Module({
-  imports: [KafkaServiceModule, DatabasePersistenceModule],
+  imports: [DatabasePersistenceModule],
   controllers: [TrashRateReportController],
   providers: [
     GetClientTrashDetailRowUseCase,
