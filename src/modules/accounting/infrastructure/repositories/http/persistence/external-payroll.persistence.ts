@@ -7,9 +7,7 @@ import {
 import { Agent, fetch } from 'undici'; // ← Importamos fetch explícitamente para evitar conflictos con los tipos de NodeJS
 
 @Injectable()
-export class ExternalPayrollPersistence
-  implements InterfaceExternalPayrollRepository
-{
+export class ExternalPayrollPersistence implements InterfaceExternalPayrollRepository {
   private readonly logger = new Logger(ExternalPayrollPersistence.name);
   private readonly baseUrl = 'http://181.112.159.150/api/commercial/payrolls';
 
@@ -31,7 +29,7 @@ export class ExternalPayrollPersistence
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000); // Reducido a 6 segundos para fast-fail
+        const timeoutId = setTimeout(() => controller.abort(), 20000); // Incrementado a 20 segundos para dar tiempo a la API externa que demora ~9s
 
         const url = `${this.baseUrl}?identification=${identification}`;
 
