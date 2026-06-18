@@ -332,6 +332,9 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
       const query: string = `
       SET NOCOUNT ON;
 
+      DECLARE @Corte DATETIME;
+      SET @Corte = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120));
+
       SELECT 
         IDENTITY(int, 1, 1) AS rn,
         di.ClaveCatastral AS cadastral_key,
@@ -361,9 +364,9 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
         MIN(di.Fecha_Venc_Interes)                AS due_date_more_old,
         MAX(di.Fecha_Venc_Interes)                AS due_date_more_recent,
         -- Días transcurridos desde el vencimiento de la planilla más antigua
-        DATEDIFF(day, MIN(di.Fecha_Venc_Interes), GETDATE()) AS days_since_due,
+        DATEDIFF(day, MIN(di.Fecha_Venc_Interes), @Corte) AS days_since_due,
         -- Días transcurridos desde la fecha de ingreso
-        DATEDIFF(day, MIN(di.Fecha_Ingreso), GETDATE()) AS days_since_emission
+        DATEDIFF(day, MIN(di.Fecha_Ingreso), @Corte) AS days_since_emission
       INTO #OverdueTemp
       FROM Datos_ingreso di
       -- CRUCE CON LA CACHÉ
@@ -372,9 +375,11 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
       WHERE di.Fecha_Pago IS NULL
         AND di.Estado_Ingreso IS NULL
         AND di.convenio IS NULL
+        AND di.Fecha_Venc_Interes <= @Corte
 
       GROUP BY di.ClaveCatastral, di.CodCliente_Ingreso
-      HAVING COUNT(di.Cod_Ingreso) > 1;
+      HAVING COUNT(di.Cod_Ingreso) > 1
+      ORDER BY di.CodCliente_Ingreso, di.ClaveCatastral;
 
       SELECT TOP ${safeLimit}
         cadastral_key,
@@ -423,7 +428,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
         SET NOCOUNT ON;
 
         DECLARE @Corte DATETIME;
-        SET @Corte = GETDATE();
+        SET @Corte = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120));
 
         SELECT
             COUNT(DISTINCT CodCliente_Ingreso) AS total_clients_with_debt,
@@ -518,7 +523,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
         SET NOCOUNT ON;
 
         DECLARE @Today DATETIME;
-        SET @Today = GETDATE();
+        SET @Today = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120));
 
         SELECT
             b.[year],
@@ -665,8 +670,8 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
       const query: string = `
         SET NOCOUNT ON;
         SET ANSI_WARNINGS OFF;
-        DECLARE @Today DATETIME
-        SET @Today = GETDATE()
+        DECLARE @Today DATETIME;
+        SET @Today = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120));
 
         SELECT 
             CodCliente_Ingreso,
