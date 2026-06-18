@@ -96,6 +96,7 @@ export class SQLServerAccountingAdapter {
       // ── Totales de la Planilla ─────────────────────────────────────────────────
       total: data.total ? Number(data.total) : 0,
       adjustedTotal: data.adjusted_total ? Number(data.adjusted_total) : 0,
+      dueDateStatus: data.due_date_status ? data.due_date_status : '',
     };
   }
 
@@ -190,6 +191,28 @@ export class SQLServerAccountingAdapter {
         : 0,
       totalSurcharge: data.total_surcharge ? Number(data.total_surcharge) : 0,
       monthsPastDue: data.months_past_due ? Number(data.months_past_due) : 0,
+      totalInterestCalculated: data.total_interest_calculated
+        ? Number(data.total_interest_calculated)
+        : 0,
+      totalDebtAmount: data.total_debt_amount
+        ? Number(data.total_debt_amount)
+        : 0,
+      emisionDateMoreOld: data.emision_date_more_old
+        ? String(data.emision_date_more_old).trim()
+        : '',
+      emisionDateMoreRecent: data.emision_date_more_recent
+        ? String(data.emision_date_more_recent).trim()
+        : '',
+      dueDateMoreOld: data.due_date_more_old
+        ? String(data.due_date_more_old).trim()
+        : '',
+      dueDateMoreRecent: data.due_date_more_recent
+        ? String(data.due_date_more_recent).trim()
+        : '',
+      daysSinceDue: data.days_since_due ? Number(data.days_since_due) : 0,
+      daysSinceEmission: data.days_since_emission
+        ? Number(data.days_since_emission)
+        : 0,
     };
   }
 

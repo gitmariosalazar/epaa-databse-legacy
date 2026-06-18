@@ -62,6 +62,14 @@ export interface OverduePaymentSqlResponse {
   total_surcharge: number;
   total_old_surcharge: number;
   months_past_due: number;
+  total_interest_calculated: number;
+  total_debt_amount: number;
+  emision_date_more_old: string;
+  emision_date_more_recent: string;
+  due_date_more_old: string;
+  due_date_more_recent: string;
+  days_since_due: number;
+  days_since_emission: number;
 }
 
 export interface OverdueSummarySqlResult {
@@ -174,4 +182,5 @@ export interface PendingReadingSQLResult {
   income_status: string;
   income_date: string;
   adjusted_total: number;
+  due_date_status: string;
 }

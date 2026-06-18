@@ -353,7 +353,12 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
 
             -- ── Metadatos de ingreso ──────────────────────────────────────────────────────
             di.Estado_Ingreso               AS income_status,
-            di.Fecha_Ingreso                AS income_date
+            di.Fecha_Ingreso                AS income_date,
+            -- Vencido o no vencido
+            CASE
+              WHEN di.Fecha_Venc_Interes < CAST(GETDATE() AS DATE) THEN 'Vencido'
+                ELSE 'No Vencido'
+            END AS due_date_status
 
         FROM Datos_ingreso di
         INNER JOIN CIUDADANO c
@@ -554,7 +559,11 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
               END                           AS adjusted_total,  
           
             di.Estado_Ingreso               AS income_status,  
-            di.Fecha_Ingreso                AS income_date  
+            di.Fecha_Ingreso                AS income_date,
+            CASE
+              WHEN di.Fecha_Venc_Interes < CAST(GETDATE() AS DATE) THEN 'Vencido'
+                ELSE 'No Vencido'
+            END AS due_date_status  
           
         FROM Datos_ingreso di  
         LEFT JOIN CIUDADANO c ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO  
@@ -1002,6 +1011,8 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
       const query: string = `
         SET NOCOUNT ON;
 
+        DECLARE @Corte DATE = GETDATE();
+
         SELECT
             di.ClaveCatastral         AS cadastral_key,
             di.CodCliente_Ingreso     AS client_id,
@@ -1011,11 +1022,35 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
             SUM(COALESCE(di.interes_mejoras,  0)) AS total_old_improvements_interest,
             SUM(COALESCE(di.Recargo,          0)) AS total_surcharge,
             SUM(COALESCE(di.Recargo_old,      0)) AS total_old_surcharge,
-            COUNT(di.Cod_Ingreso)                 AS months_past_due
+            COUNT(di.Cod_Ingreso)                 AS months_past_due,
+        -- Suma el valor pre-calculado de la tabla física de caché
+        SUM(COALESCE(c.interes_calculado, 0))     AS total_interest_calculated,
+        
+        -- Suma total general sumando el interés pre-calculado
+        SUM(
+            COALESCE(di.tasa_basura, 0) +
+            COALESCE(di.Valor_Titulo, 0) +
+            COALESCE(di.interes_mejoras, 0) +
+            COALESCE(di.Recargo, 0) +
+            COALESCE(c.interes_calculado, 0)
+        )                                         AS total_debt_amount,
+        -- Fechas
+        MIN(di.Fecha_Ingreso)                     AS emision_date_more_old,
+        MAX(di.Fecha_Ingreso)                     AS emision_date_more_recent,
+        MIN(di.Fecha_Venc_Interes)                AS due_date_more_old,
+        MAX(di.Fecha_Venc_Interes)                AS due_date_more_recent,
+        -- Días transcurridos desde el vencimiento de la planilla más antigua
+        DATEDIFF(day, MIN(di.Fecha_Venc_Interes), GETDATE()) AS days_since_due,
+        -- Días transcurridos desde la fecha de ingreso
+        DATEDIFF(day, MIN(di.Fecha_Ingreso), GETDATE()) AS days_since_emission
         FROM Datos_ingreso di
+        -- CRUCE CON LA CACHÉ
+        LEFT JOIN dbo.Datos_ingreso_interes_cache c
+          ON di.Cod_Ingreso = c.Cod_Ingreso
         WHERE di.Fecha_Pago    IS NULL
           AND di.Estado_Ingreso IS NULL
           AND di.convenio       IS NULL
+          AND di.Fecha_Venc_Interes <= @Corte
         GROUP BY di.ClaveCatastral, di.CodCliente_Ingreso
         HAVING COUNT(di.Cod_Ingreso) > 1
         ORDER BY di.CodCliente_Ingreso, di.ClaveCatastral
@@ -1063,8 +1098,13 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
                 di.Recargo,
                 di.interes_mejoras,
                 di.Fecha_Venc_Interes,
+                COALESCE(c.interes_calculado, 0) AS interest_calculated,
                 COUNT(*) OVER (PARTITION BY di.CodCliente_Ingreso) AS client_debt_rows
             FROM Datos_ingreso di
+
+            -- CRUCE CON LA CACHÉ
+            LEFT JOIN dbo.Datos_ingreso_interes_cache c
+              ON di.Cod_Ingreso = c.Cod_Ingreso
             WHERE di.Fecha_Pago IS NULL
               AND di.Estado_Ingreso IS NULL
               AND di.convenio IS NULL
@@ -1084,11 +1124,11 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
                 SUM(ISNULL(f.interes_mejoras, 0)) AS total_improvements_interest,
 
                 SUM(
-                    ISNULL(f.Valor_Titulo, 0)
-                  + ISNULL(f.ValorTerceros, 0)
-                  + ISNULL(f.tasa_basura, 0)
-                  + ISNULL(f.Recargo, 0)
+                    ISNULL(f.tasa_basura, 0)
+                  + ISNULL(f.Valor_Titulo, 0)
                   + ISNULL(f.interes_mejoras, 0)
+                  + ISNULL(f.Recargo, 0)
+                  + ISNULL(f.interest_calculated, 0)
                 ) AS total_debt_amount,
 
                 MIN(f.Fecha_Venc_Interes) AS oldest_due_date
@@ -1113,6 +1153,7 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
             SUM(total_trash_rate)              AS total_trash_rate,
             SUM(total_surcharge)               AS total_surcharge,
             SUM(total_improvements_interest)   AS total_improvements_interest,
+            SUM(total_interest_calculated)     AS total_interest_calculated,
 
             AVG(CAST(months_past_due AS DECIMAL(10,2))) AS avg_months_past_due,
             MAX(months_past_due)               AS max_months_in_debt,

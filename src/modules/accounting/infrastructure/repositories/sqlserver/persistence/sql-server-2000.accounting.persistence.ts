@@ -24,12 +24,8 @@ import { statusCode } from '../../../../../../settings/environments/status-code'
 import { RpcException } from '@nestjs/microservices';
 
 @Injectable()
-export class SQLServer2000AccountingPersistence
-  implements InterfaceAccountingRepository
-{
-  constructor(
-    private readonly sqlServerService: DatabaseAbstract,
-  ) {}
+export class SQLServer2000AccountingPersistence implements InterfaceAccountingRepository {
+  constructor(private readonly sqlServerService: DatabaseAbstract) {}
 
   async findAllPaymentByDateAndOrderValue(
     paymentDate: string,
@@ -346,9 +342,33 @@ export class SQLServer2000AccountingPersistence
         SUM(COALESCE(di.interes_mejoras, 0))      AS total_old_improvements_interest,
         SUM(COALESCE(di.Recargo, 0))              AS total_surcharge,
         SUM(COALESCE(di.Recargo_old, 0))          AS total_old_surcharge,
-        COUNT(di.Cod_Ingreso)                     AS months_past_due
+        COUNT(di.Cod_Ingreso)                     AS months_past_due,
+        
+        -- Suma el valor pre-calculado de la tabla física de caché
+        SUM(COALESCE(c.interes_calculado, 0))     AS total_interest_calculated,
+        
+        -- Suma total general sumando el interés pre-calculado
+        SUM(
+            COALESCE(di.tasa_basura, 0) +
+            COALESCE(di.Valor_Titulo, 0) +
+            COALESCE(di.interes_mejoras, 0) +
+            COALESCE(di.Recargo, 0) +
+            COALESCE(c.interes_calculado, 0)
+        )                                         AS total_debt_amount,
+        -- Fechas
+        MIN(di.Fecha_Ingreso)                     AS emision_date_more_old,
+        MAX(di.Fecha_Ingreso)                     AS emision_date_more_recent,
+        MIN(di.Fecha_Venc_Interes)                AS due_date_more_old,
+        MAX(di.Fecha_Venc_Interes)                AS due_date_more_recent,
+        -- Días transcurridos desde el vencimiento de la planilla más antigua
+        DATEDIFF(day, MIN(di.Fecha_Venc_Interes), GETDATE()) AS days_since_due,
+        -- Días transcurridos desde la fecha de ingreso
+        DATEDIFF(day, MIN(di.Fecha_Ingreso), GETDATE()) AS days_since_emission
       INTO #OverdueTemp
       FROM Datos_ingreso di
+      -- CRUCE CON LA CACHÉ
+      LEFT JOIN dbo.Datos_ingreso_interes_cache c
+        ON di.Cod_Ingreso = c.Cod_Ingreso
       WHERE di.Fecha_Pago IS NULL
         AND di.Estado_Ingreso IS NULL
         AND di.convenio IS NULL
@@ -365,7 +385,15 @@ export class SQLServer2000AccountingPersistence
         total_old_improvements_interest,
         total_surcharge,
         total_old_surcharge,
-        months_past_due
+        months_past_due,
+        total_interest_calculated,
+        total_debt_amount,
+        emision_date_more_old,
+        emision_date_more_recent,
+        due_date_more_old,
+        due_date_more_recent,
+        days_since_due,
+        days_since_emission
       FROM #OverdueTemp
       WHERE rn > ${safeOffset}
       ORDER BY rn;
@@ -1174,7 +1202,11 @@ export class SQLServer2000AccountingPersistence
 
             -- ── Metadatos de ingreso ──────────────────────────────────────────────────────
             di.Estado_Ingreso               AS income_status,
-            di.Fecha_Ingreso                AS income_date
+            di.Fecha_Ingreso                AS income_date,
+            CASE 
+                WHEN di.Fecha_Venc_Interes < CONVERT(varchar(10), GETDATE(), 121) THEN 'Vencido' 
+                ELSE 'No Vencido' 
+            END AS due_date_status
 
         FROM Datos_ingreso di
         INNER JOIN CIUDADANO c
