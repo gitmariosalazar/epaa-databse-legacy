@@ -1122,6 +1122,7 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
                 SUM(ISNULL(f.tasa_basura, 0)) AS total_trash_rate,
                 SUM(ISNULL(f.Recargo, 0)) AS total_surcharge,
                 SUM(ISNULL(f.interes_mejoras, 0)) AS total_improvements_interest,
+                SUM(ISNULL(f.interest_calculated, 0)) AS total_interest_calculated,
 
                 SUM(
                     ISNULL(f.tasa_basura, 0)
@@ -1221,18 +1222,21 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
                 SUM(ISNULL(di.Recargo, 0)) AS total_surcharge,
                 SUM(ISNULL(di.Recargo_old, 0)) AS total_old_surcharge,
                 SUM(ISNULL(di.interes_mejoras, 0)) AS total_improvements_interest,
+                SUM(ISNULL(c.interes_calculado, 0)) AS total_interest_calculated,
 
                 SUM(
-                    ISNULL(di.Valor_Titulo, 0)
-                  + ISNULL(di.ValorTerceros, 0)
-                  + ISNULL(di.tasa_basura, 0)
-                  + ISNULL(di.Recargo, 0)
+                    ISNULL(di.tasa_basura, 0)
+                  + ISNULL(di.Valor_Titulo, 0)
                   + ISNULL(di.interes_mejoras, 0)
+                  + ISNULL(di.Recargo, 0)
+                  + ISNULL(c.interes_calculado, 0)
                 ) AS total_debt_amount,
 
                 MIN(di.Fecha_Venc_Interes) AS oldest_due_date
 
             FROM Datos_ingreso di
+            LEFT JOIN dbo.Datos_ingreso_interes_cache c
+              ON di.Cod_Ingreso = c.Cod_Ingreso
             INNER JOIN clientes_validos cv
                 ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
               AND di.ClaveCatastral = cv.ClaveCatastral
@@ -1271,6 +1275,7 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
             SUM(total_surcharge) AS total_surcharge,
             SUM(total_old_surcharge) AS total_old_surcharge,
             SUM(total_improvements_interest) AS total_improvements_interest,
+            SUM(total_interest_calculated) AS total_interest_calculated,
 
             AVG(CAST(months_past_due AS DECIMAL(10,2))) AS avg_months_past_due,
             MAX(months_past_due) AS max_months_in_debt,
@@ -1352,18 +1357,21 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
                 SUM(ISNULL(di.Recargo, 0))               AS total_surcharge,
                 SUM(ISNULL(di.Recargo_old, 0))           AS total_old_surcharge,
                 SUM(ISNULL(di.interes_mejoras, 0))       AS total_improvements_interest,
+                SUM(ISNULL(c.interes_calculado, 0))      AS total_interest_calculated,
 
                 SUM(
-                    ISNULL(di.Valor_Titulo, 0)
-                  + ISNULL(di.ValorTerceros, 0)
-                  + ISNULL(di.tasa_basura, 0)
-                  + ISNULL(di.Recargo, 0)
+                    ISNULL(di.tasa_basura, 0)
+                  + ISNULL(di.Valor_Titulo, 0)
                   + ISNULL(di.interes_mejoras, 0)
+                  + ISNULL(di.Recargo, 0)
+                  + ISNULL(c.interes_calculado, 0)
                 ) AS total_debt_amount,
 
                 MIN(di.Fecha_Venc_Interes) AS oldest_due_date
 
             FROM Datos_ingreso di
+            LEFT JOIN dbo.Datos_ingreso_interes_cache c
+              ON di.Cod_Ingreso = c.Cod_Ingreso
             INNER JOIN clientes_validos cv
                 ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
               AND di.ClaveCatastral = cv.ClaveCatastral
@@ -1406,6 +1414,7 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
             SUM(b.total_surcharge)               AS total_surcharge,
             SUM(b.total_old_surcharge)           AS total_old_surcharge,
             SUM(b.total_improvements_interest)   AS total_improvements_interest,
+            SUM(b.total_interest_calculated)     AS total_interest_calculated,
 
             AVG(CAST(b.months_past_due AS DECIMAL(10,2))) AS avg_months_past_due,
             MAX(b.months_past_due)                        AS max_months_in_debt,

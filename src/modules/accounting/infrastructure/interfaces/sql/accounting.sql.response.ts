@@ -82,6 +82,7 @@ export interface OverdueSummarySqlResult {
   total_surcharge: number;
   total_old_surcharge: number;
   total_improvements_interest: number;
+  total_interest_calculated: number;
   avg_months_past_due: number;
   max_months_in_debt: number;
   min_months_in_debt: number;
@@ -104,6 +105,7 @@ export interface YearlyOverdueSummarySqlResult {
   total_surcharge: number;
   total_old_surcharge: number;
   total_improvements_interest: number;
+  total_interest_calculated: number;
   avg_months_past_due: number;
   max_months_in_debt: number;
   min_months_in_debt: number;
@@ -132,6 +134,7 @@ export interface MonthlyDebtSummarySqlResult {
   total_surcharge: number;
   total_old_surcharge: number;
   total_improvements_interest: number;
+  total_interest_calculated: number;
 
   avg_months_past_due: number | null;
   max_months_in_debt: number;

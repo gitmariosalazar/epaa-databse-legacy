@@ -246,6 +246,10 @@ export class SQLServerAccountingAdapter {
         data.total_improvements_interest != null
           ? Number(data.total_improvements_interest)
           : 0,
+      totalInterestCalculated:
+        data.total_interest_calculated != null
+          ? Number(data.total_interest_calculated)
+          : 0,
       avgMonthsPastDue:
         data.avg_months_past_due != null ? Number(data.avg_months_past_due) : 0,
       maxMonthsInDebt:
@@ -301,6 +305,10 @@ export class SQLServerAccountingAdapter {
       totalImprovementsInterest:
         data.total_improvements_interest != null
           ? Number(data.total_improvements_interest)
+          : 0,
+      totalInterestCalculated:
+        data.total_interest_calculated != null
+          ? Number(data.total_interest_calculated)
           : 0,
       avgMonthsPastDue:
         data.avg_months_past_due != null ? Number(data.avg_months_past_due) : 0,
@@ -365,6 +373,10 @@ export class SQLServerAccountingAdapter {
       totalImprovementsInterest:
         data.total_improvements_interest != null
           ? Number(data.total_improvements_interest)
+          : 0,
+      totalInterestCalculated:
+        data.total_interest_calculated != null
+          ? Number(data.total_interest_calculated)
           : 0,
 
       avgMonthsPastDue:
