@@ -470,10 +470,10 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
 
                 SUM(
                     ISNULL(di.Valor_Titulo, 0)
-                  + ISNULL(di.ValorTerceros, 0)
                   + ISNULL(di.tasa_basura, 0)
-                  + ISNULL(di.Recargo, 0)
                   + ISNULL(di.interes_mejoras, 0)
+                  + ISNULL(di.Recargo, 0)
+                  + ISNULL(c.interes_calculado, 0)
                 ) AS total_debt_amount,
 
                 MIN(di.Fecha_Venc_Interes) AS oldest_due_date
