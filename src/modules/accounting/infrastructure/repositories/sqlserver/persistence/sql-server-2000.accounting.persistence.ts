@@ -333,7 +333,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
       SET NOCOUNT ON;
 
       DECLARE @Corte DATETIME;
-      SET @Corte = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120));
+      SET @Corte = DATEADD(dd, DATEDIFF(dd, 0, GETDATE()) + 1, 0);
 
       SELECT 
         IDENTITY(int, 1, 1) AS rn,
@@ -375,7 +375,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
       WHERE di.Fecha_Pago IS NULL
         AND di.Estado_Ingreso IS NULL
         AND di.convenio IS NULL
-        AND di.Fecha_Venc_Interes <= @Corte
+        AND di.Fecha_Venc_Interes < @Corte
 
       GROUP BY di.ClaveCatastral, di.CodCliente_Ingreso
       HAVING COUNT(di.Cod_Ingreso) > 1
@@ -428,7 +428,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
         SET NOCOUNT ON;
 
         DECLARE @Corte DATETIME;
-        SET @Corte = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120));
+        SET @Corte = DATEADD(dd, DATEDIFF(dd, 0, GETDATE()) + 1, 0);
 
         SELECT
             COUNT(DISTINCT CodCliente_Ingreso) AS total_clients_with_debt,
@@ -442,7 +442,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
             SUM(total_surcharge)               AS total_surcharge,
             SUM(total_old_surcharge)           AS total_old_surcharge,
             SUM(total_improvements_interest)   AS total_improvements_interest,
-
+            SUM(total_interest_calculated)     AS total_interest_calculated,
             AVG(CAST(months_past_due AS DECIMAL(10,2))) AS avg_months_past_due,
             MAX(months_past_due)               AS max_months_in_debt,
             MIN(months_past_due)               AS min_months_in_debt,
@@ -466,6 +466,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
                 SUM(ISNULL(di.Recargo, 0)) AS total_surcharge,
                 SUM(ISNULL(di.Recargo_old, 0)) AS total_old_surcharge,
                 SUM(ISNULL(di.interes_mejoras, 0)) AS total_improvements_interest,
+                SUM(ISNULL(c.interes_calculado, 0)) AS total_interest_calculated,
 
                 SUM(
                     ISNULL(di.Valor_Titulo, 0)
@@ -478,13 +479,15 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
                 MIN(di.Fecha_Venc_Interes) AS oldest_due_date
 
             FROM Datos_ingreso di
+              LEFT JOIN dbo.Datos_ingreso_interes_cache c
+                ON di.Cod_Ingreso = c.Cod_Ingreso
             INNER JOIN (
                 SELECT CodCliente_Ingreso
                 FROM Datos_ingreso
                 WHERE Fecha_Pago IS NULL
                   AND Estado_Ingreso IS NULL
                   AND convenio IS NULL
-                  AND Fecha_Venc_Interes <= @Corte
+                  AND Fecha_Venc_Interes < @Corte
                 GROUP BY CodCliente_Ingreso
                 HAVING COUNT(*) > 1
             ) AS cv ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
@@ -492,7 +495,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
             WHERE di.Fecha_Pago IS NULL
               AND di.Estado_Ingreso IS NULL
               AND di.convenio IS NULL
-              AND di.Fecha_Venc_Interes <= @Corte
+              AND di.Fecha_Venc_Interes < @Corte
 
             GROUP BY
                 di.CodCliente_Ingreso,
@@ -523,7 +526,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
         SET NOCOUNT ON;
 
         DECLARE @Today DATETIME;
-        SET @Today = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120));
+        SET @Today = DATEADD(dd, DATEDIFF(dd, 0, GETDATE()) + 1, 0);
 
         SELECT
             b.[year],
@@ -592,7 +595,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
                 WHERE Fecha_Pago IS NULL
                   AND Estado_Ingreso IS NULL
                   AND convenio IS NULL
-                  AND Fecha_Venc_Interes <= @Today
+                  AND Fecha_Venc_Interes < @Today
                 GROUP BY CodCliente_Ingreso, ClaveCatastral
                 HAVING COUNT(*) > 1
             ) AS cv ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
@@ -601,7 +604,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
             WHERE di.Fecha_Pago IS NULL
               AND di.Estado_Ingreso IS NULL
               AND di.convenio IS NULL
-              AND di.Fecha_Venc_Interes <= @Today
+              AND di.Fecha_Venc_Interes < @Today
 
             GROUP BY
                 di.CodCliente_Ingreso,
@@ -625,7 +628,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
                     WHERE Fecha_Pago IS NULL
                       AND Estado_Ingreso IS NULL
                       AND convenio IS NULL
-                      AND Fecha_Venc_Interes <= @Today
+                      AND Fecha_Venc_Interes < @Today
                     GROUP BY CodCliente_Ingreso, ClaveCatastral
                     HAVING COUNT(*) > 1
                 ) AS cv ON di.CodCliente_Ingreso = cv.CodCliente_Ingreso
@@ -633,7 +636,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
                 WHERE di.Fecha_Pago IS NULL
                   AND di.Estado_Ingreso IS NULL
                   AND di.convenio IS NULL
-                  AND di.Fecha_Venc_Interes <= @Today
+                  AND di.Fecha_Venc_Interes < @Today
                 GROUP BY
                     di.CodCliente_Ingreso,
                     di.ClaveCatastral
@@ -671,7 +674,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
         SET NOCOUNT ON;
         SET ANSI_WARNINGS OFF;
         DECLARE @Today DATETIME;
-        SET @Today = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120));
+        SET @Today = DATEADD(dd, DATEDIFF(dd, 0, GETDATE()) + 1, 0);
 
         SELECT 
             CodCliente_Ingreso,
@@ -681,7 +684,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
         WHERE Fecha_Pago IS NULL
           AND Estado_Ingreso IS NULL
           AND convenio IS NULL
-          AND Fecha_Venc_Interes <= @Today
+          AND Fecha_Venc_Interes < @Today
         GROUP BY CodCliente_Ingreso, ClaveCatastral
         HAVING COUNT(*) > 1
 
@@ -728,7 +731,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
         WHERE di.Fecha_Pago IS NULL
           AND di.Estado_Ingreso IS NULL
           AND di.convenio IS NULL
-          AND di.Fecha_Venc_Interes <= @Today
+          AND di.Fecha_Venc_Interes < @Today
         GROUP BY 
             di.CodCliente_Ingreso,
             di.ClaveCatastral,
