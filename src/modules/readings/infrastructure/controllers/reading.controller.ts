@@ -17,12 +17,14 @@ export class ReadingController {
       console.log(`Received createReading request: ${JSON.stringify(reading)}`);
       return await this.readingService.createReading(reading);
     } catch (error) {
-      console.error(`Error in createReading: ${error.message}`, error);
+      const err = error as Error;
+
+      console.error(`Error in createReading: ${err.message}`, err);
       // Retornar un objeto de error en lugar de arrojar una excepción
       // evita que Kafka reintente el evento en un bucle infinito.
       return {
         statusCode: 500,
-        message: error.message || 'Internal server error',
+        message: err.message || 'Internal server error',
       };
     }
   }
@@ -73,10 +75,11 @@ export class ReadingController {
           message: error.message,
         };
       }
-      console.error(`Error updating reading: ${error.message}`);
+      const err = error as Error;
+      console.error(`Error updating reading: ${err.message}`);
       return {
         statusCode: 500,
-        message: error.message || 'Internal server error',
+        message: err.message || 'Internal server error',
       };
     }
   }

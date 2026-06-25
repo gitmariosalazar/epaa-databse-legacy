@@ -1219,7 +1219,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
             di.Estado_Ingreso               AS income_status,
             di.Fecha_Ingreso                AS income_date,
             CASE 
-                WHEN di.Fecha_Venc_Interes < CONVERT(varchar(10), GETDATE(), 121) THEN 'Vencido' 
+                WHEN di.Fecha_Venc_Interes < DATEADD(dd, DATEDIFF(dd, 0, GETDATE()), 0) THEN 'Vencido' 
                 ELSE 'No Vencido' 
             END AS due_date_status
 
