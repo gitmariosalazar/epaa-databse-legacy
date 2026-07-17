@@ -23,13 +23,16 @@ export class ExternalPayrollPersistence implements InterfaceExternalPayrollRepos
   async getPayrollsByIdentification(
     identification: string,
   ): Promise<ExternalPayrollItem[]> {
-    const maxRetries = 3; // Reducido para evitar timeouts de Kafka (heartbeat de 30s)
+    // IMPORTANTE: el tiempo total (intentos × timeout + delays) debe ser < session.timeout de Kafka (~30s)
+    // AbortError (timeout) NO se reintenta porque ya indica que la API está lenta;
+    // reintentar multiplicaría el bloqueo y mataría el heartbeat de Kafka.
+    const maxRetries = 2; // 2 intentos × 10s = 20s máx → cabe dentro de los 30s de Kafka
     let lastError: any;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000); // Incrementado a 20 segundos para dar tiempo a la API externa que demora ~9s
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s: si la API tarda más no vale la pena esperar
 
         const url = `${this.baseUrl}?identification=${identification}`;
 
@@ -64,12 +67,15 @@ export class ExternalPayrollPersistence implements InterfaceExternalPayrollRepos
         lastError = error;
         clearTimeout((error as any).timeoutId); // por si acaso
 
+        // AbortError = timeout de nuestra parte → NO reintentar (ya gastamos 10s, reintentar duplicaría el bloqueo en Kafka)
+        const isAbortError =
+          error.name === 'AbortError' || error.name === 'DOMException';
         const isNetworkError =
-          error.name === 'AbortError' ||
-          error.code === 'ECONNRESET' ||
-          error.code === 'ECONNREFUSED' ||
-          error.code === 'ETIMEDOUT' ||
-          error.message?.includes('fetch failed');
+          !isAbortError &&
+          (error.code === 'ECONNRESET' ||
+            error.code === 'ECONNREFUSED' ||
+            error.code === 'ETIMEDOUT' ||
+            error.message?.includes('fetch failed'));
 
         if (isNetworkError && attempt < maxRetries) {
           const delay = Math.min(
