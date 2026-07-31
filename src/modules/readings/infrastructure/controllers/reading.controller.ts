@@ -31,17 +31,7 @@ export class ReadingController {
 
   @Get('find-current-reading')
   @MessagePattern('epaa-legacy.reading.find-current-reading')
-  findCurrentReading(
-    @Payload()
-    params: {
-      sector: number;
-      account: number;
-      incomeCode: number;
-      year: number;
-      month: string;
-      previousReading: number;
-    },
-  ) {
+  findCurrentReading(@Payload() params: FindCurrentReadingParams) {
     console.log(
       `Received findCurrentReading request: ${JSON.stringify(params)}`,
     );
@@ -76,7 +66,7 @@ export class ReadingController {
         };
       }
       const err = error as Error;
-      console.error(`Error updating reading: ${err.message}`);
+      console.error(`Error updating reading: ${err}`);
       return {
         statusCode: 500,
         message: err.message || 'Internal server error',

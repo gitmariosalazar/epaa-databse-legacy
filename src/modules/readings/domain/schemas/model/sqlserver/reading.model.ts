@@ -14,6 +14,9 @@ export class ReadingModel {
   private readingDate: Date;
   private readingTime: string;
   private cadastralKey: string;
+  private username: string;
+  private readingId: string | null;
+  private readingValueCalculated?: number | null;
 
   constructor(
     sector: number,
@@ -31,6 +34,9 @@ export class ReadingModel {
     readingTime: string,
     cadastralKey: string,
     incomeCode: number | null = null,
+    username: string = '',
+    readingId: string | null = null,
+    readingValueCalculated?: number | null,
   ) {
     this.sector = sector;
     this.account = account;
@@ -43,10 +49,13 @@ export class ReadingModel {
     this.readingValue = readingValue;
     this.sewerRate = sewerRate;
     this.reconnection = reconnection;
+    this.readingId = readingId;
     this.incomeCode = incomeCode;
     this.readingDate = readingDate;
     this.readingTime = readingTime;
     this.cadastralKey = cadastralKey;
+    this.username = username;
+    this.readingValueCalculated = readingValueCalculated;
   }
 
   getSector(): number {
@@ -156,6 +165,38 @@ export class ReadingModel {
     this.month = month;
   }
 
+  setYear(year: number): void {
+    this.year = year;
+  }
+
+  setSector(sector: number): void {
+    this.sector = sector;
+  }
+
+  setAccount(account: number): void {
+    this.account = account;
+  }
+
+  setUsername(username: string): void {
+    this.username = username;
+  }
+
+  getUsername(): string {
+    return this.username;
+  }
+
+  getReadingId(): string | null {
+    return this.readingId;
+  }
+
+  setReadingId(readingId: string | null): void {
+    this.readingId = readingId;
+  }
+
+  getReadingValueCalculated(): number | null | undefined {
+    return this.readingValueCalculated;
+  }
+
   toJSON() {
     return {
       sector: this.sector,
@@ -173,6 +214,9 @@ export class ReadingModel {
       readingDate: this.readingDate,
       readingTime: this.readingTime,
       cadastralKey: this.cadastralKey,
+      username: this.username,
+      readingId: this.readingId,
+      readingValueCalculated: this.readingValueCalculated,
     };
   }
 }

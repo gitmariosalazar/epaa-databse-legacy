@@ -14,6 +14,9 @@ export class UpdateReadingRequest {
   readingDate!: Date;
   readingTime!: string;
   cadastralKey!: string;
+  username!: string;
+  readingId!: string | null;
+  readingValueCalculated?: number | null;
 }
 
 /*

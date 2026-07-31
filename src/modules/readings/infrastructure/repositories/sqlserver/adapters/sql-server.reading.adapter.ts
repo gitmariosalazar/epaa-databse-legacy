@@ -1,9 +1,5 @@
-import {
-  ReadingResponse,
-} from '../../../../domain/schemas/dto/response/readings.response';
-import {
-  ReadingSQLResult,
-} from '../../../interfaces/reading.sql.response';
+import { ReadingResponse } from '../../../../domain/schemas/dto/response/readings.response';
+import { ReadingSQLResult } from '../../../interfaces/reading.sql.response';
 
 export class SQLServerReadingAdapter {
   static toDomain(data: ReadingSQLResult): ReadingResponse {
@@ -23,6 +19,7 @@ export class SQLServerReadingAdapter {
       readingDate: data.readingDate,
       readingTime: data.readingTime,
       cadastralKey: data.cadastralKey,
+      readingId: data.readingId != null ? String(data.readingId) : '',
     };
   }
 
@@ -48,6 +45,7 @@ export class SQLServerReadingAdapter {
       readingDate: data.readingDate || null,
       readingTime: data.readingTime ? String(data.readingTime).trim() : null,
       cadastralKey: data.cadastralKey ? String(data.cadastralKey).trim() : '',
+      readingId: data.readingId != null ? String(data.readingId) : '',
     };
   }
 }

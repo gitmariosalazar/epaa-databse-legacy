@@ -22,6 +22,10 @@ export class ReadingMapper {
       request.readingDate,
       request.readingTime,
       request.cadastralKey,
+      null,
+      request.username,
+      request.readingId,
+      request.readingValueCalculated,
     );
   }
 
@@ -44,6 +48,10 @@ export class ReadingMapper {
       request.readingDate,
       request.readingTime,
       request.cadastralKey,
+      null,
+      request.username,
+      request.readingId,
+      request.readingValueCalculated,
     );
   }
 }

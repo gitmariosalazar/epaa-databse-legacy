@@ -96,6 +96,18 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
         type: 'string',
         maxLength: 50,
       },
+      {
+        name: 'username',
+        value: reading.getUsername(),
+        type: 'string',
+        maxLength: 15,
+      },
+      {
+        name: 'readingId',
+        value: reading.getReadingId(),
+        type: 'string',
+        maxLength: 20,
+      },
     ];
 
     for (const field of requiredFields) {
@@ -137,12 +149,13 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
     let lastQuery: string | undefined = undefined;
     try {
       this.validateReading(reading);
+      const monthNumber = MONTHS_REVERSE[reading.getMonth()];
       return await this.sqlServerService.transaction<ReadingResponse>(
         async (conn) => {
           const formattedDate = formatDateForSQLServer(
             reading.getReadingDate(),
           ).replace(/-/g, ''); // YYYYMMDD HH:mm:ss
-          const insertQuery = `INSERT INTO AP_LECTURAS (Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, Novedad, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral) VALUES (${Number(reading.getSector())}, ${Number(reading.getAccount())}, '${String(reading.getYear())}', '${String(reading.getMonth())}', ${Number(reading.getPreviousReading())}, ${Number(reading.getCurrentReading())}, '${String(reading.getNovelty())}', ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : 'NULL'}, ${reading.getReconnection() != null ? parseFloat(reading.getReconnection()?.toFixed(8)!) : 'NULL'}, '${formattedDate}', '${String(reading.getReadingTime())}', '${String(reading.getCadastralKey())}')`;
+          const insertQuery = `INSERT INTO AP_LECTURAS (Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, Novedad, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral, usuario, id_lectura,mesnum, valor_consumo_agua) VALUES (${Number(reading.getSector())}, ${Number(reading.getAccount())}, '${String(reading.getYear())}', '${String(reading.getMonth())}', ${Number(reading.getPreviousReading())}, ${Number(reading.getCurrentReading())}, '${String(reading.getNovelty())}', ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : 'NULL'}, ${reading.getReconnection() != null ? parseFloat(reading.getReconnection()?.toFixed(8)!) : 'NULL'}, '${formattedDate}', '${String(reading.getReadingTime())}', '${String(reading.getCadastralKey())}', '${String(reading.getUsername())}', '${String(reading.getReadingId())}', '${monthNumber}', ${reading.getReadingValueCalculated() != null ? parseFloat(reading.getReadingValueCalculated()?.toFixed(2)!) : 'NULL'})`;
 
           lastQuery = insertQuery;
           console.log('Executing Insert Query:', lastQuery);
@@ -165,10 +178,13 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
             Cod_ingreso AS incomeCode,
             FechaCaptura AS readingDate,
             HoraCaptura AS readingTime,
-            ClaveCatastral AS cadastralKey
+            ClaveCatastral AS cadastralKey,
+            usuario AS username,
+            id_lectura AS readingId
           FROM AP_LECTURAS
           WHERE Sector = ${Number(reading.getSector())} 
           AND Cuenta = ${Number(reading.getAccount())}
+          AND id_lectura = '${String(reading.getReadingId())}'
           ORDER BY FechaCaptura DESC
         `;
           lastQuery = selectQuery;
@@ -218,13 +234,14 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
         Cod_ingreso AS incomeCode,
         FechaCaptura AS readingDate,
         HoraCaptura AS readingTime,
-        ClaveCatastral AS cadastralKey
+        ClaveCatastral AS cadastralKey,
+        id_lectura AS readingId
       FROM AP_LECTURAS
       WHERE Sector = ${Number(params.sector)}
         AND Cuenta = ${Number(params.account)}
         AND Anio = '${Number(params.year)}'
         AND Mes = '${String(params.month)}'
-        AND LecturaAnterior = ${Number(params.previousReading)}
+        AND id_lectura = '${String(params.readingId)}'
       ORDER BY FechaCaptura DESC
     `;
 
@@ -249,18 +266,24 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
     try {
       return await this.sqlServerService.transaction<ReadingResponse>(
         async (conn) => {
+          console.log(
+            `Searching for existing reading with params: ${JSON.stringify(reading)}`,
+          );
           const updateQuery = `
           UPDATE AP_LECTURAS
           SET
             LecturaActual = ${Number(reading.getCurrentReading())},
             Novedad = '${String(reading.getNovelty() || '')}',
-            ClaveCatastral = '${String(reading.getCadastralKey() || '')}'
+            ClaveCatastral = '${String(reading.getCadastralKey() || '')}',
+            usuario_actualizacion = '${String(reading.getUsername() || '')}',
+            updated_at = GETDATE(),
+            valor_consumo_agua = ${reading.getReadingValueCalculated() != null ? parseFloat(reading.getReadingValueCalculated()?.toFixed(2)!) : 'NULL'}
           WHERE
             Sector = ${Number(params.sector)}
             AND Cuenta = ${Number(params.account)}
             AND Anio = '${Number(params.year)}'
             AND Mes = '${String(params.month)}'
-            AND LecturaAnterior = ${Number(params.previousReading)}
+            AND id_lectura = '${String(params.readingId || '')}'
         `;
 
           //console.log('Here AM i Last Query: ', updateQuery);
@@ -294,13 +317,14 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
             Cod_ingreso AS incomeCode,
             FechaCaptura AS readingDate,
             HoraCaptura AS readingTime,
-            ClaveCatastral AS cadastralKey
+            ClaveCatastral AS cadastralKey,
+            id_lectura AS readingId
           FROM AP_LECTURAS
           WHERE Sector = ${Number(params.sector)}
             AND Cuenta = ${Number(params.account)}
             AND Anio = '${Number(params.year)}'
             AND Mes = '${String(params.month)}'
-            AND LecturaAnterior = ${Number(params.previousReading)}
+            AND id_lectura = '${String(params.readingId || '')}'
           ORDER BY FechaCaptura DESC
         `;
 
@@ -332,6 +356,9 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
     consumptionM3: number,
   ): Promise<number> {
     try {
+      if (consumptionM3 < 0) {
+        return 0;
+      }
       const vSector = cadastralKey.split('-')[0];
       const vCuenta = cadastralKey.split('-')[1];
 

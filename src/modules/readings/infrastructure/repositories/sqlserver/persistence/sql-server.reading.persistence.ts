@@ -12,16 +12,19 @@ import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading
 import { FindCurrentReadingParams } from '../../../../domain/schemas/dto/request/find-current-reading.paramss';
 import { RpcException } from '@nestjs/microservices';
 import { statusCode } from '../../../../../../settings/environments/status-code';
+import { MONTHS_REVERSE } from '../../../../../../shared/consts/months';
 
 @Injectable()
 export class ReadingSQLServer2022Persistence implements InterfaceReadingsRepository {
   constructor(private readonly sqlServerService: DatabaseAbstract) {}
   async createReading(reading: ReadingModel): Promise<ReadingResponse> {
     try {
+      const monthNumber = MONTHS_REVERSE[reading.getMonth()];
       const query: string = `
       INSERT INTO AP_LECTURAS
       (
-      Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, CodigoIngresoARentas, Novedad, ValorAPagar, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral
+      Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, CodigoIngresoARentas, Novedad, ValorAPagar, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral, id_lectura, usuario, mesnum,
+      valor_consumo_agua
       )
       OUTPUT
       inserted.Sector       AS sector,
@@ -38,10 +41,13 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
       inserted.Cod_ingreso  AS incomeCode,
       inserted.FechaCaptura AS readingDate,
       inserted.HoraCaptura  AS readingTime,
-      inserted.ClaveCatastral AS cadastralKey
+      inserted.ClaveCatastral AS cadastralKey,
+      inserted.id_lectura AS readingId,
+      inserted.usuario AS username
       VALUES
       (
-      @sector, @account, @year, @month, @previousReading, @currentReading, @rentalIncomeCode, @novelty, @readingValue, @sewerRate, @reconnection, @readingDate, @readingTime, @cadastralKey
+      @sector, @account, @year, @month, @previousReading, @currentReading, @rentalIncomeCode, @novelty, @readingValue, @sewerRate, @reconnection, @readingDate, @readingTime, @cadastralKey, @readingId, @username, @monthNumber,
+      @readingValueCalculated
       );
       `;
       const params: any[] = [
@@ -59,7 +65,13 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         { name: 'cadastralKey', value: reading.getCadastralKey() },
         { name: 'readingDate', value: reading.getReadingDate() },
         { name: 'readingTime', value: reading.getReadingTime() },
-        //{ name: 'incomeCode', value: reading.getIncomeCode() }
+        { name: 'readingId', value: reading.getReadingId() },
+        { name: 'username', value: reading.getUsername() },
+        { name: 'monthNumber', value: monthNumber },
+        {
+          name: 'readingValueCalculated',
+          value: reading.getReadingValueCalculated(),
+        },
       ];
       const result: ReadingSQLResult[] =
         await this.sqlServerService.query<ReadingSQLResult>(query, params);
@@ -96,13 +108,15 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         Cod_ingreso AS incomeCode,
         FechaCaptura AS readingDate,
         HoraCaptura AS readingTime,
-        ClaveCatastral AS cadastralKey
+        ClaveCatastral AS cadastralKey,
+        id_lectura AS readingId,
+        usuario AS username
       FROM AP_LECTURAS
       WHERE Sector = ${Number(params.sector)}
         AND Cuenta = ${Number(params.account)}
         AND Anio = '${Number(params.year)}'
         AND Mes = '${String(params.month)}'
-        AND LecturaAnterior = ${Number(params.previousReading)}
+        AND id_lectura = '${String(params.readingId)}'
         --AND FechaCaptura IS NULL
       ORDER BY FechaCaptura DESC
     `;
@@ -146,7 +160,10 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         --Reconexion = @reconnection,
         --FechaCaptura = @readingDate,
         --HoraCaptura = @readingTime,
-        ClaveCatastral = @cadastralKey
+        usuario_actualizacion = @username,
+        ClaveCatastral = @cadastralKey,
+        updated_at = GETDATE(),
+        valor_consumo_agua = @readingValueCalculated
       OUTPUT
         inserted.Sector       AS sector,
         inserted.Cuenta       AS account,
@@ -162,10 +179,11 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         inserted.Cod_ingreso  AS incomeCode,
         inserted.FechaCaptura AS readingDate,
         inserted.HoraCaptura  AS readingTime,
-        inserted.ClaveCatastral AS cadastralKey
+        inserted.ClaveCatastral AS cadastralKey,
+        inserted.id_lectura AS readingId
       WHERE
         Sector = @sector AND Cuenta = @account --AND Cod_ingreso = @incomeCode
-        AND Anio = @year AND Mes = @month AND LecturaAnterior = @previousReading; --AND FechaCaptura IS NULL;
+        AND Anio = @year AND Mes = @month AND id_lectura = @readingId; --AND FechaCaptura IS NULL;
       `;
       const queryParams: any[] = [
         {
@@ -183,7 +201,12 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         { name: 'account', value: Number(params.account) },
         { name: 'year', value: Number(params.year) },
         { name: 'month', value: params.month }, // string, ok
-        { name: 'previousReading', value: Number(params.previousReading) || 0 },
+        { name: 'readingId', value: String(params.readingId) || null },
+        { name: 'username', value: reading.getUsername() },
+        {
+          name: 'readingValueCalculated',
+          value: reading.getReadingValueCalculated(),
+        },
       ];
 
       const updatedReading =
@@ -216,6 +239,9 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
     consumptionM3: number,
   ): Promise<number> {
     try {
+      if (consumptionM3 < 0) {
+        return 0;
+      }
       const vSector = cadastralKey.split('-')[0];
       const vCuenta = cadastralKey.split('-')[1];
 

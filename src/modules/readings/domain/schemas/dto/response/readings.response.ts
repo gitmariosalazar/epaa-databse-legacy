@@ -14,4 +14,5 @@ export interface ReadingResponse {
   readingDate: Date;
   readingTime: string | null;
   cadastralKey: string;
+  readingId: string;
 }

@@ -21,7 +21,9 @@ export class ReadingService implements InterfaceReadingUseCase {
     private readonly readingsRepository: InterfaceReadingsRepository,
   ) {}
 
-  async createReading(request: CreateReadingLegacyRequest): Promise<ReadingResponse> {
+  async createReading(
+    request: CreateReadingLegacyRequest,
+  ): Promise<ReadingResponse> {
     try {
       const requiredFields: string[] = [
         'previousReading',
@@ -37,6 +39,16 @@ export class ReadingService implements InterfaceReadingUseCase {
       if (missingFieldsMessages.length > 0) {
         throw new Error(JSON.stringify(missingFieldsMessages));
       }
+
+      const changeNovelty: string | null = this.changeNovelty(request.novelty);
+      request.novelty = changeNovelty;
+
+      const valueConsumoAgua = await this.calculateReadingValue(
+        request.cadastralKey,
+        Number(request.currentReading) - Number(request.previousReading),
+      );
+
+      request.readingValueCalculated = valueConsumoAgua;
 
       const now: Date = new Date();
       const hour: string = new Intl.DateTimeFormat('en-US', {
@@ -65,12 +77,12 @@ export class ReadingService implements InterfaceReadingUseCase {
         account: accountVal,
         year: request.year,
         month: request.month,
-        previousReading: request.previousReading,
+        readingId: request.readingId!,
       });
       if (existingReading) {
         // En lugar de fallar o duplicar, retornamos exitosamente la lectura previa
         console.warn(
-          `[Idempotency Check] Reading already exists for Sector ${sectorVal}, Account ${accountVal} in ${request.month}/${request.year}. Skipping duplicate insert.`
+          `[Idempotency Check] Reading already exists for Sector ${sectorVal}, Account ${accountVal} in ${request.month}/${request.year}. Skipping duplicate insert.`,
         );
         return existingReading;
       }
@@ -93,7 +105,7 @@ export class ReadingService implements InterfaceReadingUseCase {
         'account',
         'year',
         'month',
-        'previousReading',
+        'readingId',
       ];
 
       const missingParametersMessages: string[] = validateFields(
@@ -139,7 +151,7 @@ export class ReadingService implements InterfaceReadingUseCase {
         'account',
         'year',
         'month',
-        'previousReading',
+        'readingId',
       ];
 
       const missingParamsMessages: string[] = validateFields(
@@ -149,6 +161,10 @@ export class ReadingService implements InterfaceReadingUseCase {
       if (missingParamsMessages.length > 0) {
         throw new Error(JSON.stringify(missingParamsMessages));
       }
+
+      console.log(
+        `Searching for existing reading with params: ${JSON.stringify(params)}`,
+      );
 
       const existingReading =
         await this.readingsRepository.findCurrentReading(params);
@@ -174,6 +190,15 @@ export class ReadingService implements InterfaceReadingUseCase {
       }
       */
 
+      const changeNovelty: string | null = this.changeNovelty(request.novelty);
+      request.novelty = changeNovelty;
+      const valueConsumoAgua = await this.calculateReadingValue(
+        request.cadastralKey,
+        Number(request.currentReading) - Number(request.previousReading),
+      );
+
+      request.readingValueCalculated = valueConsumoAgua;
+
       const updatedReadingModel: ReadingModel =
         ReadingMapper.fromUpdateReadingRequestToReadingModel(request);
 
@@ -192,6 +217,34 @@ export class ReadingService implements InterfaceReadingUseCase {
     } catch (error) {
       throw error;
     }
+  }
+
+  private changeNovelty(novelty: string | null): string | null {
+    if (!novelty) {
+      return null;
+    }
+    const noveltyUpper = novelty.toUpperCase();
+    if (
+      noveltyUpper.includes('CONSUMO MUY BAJO') ||
+      noveltyUpper.includes('ALERTA CONSUMO BAJO')
+    ) {
+      return 'NORMAL';
+    }
+    if (
+      noveltyUpper.includes('CONSUMO MUY ALTO') ||
+      noveltyUpper.includes('ALERTA CONSUMO ALTO')
+    ) {
+      return 'CONSUMO ALTO';
+    }
+    if (noveltyUpper.includes('LECTURA INICIAL')) {
+      return 'NUEVO';
+    }
+
+    if (noveltyUpper.includes('LECTURA INVÁLIDA')) {
+      return 'LECTURA INVALIDA';
+    }
+
+    return novelty;
   }
 
   async calculateReadingValue(

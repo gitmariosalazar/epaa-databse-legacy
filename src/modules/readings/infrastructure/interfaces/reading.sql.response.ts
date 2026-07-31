@@ -14,6 +14,7 @@ export interface ReadingSQLResult {
   readingDate: Date;
   readingTime: string | null;
   cadastralKey: string;
+  readingId?: string | number;
 }
 
 export interface ReadingSQL2000Result {
@@ -32,6 +33,7 @@ export interface ReadingSQL2000Result {
   readingDate: Date;
   readingTime: string | null;
   cadastralKey: string;
+  readingId?: string | number;
 }
 
 export interface TarifaSQLResult {
