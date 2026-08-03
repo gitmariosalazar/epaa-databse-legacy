@@ -169,10 +169,6 @@ export class ReadingService implements InterfaceReadingUseCase {
         throw new Error(JSON.stringify(missingParamsMessages));
       }
 
-      console.log(
-        `Searching for existing reading with params: ${JSON.stringify(params)}`,
-      );
-
       const existingReading =
         await this.readingsRepository.findCurrentReading(params);
 

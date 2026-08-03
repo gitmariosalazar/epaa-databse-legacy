@@ -267,9 +267,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
     try {
       return await this.sqlServerService.transaction<ReadingResponse>(
         async (conn) => {
-          console.log(
-            `Searching for existing reading with params: ${JSON.stringify(reading)}`,
-          );
+
           const updateQuery = `
           UPDATE AP_LECTURAS
           SET
@@ -293,7 +291,6 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
           lastQuery = updateQuery;
           const updateResult = await conn.query(updateQuery);
 
-          console.log('Here AM i: ', lastQuery, updateResult);
           /*
           if (updateResult.length === 0) {
             throw new DatabaseError(
