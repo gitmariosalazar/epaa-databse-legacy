@@ -24,7 +24,7 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
       INSERT INTO AP_LECTURAS
       (
       Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, CodigoIngresoARentas, Novedad, ValorAPagar, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral, id_lectura, usuario, mesnum,
-      valor_consumo_agua
+      valor_consumo_agua, valor_tasa_alcantarillado
       )
       OUTPUT
       inserted.Sector       AS sector,
@@ -47,7 +47,7 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
       VALUES
       (
       @sector, @account, @year, @month, @previousReading, @currentReading, @rentalIncomeCode, @novelty, @readingValue, @sewerRate, @reconnection, @readingDate, @readingTime, @cadastralKey, @readingId, @username, @monthNumber,
-      @readingValueCalculated
+      @readingValueCalculated, @sewerRateValue
       );
       `;
       const params: any[] = [
@@ -71,6 +71,10 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         {
           name: 'readingValueCalculated',
           value: reading.getReadingValueCalculated(),
+        },
+        {
+          name: 'sewerRateValue',
+          value: reading.getSewerRate(),
         },
       ];
       const result: ReadingSQLResult[] =
@@ -163,7 +167,8 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         usuario_actualizacion = @username,
         ClaveCatastral = @cadastralKey,
         updated_at = GETDATE(),
-        valor_consumo_agua = @readingValueCalculated
+        valor_consumo_agua = @readingValueCalculated,
+        valor_tasa_alcantarillado = @sewerRate
       OUTPUT
         inserted.Sector       AS sector,
         inserted.Cuenta       AS account,

@@ -50,6 +50,9 @@ export class ReadingService implements InterfaceReadingUseCase {
 
       request.readingValueCalculated = valueConsumoAgua;
 
+      const sewerRateValue = this.CalculateSewerRate(valueConsumoAgua);
+      request.sewerRate = sewerRateValue;
+
       const now: Date = new Date();
       const hour: string = new Intl.DateTimeFormat('en-US', {
         hour: '2-digit',
@@ -94,6 +97,10 @@ export class ReadingService implements InterfaceReadingUseCase {
     } catch (error) {
       throw error;
     }
+  }
+
+  private CalculateSewerRate(readingValue: number): number {
+    return readingValue * (40 / 100); // 40% of the reading value
   }
 
   async findCurrentReading(
@@ -198,6 +205,8 @@ export class ReadingService implements InterfaceReadingUseCase {
       );
 
       request.readingValueCalculated = valueConsumoAgua;
+      const sewerRateValue = this.CalculateSewerRate(valueConsumoAgua);
+      request.sewerRate = sewerRateValue;
 
       const updatedReadingModel: ReadingModel =
         ReadingMapper.fromUpdateReadingRequestToReadingModel(request);

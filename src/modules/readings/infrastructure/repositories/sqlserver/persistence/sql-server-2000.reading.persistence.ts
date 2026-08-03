@@ -108,6 +108,12 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
         type: 'string',
         maxLength: 20,
       },
+      {
+        name: 'sewerRate',
+        value: reading.getSewerRate(),
+        type: 'number',
+        maxLength: null,
+      },
     ];
 
     for (const field of requiredFields) {
@@ -155,7 +161,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
           const formattedDate = formatDateForSQLServer(
             reading.getReadingDate(),
           ).replace(/-/g, ''); // YYYYMMDD HH:mm:ss
-          const insertQuery = `INSERT INTO AP_LECTURAS (Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, Novedad, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral, usuario, id_lectura,mesnum, valor_consumo_agua) VALUES (${Number(reading.getSector())}, ${Number(reading.getAccount())}, '${String(reading.getYear())}', '${String(reading.getMonth())}', ${Number(reading.getPreviousReading())}, ${Number(reading.getCurrentReading())}, '${String(reading.getNovelty())}', ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : 'NULL'}, ${reading.getReconnection() != null ? parseFloat(reading.getReconnection()?.toFixed(8)!) : 'NULL'}, '${formattedDate}', '${String(reading.getReadingTime())}', '${String(reading.getCadastralKey())}', '${String(reading.getUsername())}', '${String(reading.getReadingId())}', '${monthNumber}', ${reading.getReadingValueCalculated() != null ? parseFloat(reading.getReadingValueCalculated()?.toFixed(2)!) : 'NULL'})`;
+          const insertQuery = `INSERT INTO AP_LECTURAS (Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, Novedad, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral, usuario, id_lectura,mesnum, valor_consumo_agua) VALUES (${Number(reading.getSector())}, ${Number(reading.getAccount())}, '${String(reading.getYear())}', '${String(reading.getMonth())}', ${Number(reading.getPreviousReading())}, ${Number(reading.getCurrentReading())}, '${String(reading.getNovelty())}', ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : 'NULL'}, ${reading.getReconnection() != null ? parseFloat(reading.getReconnection()?.toFixed(8)!) : 'NULL'}, '${formattedDate}', '${String(reading.getReadingTime())}', '${String(reading.getCadastralKey())}', '${String(reading.getUsername())}', '${String(reading.getReadingId())}', '${monthNumber}', ${reading.getReadingValueCalculated() != null ? parseFloat(reading.getReadingValueCalculated()?.toFixed(3)!) : 'NULL'})`;
 
           lastQuery = insertQuery;
           console.log('Executing Insert Query:', lastQuery);
@@ -277,6 +283,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
             ClaveCatastral = '${String(reading.getCadastralKey() || '')}',
             usuario_actualizacion = '${String(reading.getUsername() || '')}',
             updated_at = GETDATE(),
+            valor_tasa_alcantarillado = ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : 'NULL'},
             valor_consumo_agua = ${reading.getReadingValueCalculated() != null ? parseFloat(reading.getReadingValueCalculated()?.toFixed(2)!) : 'NULL'}
           WHERE
             Sector = ${Number(params.sector)}
