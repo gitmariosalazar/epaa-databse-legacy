@@ -79,8 +79,9 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
         maxLength: 100,
       },
       {
-        name: 'readingValue',
-        value: reading.getReadingValue(),
+        // createReading only persists readingValueCalculated (valor_consumo_agua); raw readingValue is client-supplied and may be null
+        name: 'readingValueCalculated',
+        value: reading.getReadingValueCalculated(),
         type: 'number',
         maxLength: null,
       },
