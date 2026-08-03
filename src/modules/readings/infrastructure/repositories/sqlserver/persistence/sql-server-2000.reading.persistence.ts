@@ -79,12 +79,6 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
         maxLength: 100,
       },
       {
-        name: 'rentalIncomeCode',
-        value: reading.getRentalIncomeCode(),
-        type: 'number',
-        maxLength: null,
-      },
-      {
         name: 'readingValue',
         value: reading.getReadingValue(),
         type: 'number',
