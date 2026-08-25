@@ -101,9 +101,10 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       }
     }
 
+    const odbcDetails = lastError?.odbcErrors ? ` - Details: ${JSON.stringify(lastError.odbcErrors)}` : '';
     throw new RpcException({
       statusCode: statusCode.INTERNAL_SERVER_ERROR,
-      message: lastError?.message || 'Database query failed',
+      message: (lastError?.message || 'Database query failed') + odbcDetails,
     });
   }
 
@@ -119,10 +120,11 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       return {
         affectedRows: (result as any).count || 0,
       };
-    } catch (error) {
+    } catch (error: any) {
+      const odbcDetails = error.odbcErrors ? ` - Details: ${JSON.stringify(error.odbcErrors)}` : '';
       throw new RpcException({
         statusCode: statusCode.INTERNAL_SERVER_ERROR,
-        message: error.message,
+        message: (error?.message || 'Database execution failed') + odbcDetails,
       });
     } finally {
       if (conn) await conn.close();
@@ -143,11 +145,12 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       const result = await operations(wrapper);
       await conn.query('COMMIT TRANSACTION');
       return result;
-    } catch (error) {
+    } catch (error: any) {
       await conn.query('IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION');
+      const odbcDetails = error.odbcErrors ? ` - Details: ${JSON.stringify(error.odbcErrors)}` : '';
       throw new RpcException({
         statusCode: statusCode.INTERNAL_SERVER_ERROR,
-        message: error.message,
+        message: (error?.message || 'Transaction failed') + odbcDetails,
       });
     } finally {
       await conn.close();
