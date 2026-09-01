@@ -35,7 +35,7 @@ export class SqlServer2000LecturasRepository implements LecturasTargetRepository
         cuenta                  INT,
         lectura_anterior        FLOAT,
         lectura_actual          FLOAT,
-        novedad                 VARCHAR(500),
+        novedad                 NVARCHAR(500),
         tipo_novedad_lectura_id INT,
         codigo_lectura          VARCHAR(50)
       );
@@ -102,7 +102,7 @@ export class SqlServer2000LecturasRepository implements LecturasTargetRepository
 
   private sqlString(value: string | null): string {
     if (value === null || value === undefined) return 'NULL';
-    return `'${value.replace(/'/g, "''")}'`;
+    return `N'${value.replace(/'/g, "''")}'`;
   }
 
   private sqlNumber(value: number | null): string {

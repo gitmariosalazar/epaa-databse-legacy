@@ -19,4 +19,8 @@ export interface InterfaceReadingsRepository {
     cadastralKey: string,
     consumptionM3: number,
   ): Promise<number>;
+  updateSpecialCurrentReading(
+    params: FindCurrentReadingParams,
+    reading: ReadingModel,
+  ): Promise<ReadingResponse>;
 }

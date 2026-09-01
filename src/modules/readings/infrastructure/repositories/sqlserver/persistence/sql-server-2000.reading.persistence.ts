@@ -267,10 +267,100 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
     try {
       return await this.sqlServerService.transaction<ReadingResponse>(
         async (conn) => {
-
           const updateQuery = `
           UPDATE AP_LECTURAS
           SET
+            LecturaActual = ${Number(reading.getCurrentReading())},
+            Novedad = '${String(reading.getNovelty() || '')}',
+            ClaveCatastral = '${String(reading.getCadastralKey() || '')}',
+            usuario_actualizacion = '${String(reading.getUsername() || '')}',
+            updated_at = GETDATE(),
+            valor_tasa_alcantarillado = ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : 'NULL'},
+            valor_consumo_agua = ${reading.getReadingValueCalculated() != null ? parseFloat(reading.getReadingValueCalculated()?.toFixed(2)!) : 'NULL'}
+          WHERE
+            Sector = ${Number(params.sector)}
+            AND Cuenta = ${Number(params.account)}
+            AND Anio = '${Number(params.year)}'
+            AND Mes = '${String(params.month)}'
+            AND id_lectura = '${String(params.readingId || '')}'
+        `;
+
+          //console.log('Here AM i Last Query: ', updateQuery);
+
+          lastQuery = updateQuery;
+          const updateResult = await conn.query(updateQuery);
+
+          /*
+          if (updateResult.length === 0) {
+            throw new DatabaseError(
+              'No reading found to update (or already captured)',
+            );
+          }
+            */
+
+          // 2. SELECT del registro recién actualizado
+          const selectQuery = `
+          SELECT TOP 1
+            Sector AS sector,
+            Cuenta AS account,
+            Anio AS year,
+            Mes AS month,
+            LecturaAnterior AS previousReading,
+            LecturaActual AS currentReading,
+            CodigoIngresoARentas AS rentalIncomeCode,
+            Novedad AS novelty,
+            ValorAPagar AS readingValue,
+            TasaAlcantarillado AS sewerRate,
+            Reconexion AS reconnection,
+            Cod_ingreso AS incomeCode,
+            FechaCaptura AS readingDate,
+            HoraCaptura AS readingTime,
+            ClaveCatastral AS cadastralKey,
+            id_lectura AS readingId
+          FROM AP_LECTURAS
+          WHERE Sector = ${Number(params.sector)}
+            AND Cuenta = ${Number(params.account)}
+            AND Anio = '${Number(params.year)}'
+            AND Mes = '${String(params.month)}'
+            AND id_lectura = '${String(params.readingId || '')}'
+          ORDER BY FechaCaptura DESC
+        `;
+
+          lastQuery = selectQuery;
+          const selectResult: ReadingSQL2000Result[] =
+            await conn.query<ReadingSQL2000Result>(selectQuery);
+
+          if (!selectResult || selectResult.length === 0) {
+            throw new DatabaseError('Failed to retrieve updated reading');
+          }
+
+          return SQLServerReadingAdapter.toDomain2000(selectResult[0]);
+        },
+      );
+    } catch (error: any) {
+      console.error(`Failed to update reading: ${error.message}`, {
+        error,
+        lastQuery,
+      });
+      throw new DatabaseError(
+        `Failed to update reading: ${error.message}`,
+        error.code,
+      );
+    }
+  }
+
+  async updateSpecialCurrentReading(
+    params: FindCurrentReadingParams,
+    reading: ReadingModel,
+  ): Promise<ReadingResponse> {
+    let lastQuery: string | undefined = undefined;
+    try {
+      return await this.sqlServerService.transaction<ReadingResponse>(
+        async (conn) => {
+          const updateQuery = `
+          UPDATE AP_LECTURAS
+          SET
+            LecturaAnterior = ${Number(reading.getPreviousReading())},
             LecturaActual = ${Number(reading.getCurrentReading())},
             Novedad = '${String(reading.getNovelty() || '')}',
             ClaveCatastral = '${String(reading.getCadastralKey() || '')}',

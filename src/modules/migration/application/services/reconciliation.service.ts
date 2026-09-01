@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { GetReconciliationSummaryUseCase } from '../usecases/get-reconciliation-summary.usecase';
 import { GetReconciliationDuplicatesUseCase } from '../usecases/get-reconciliation-duplicates.usecase';
 import { GetReconciliationMismatchesUseCase } from '../usecases/get-reconciliation-mismatches.usecase';
-import { ReconciliationPeriod } from '../../domain/contracts/lecturas-reconciliation.repository';
+import { GetReconciliationKpisUseCase } from '../usecases/getReconciliationKpis.use-case';
+import { GetDiscrepanciesDetailUseCase } from '../usecases/getDiscrepanciesDetail.use-case';
+import { ReconciliationPeriod, AuditoriaFiltroType } from '../../domain/contracts/lecturas-reconciliation.repository';
 import { InvalidReconciliationPeriodException } from '../../domain/exceptions/migration.exceptions';
 import { MONTHS } from '../../../../shared/consts/months';
 
@@ -14,6 +16,8 @@ export class ReconciliationService {
     private readonly getSummaryUseCase: GetReconciliationSummaryUseCase,
     private readonly getDuplicatesUseCase: GetReconciliationDuplicatesUseCase,
     private readonly getMismatchesUseCase: GetReconciliationMismatchesUseCase,
+    private readonly getKpisUseCase: GetReconciliationKpisUseCase,
+    private readonly getDiscrepanciesDetailUseCase: GetDiscrepanciesDetailUseCase,
   ) {}
 
   getSummary(mesLectura: string) {
@@ -26,6 +30,17 @@ export class ReconciliationService {
 
   getMismatches(mesLectura: string) {
     return this.getMismatchesUseCase.execute(this.buildPeriod(mesLectura));
+  }
+
+  getKpis(mesLectura: string) {
+    return this.getKpisUseCase.execute(this.buildPeriod(mesLectura));
+  }
+
+  getDiscrepanciesDetail(mesLectura: string, tipoFiltro: AuditoriaFiltroType) {
+    return this.getDiscrepanciesDetailUseCase.execute({
+      periodo: this.buildPeriod(mesLectura),
+      tipo_filtro: tipoFiltro
+    });
   }
 
   private buildPeriod(mesLectura: string): ReconciliationPeriod {

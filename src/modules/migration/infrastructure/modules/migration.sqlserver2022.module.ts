@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { GetDiscrepanciesDetailUseCase } from '../../application/usecases/getDiscrepanciesDetail.use-case';
 import { MigrationService } from '../../application/services/migration.service';
 import { MigrateLecturasUseCase } from '../../application/usecases/migrate-lecturas.usecase';
 import { CompareLecturasUseCase } from '../../application/usecases/compare-lecturas.usecase';
@@ -15,6 +16,7 @@ import { PostgresLecturasRepository } from '../repositories/postgres/postgres-le
 import { SqlServer2022LecturasRepository } from '../repositories/sqlserver/sqlserver-2022-lecturas.repository';
 import { SqlServer2022ReconciliationRepository } from '../repositories/sqlserver/sqlserver-2022-reconciliation.repository';
 import { DatabasePersistenceModule } from '../../../../shared/connections/database/database-persistence.module';
+import { GetReconciliationKpisUseCase } from '../../application/usecases/getReconciliationKpis.use-case';
 
 @Module({
   imports: [DatabasePersistenceModule],
@@ -27,6 +29,8 @@ import { DatabasePersistenceModule } from '../../../../shared/connections/databa
     GetReconciliationSummaryUseCase,
     GetReconciliationDuplicatesUseCase,
     GetReconciliationMismatchesUseCase,
+    GetReconciliationKpisUseCase,
+    GetDiscrepanciesDetailUseCase,
     {
       provide: LECTURAS_SOURCE_REPOSITORY,
       useClass: PostgresLecturasRepository,

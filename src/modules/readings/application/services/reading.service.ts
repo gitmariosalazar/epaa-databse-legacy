@@ -224,6 +224,98 @@ export class ReadingService implements InterfaceReadingUseCase {
     }
   }
 
+  async updateSpecialCurrentReading(
+    params: FindCurrentReadingParams,
+    request: UpdateReadingRequest,
+  ): Promise<ReadingResponse> {
+    try {
+      //console.log('Received updateCurrentReading request in Service:', request);
+      const requiredFieldsToUpdate: string[] = [
+        'previousReading',
+        'currentReading',
+        'novelty',
+        'cadastralKey',
+      ];
+
+      const missingFieldsMessages: string[] = validateFields(
+        request,
+        requiredFieldsToUpdate,
+      );
+      if (missingFieldsMessages.length > 0) {
+        throw new Error(JSON.stringify(missingFieldsMessages));
+      }
+
+      const requiredParamsToFind: string[] = [
+        'sector',
+        'account',
+        'year',
+        'month',
+        'readingId',
+      ];
+
+      const missingParamsMessages: string[] = validateFields(
+        params,
+        requiredParamsToFind,
+      );
+      if (missingParamsMessages.length > 0) {
+        throw new Error(JSON.stringify(missingParamsMessages));
+      }
+
+      const existingReading =
+        await this.readingsRepository.findCurrentReading(params);
+
+      if (!existingReading) {
+        throw new ReadingNotFoundException('Reading to update not found');
+      }
+      /*
+      if (
+        existingReading.readingDate !== null ||
+        existingReading.readingTime !== null ||
+        existingReading.currentReading !== null
+      ) {
+        console.log(
+          'Checking: ',
+          existingReading.readingDate,
+          existingReading.readingTime,
+          existingReading.currentReading,
+        );
+        throw new Error(
+          'Reading has already been recorded and cannot be updated',
+        );
+      }
+      */
+
+      const changeNovelty: string | null = this.changeNovelty(request.novelty);
+      request.novelty = changeNovelty;
+      const valueConsumoAgua = await this.calculateReadingValue(
+        request.cadastralKey,
+        Number(request.currentReading) - Number(request.previousReading),
+      );
+
+      request.readingValueCalculated = valueConsumoAgua;
+      const sewerRateValue = this.CalculateSewerRate(valueConsumoAgua);
+      request.sewerRate = sewerRateValue;
+
+      const updatedReadingModel: ReadingModel =
+        ReadingMapper.fromUpdateReadingRequestToReadingModel(request);
+
+      const updatedReading = await this.readingsRepository.updateSpecialCurrentReading(
+        params,
+        updatedReadingModel,
+      );
+
+      //console.log(updatedReading);
+
+      if (!updatedReading) {
+        throw new Error('Failed to update the reading');
+      }
+
+      return updatedReading;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   private changeNovelty(novelty: string | null): string | null {
     if (!novelty) {
       return null;

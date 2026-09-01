@@ -74,6 +74,42 @@ export class ReadingController {
     }
   }
 
+  @Put('update-special-current-reading')
+  @MessagePattern('epaa-legacy.reading.update-special-current-reading')
+  async updateSpecialCurrentReading(
+    @Payload()
+    data: {
+      params: FindCurrentReadingParams;
+      request: UpdateReadingRequest;
+    },
+  ) {
+    try {
+      /*
+      console.log(
+        `Received updateCurrentReading request: ${JSON.stringify(data)}`,
+      );
+      */
+      return await this.readingService.updateSpecialCurrentReading(
+        data.params,
+        data.request,
+      );
+    } catch (error) {
+      if (error instanceof ReadingNotFoundException) {
+        console.warn(`Reading not found: ${error.message}`);
+        return {
+          statusCode: 404,
+          message: error.message,
+        };
+      }
+      const err = error as Error;
+      console.error(`Error updating reading: ${err}`);
+      return {
+        statusCode: 500,
+        message: err.message || 'Internal server error',
+      };
+    }
+  }
+
   @Get('calculate-reading-value')
   @MessagePattern('epaa-legacy.reading.calculate-reading-value')
   calculateReadingValue(

@@ -15,6 +15,8 @@ import { PostgresLecturasRepository } from '../repositories/postgres/postgres-le
 import { SqlServer2000LecturasRepository } from '../repositories/sqlserver/sqlserver-2000-lecturas.repository';
 import { SqlServer2000ReconciliationRepository } from '../repositories/sqlserver/sqlserver-2000-reconciliation.repository';
 import { DatabasePersistenceModule } from '../../../../shared/connections/database/database-persistence.module';
+import { GetReconciliationKpisUseCase } from '../../application/usecases/getReconciliationKpis.use-case';
+import { GetDiscrepanciesDetailUseCase } from '../../application/usecases/getDiscrepanciesDetail.use-case';
 
 @Module({
   imports: [DatabasePersistenceModule],
@@ -27,6 +29,8 @@ import { DatabasePersistenceModule } from '../../../../shared/connections/databa
     GetReconciliationSummaryUseCase,
     GetReconciliationDuplicatesUseCase,
     GetReconciliationMismatchesUseCase,
+    GetReconciliationKpisUseCase,
+    GetDiscrepanciesDetailUseCase,
     {
       provide: LECTURAS_SOURCE_REPOSITORY,
       useClass: PostgresLecturasRepository,

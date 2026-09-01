@@ -239,6 +239,105 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
     }
   }
 
+  async updateSpecialCurrentReading(
+    params: FindCurrentReadingParams,
+    reading: ReadingModel,
+  ): Promise<ReadingResponse> {
+    try {
+      console.log(
+        'Received updateCurrentReading request in Persistence:',
+        reading,
+      );
+      const query: string = `
+      UPDATE AP_LECTURAS
+      SET
+        LecturaAnterior = @previousReading,
+        LecturaActual = @currentReading,
+        Novedad = @novelty,
+        --ValorAPagar = @readingValue,
+        --TasaAlcantarillado = @sewerRate,
+        --Reconexion = @reconnection,
+        --FechaCaptura = @readingDate,
+        --HoraCaptura = @readingTime,
+        usuario_actualizacion = @username,
+        ClaveCatastral = @cadastralKey,
+        updated_at = GETDATE(),
+        valor_consumo_agua = @readingValueCalculated,
+        valor_tasa_alcantarillado = @sewerRate
+      OUTPUT
+        inserted.Sector       AS sector,
+        inserted.Cuenta       AS account,
+        inserted.Anio         AS year,
+        inserted.Mes          AS month,
+        inserted.LecturaAnterior AS previousReading,
+        inserted.LecturaActual   AS currentReading,
+        inserted.CodigoIngresoARentas AS rentalIncomeCode,
+        inserted.Novedad      AS novelty,
+        inserted.ValorAPagar  AS readingValue,
+        inserted.TasaAlcantarillado AS sewerRate,
+        inserted.Reconexion   AS reconnection,
+        inserted.Cod_ingreso  AS incomeCode,
+        inserted.FechaCaptura AS readingDate,
+        inserted.HoraCaptura  AS readingTime,
+        inserted.ClaveCatastral AS cadastralKey,
+        inserted.id_lectura AS readingId
+      WHERE
+        Sector = @sector AND Cuenta = @account --AND Cod_ingreso = @incomeCode
+        AND Anio = @year AND Mes = @month AND id_lectura = @readingId; --AND FechaCaptura IS NULL;
+      `;
+      const queryParams: any[] = [
+        {
+          name: 'previousReading',
+          value: Number(reading.getPreviousReading()) || 0,
+        },
+        {
+          name: 'currentReading',
+          value: Number(reading.getCurrentReading()) || 0,
+        },
+        { name: 'novelty', value: reading.getNovelty() },
+        { name: 'readingValue', value: Number(reading.getReadingValue()) || 0 },
+        { name: 'sewerRate', value: Number(reading.getSewerRate()) || 0 },
+        { name: 'reconnection', value: Number(reading.getReconnection()) || 0 },
+        { name: 'readingDate', value: reading.getReadingDate() },
+        { name: 'readingTime', value: reading.getReadingTime() },
+        { name: 'cadastralKey', value: reading.getCadastralKey() },
+        { name: 'sector', value: Number(params.sector) },
+        { name: 'account', value: Number(params.account) },
+        { name: 'year', value: Number(params.year) },
+        { name: 'month', value: params.month }, // string, ok
+        { name: 'readingId', value: String(params.readingId) || null },
+        { name: 'username', value: reading.getUsername() },
+        {
+          name: 'readingValueCalculated',
+          value: reading.getReadingValueCalculated(),
+        },
+      ];
+
+      const updatedReading =
+        await this.sqlServerService.query<ReadingSQLResult>(query, queryParams);
+
+      //console.log('Updated reading result:', updatedReading);
+
+      if (!updatedReading) {
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'Failed to retrieve updated reading 1',
+        });
+      }
+
+      if (!updatedReading[0]) {
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'Failed to retrieve updated reading 2',
+        });
+      }
+
+      return SQLServerReadingAdapter.toDomain(updatedReading[0]);
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async calculateReadingValue(
     cadastralKey: string,
     consumptionM3: number,
