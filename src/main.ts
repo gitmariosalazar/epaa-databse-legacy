@@ -33,9 +33,10 @@ async function bootstrap() {
           allowAutoTopicCreation: true,
           // More tolerant settings for heavy handlers (SQL reports) to avoid
           // transient coordinator membership loss during rebalances.
-          sessionTimeout: 60000,
+          sessionTimeout: 300000, // 5 minutes
           heartbeatInterval: 10000,
-          rebalanceTimeout: 120000,
+          rebalanceTimeout: 300000,
+          maxWaitTimeInMs: 5000,
         },
       },
       environments.KAFKA_TOPIC,

@@ -46,30 +46,32 @@ export class SqlServer2022LecturasRepository implements LecturasTargetRepository
       const batch = records.slice(i, i + batchSize);
 
       await this.databaseService.transaction(async (conn) => {
-        for (const record of batch) {
+        const CHUNK_SIZE = 150;
+        for (let j = 0; j < batch.length; j += CHUNK_SIZE) {
+          const chunk = batch.slice(j, j + CHUNK_SIZE);
+          const values: string[] = [];
+          
+          chunk.forEach((record) => {
+            values.push(`(
+              ${this.sqlString(record.acometidaId)},
+              ${this.sqlString(record.mesLectura)},
+              ${this.sqlDateTime(record.fechaLectura)},
+              ${this.sqlString(record.horaLectura)},
+              ${this.sqlNumber(record.sector)},
+              ${this.sqlNumber(record.cuenta)},
+              ${this.sqlNumber(record.lecturaAnterior)},
+              ${this.sqlNumber(record.lecturaActual)},
+              ${this.sqlString(record.novedad)},
+              ${this.sqlNumber(record.tipoNovedadLecturaId)},
+              ${this.sqlString(record.codigoLectura)}
+            )`);
+          });
+
           await conn.execute(
             `INSERT INTO ${TABLE_NAME}
              (acometida_id, mes_lectura, fecha_lectura, hora_lectura, sector, cuenta,
               lectura_anterior, lectura_actual, novedad, tipo_novedad_lectura_id, codigo_lectura)
-             VALUES
-             (@acometidaId, @mesLectura, @fechaLectura, @horaLectura, @sector, @cuenta,
-              @lecturaAnterior, @lecturaActual, @novedad, @tipoNovedadLecturaId, @codigoLectura)`,
-            [
-              { name: 'acometidaId', value: record.acometidaId },
-              { name: 'mesLectura', value: record.mesLectura },
-              { name: 'fechaLectura', value: record.fechaLectura },
-              { name: 'horaLectura', value: record.horaLectura },
-              { name: 'sector', value: record.sector },
-              { name: 'cuenta', value: record.cuenta },
-              { name: 'lecturaAnterior', value: record.lecturaAnterior },
-              { name: 'lecturaActual', value: record.lecturaActual },
-              { name: 'novedad', value: record.novedad },
-              {
-                name: 'tipoNovedadLecturaId',
-                value: record.tipoNovedadLecturaId,
-              },
-              { name: 'codigoLectura', value: record.codigoLectura },
-            ],
+             VALUES ${values.join(', ')}`
           );
         }
       });
@@ -98,5 +100,27 @@ export class SqlServer2022LecturasRepository implements LecturasTargetRepository
       tipoNovedadLecturaId: row.tipo_novedad_lectura_id,
       codigoLectura: row.codigo_lectura,
     }));
+  }
+
+  private sqlString(value: string | null): string {
+    if (value === null || value === undefined) return 'NULL';
+    return `N'${value.replace(/'/g, "''")}'`;
+  }
+
+  private sqlNumber(value: number | null): string {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return 'NULL';
+    }
+    return String(value);
+  }
+
+  private sqlDateTime(value: Date | null): string {
+    if (!value) return 'NULL';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'NULL';
+    const iso = date.toISOString();
+    const datePart = iso.slice(0, 10).replace(/-/g, '');
+    const timePart = iso.slice(11, 19);
+    return `'${datePart} ${timePart}'`;
   }
 }

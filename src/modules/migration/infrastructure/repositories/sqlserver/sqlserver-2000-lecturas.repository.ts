@@ -52,11 +52,9 @@ export class SqlServer2000LecturasRepository implements LecturasTargetRepository
       const batch = records.slice(i, i + batchSize);
 
       await this.databaseService.transaction(async (conn) => {
+        const selects: string[] = [];
         for (const record of batch) {
-          const insertSql = `INSERT INTO ${TABLE_NAME}
-            (acometida_id, mes_lectura, fecha_lectura, hora_lectura, sector, cuenta,
-             lectura_anterior, lectura_actual, novedad, tipo_novedad_lectura_id, codigo_lectura)
-            VALUES (
+          selects.push(`SELECT 
               ${this.sqlString(record.acometidaId)},
               ${this.sqlString(record.mesLectura)},
               ${this.sqlDateTime(record.fechaLectura)},
@@ -67,11 +65,15 @@ export class SqlServer2000LecturasRepository implements LecturasTargetRepository
               ${this.sqlNumber(record.lecturaActual)},
               ${this.sqlString(record.novedad)},
               ${this.sqlNumber(record.tipoNovedadLecturaId)},
-              ${this.sqlString(record.codigoLectura)}
-            )`;
-
-          await conn.execute(insertSql);
+              ${this.sqlString(record.codigoLectura)}`);
         }
+
+        const insertSql = `INSERT INTO ${TABLE_NAME}
+          (acometida_id, mes_lectura, fecha_lectura, hora_lectura, sector, cuenta,
+           lectura_anterior, lectura_actual, novedad, tipo_novedad_lectura_id, codigo_lectura)
+          ${selects.join(' UNION ALL ')}`;
+
+        await conn.execute(insertSql);
       });
 
       insertedCount += batch.length;
