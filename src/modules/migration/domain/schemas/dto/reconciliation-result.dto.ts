@@ -10,6 +10,10 @@ export class ReconciliationSummaryDto {
     public readonly matched: number,
     public readonly mismatched: number,
     public readonly missingInApLecturas: number,
+    public readonly missingInPostgres: number,
+    public readonly sumaLecturasActualPostgres: number,
+    public readonly sumaLecturasActualApLecturas: number,
+    public readonly diferenciaAbsolutaLecturas: number,
   ) {}
 }
 

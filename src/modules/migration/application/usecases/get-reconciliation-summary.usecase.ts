@@ -27,6 +27,10 @@ export class GetReconciliationSummaryUseCase {
         summary.matched,
         summary.mismatched,
         summary.missingInApLecturas,
+        summary.missingInPostgres,
+        summary.sumaLecturasActualPostgres,
+        summary.sumaLecturasActualApLecturas,
+        summary.diferenciaAbsolutaLecturas,
       );
     } catch (error) {
       this.logger.error(
