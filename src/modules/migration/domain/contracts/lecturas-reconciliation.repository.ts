@@ -11,6 +11,10 @@ export interface ReconciliationSummary {
   matched: number;
   mismatched: number;
   missingInApLecturas: number;
+  missingInPostgres: number;
+  sumaLecturasActualPostgres: number;
+  sumaLecturasActualApLecturas: number;
+  diferenciaAbsolutaLecturas: number;
 }
 
 export type ReconciliationRecordSource = 'AP_LECTURAS' | 'LECTURAS_POSTGRES';
@@ -23,7 +27,7 @@ export interface DuplicateReconciliationRecord {
   occurrences: number;
 }
 
-export type ReconciliationMismatchStatus = 'DIFERENTE' | 'SOLO_EN_POSTGRES';
+export type ReconciliationMismatchStatus = 'DIFERENTE' | 'SOLO_EN_POSTGRES' | 'SOLO_EN_SQL_SERVER';
 
 export interface ReconciliationMismatchRecord {
   acometidaId: string | null;
@@ -44,10 +48,12 @@ export type AuditoriaFiltroType =
   | 'TODOS'
   | 'DUPLICADOS'
   | 'DIFERENTES'
-  | 'SOLO_POSTGRES';
+  | 'SOLO_POSTGRES'
+  | 'SOLO_SQL_SERVER';
 
 export type AuditoriaDetalleStatus =
   | 'SOLO_EN_POSTGRES'
+  | 'SOLO_SQL_SERVER'
   | 'DUPLICADO_EN_SQL_SERVER'
   | 'DIFERENTE'
   | 'OK';

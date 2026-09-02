@@ -45,37 +45,48 @@ export class SqlServer2000ReconciliationRepository implements LecturasReconcilia
       matched: number;
       mismatched: number;
       missingInApLecturas: number;
+      missingInPostgres: number;
+      sumaLecturasActualPostgres: number;
+      sumaLecturasActualApLecturas: number;
     }>(
       `SELECT
           (SELECT COUNT(*) FROM lecturas_postgres WHERE mes_lectura = ${mesLectura}) AS totalPostgres,
           (SELECT COUNT(*) FROM AP_LECTURAS WHERE Anio = ${anio} AND Mes = ${mesTexto}) AS totalApLecturas,
+          (SELECT SUM(lectura_actual) FROM lecturas_postgres WHERE mes_lectura = ${mesLectura}) AS sumaLecturasActualPostgres,
+          (SELECT SUM(LecturaActual) FROM AP_LECTURAS WHERE Anio = ${anio} AND Mes = ${mesTexto}) AS sumaLecturasActualApLecturas,
           SUM(CASE WHEN estado = 'IGUAL' THEN 1 ELSE 0 END) AS matched,
           SUM(CASE WHEN estado = 'DIFERENTE' THEN 1 ELSE 0 END) AS mismatched,
-          SUM(CASE WHEN estado = 'SOLO_EN_POSTGRES' THEN 1 ELSE 0 END) AS missingInApLecturas
+          SUM(CASE WHEN estado = 'SOLO_EN_POSTGRES' THEN 1 ELSE 0 END) AS missingInApLecturas,
+          SUM(CASE WHEN estado = 'SOLO_EN_SQL_SERVER' THEN 1 ELSE 0 END) AS missingInPostgres
        FROM (
           SELECT
               CASE
                   WHEN l.ClaveCatastral IS NULL THEN 'SOLO_EN_POSTGRES'
+                  WHEN b.acometida_id IS NULL THEN 'SOLO_EN_SQL_SERVER'
                   WHEN l.LecturaAnterior <> b.lectura_anterior
                     OR l.LecturaActual <> b.lectura_actual
                   THEN 'DIFERENTE'
                   ELSE 'IGUAL'
               END AS estado
-          FROM lecturas_postgres b
-          LEFT JOIN AP_LECTURAS l
+          FROM (SELECT acometida_id, lectura_anterior, lectura_actual FROM lecturas_postgres WHERE mes_lectura = ${mesLectura}) b
+          FULL OUTER JOIN (SELECT ClaveCatastral, LecturaAnterior, LecturaActual FROM AP_LECTURAS WHERE Anio = ${anio} AND Mes = ${mesTexto}) l
               ON LTRIM(RTRIM(l.ClaveCatastral)) = LTRIM(RTRIM(b.acometida_id))
-             AND l.Anio = ${anio} AND l.Mes = ${mesTexto}
-          WHERE b.mes_lectura = ${mesLectura}
        ) x`,
     );
 
     const row = rows[0];
+    const sumPg = Number(row?.sumaLecturasActualPostgres ?? 0);
+    const sumAp = Number(row?.sumaLecturasActualApLecturas ?? 0);
     return {
       totalPostgres: Number(row?.totalPostgres ?? 0),
       totalApLecturas: Number(row?.totalApLecturas ?? 0),
       matched: Number(row?.matched ?? 0),
       mismatched: Number(row?.mismatched ?? 0),
       missingInApLecturas: Number(row?.missingInApLecturas ?? 0),
+      missingInPostgres: Number(row?.missingInPostgres ?? 0),
+      sumaLecturasActualPostgres: sumPg,
+      sumaLecturasActualApLecturas: sumAp,
+      diferenciaAbsolutaLecturas: Math.abs(sumPg - sumAp),
     };
   }
 
@@ -135,17 +146,22 @@ export class SqlServer2000ReconciliationRepository implements LecturasReconcilia
       status: ReconciliationMismatchStatus;
     }>(
       `SELECT
-          b.acometida_id, b.mes_lectura, l.ClaveCatastral,
+          COALESCE(b.acometida_id, l.ClaveCatastral) AS acometida_id,
+          COALESCE(b.mes_lectura, ${mesLectura}) AS mes_lectura,
+          l.ClaveCatastral,
           b.lectura_anterior AS pg_lectura_anterior, l.LecturaAnterior AS ap_lectura_anterior,
           b.lectura_actual AS pg_lectura_actual, l.LecturaActual AS ap_lectura_actual,
-          CASE WHEN l.ClaveCatastral IS NULL THEN 'SOLO_EN_POSTGRES' ELSE 'DIFERENTE' END AS status
-       FROM lecturas_postgres b
-       LEFT JOIN AP_LECTURAS l
+          CASE 
+              WHEN l.ClaveCatastral IS NULL THEN 'SOLO_EN_POSTGRES'
+              WHEN b.acometida_id IS NULL THEN 'SOLO_EN_SQL_SERVER'
+              ELSE 'DIFERENTE'
+          END AS status
+       FROM (SELECT * FROM lecturas_postgres WHERE mes_lectura = ${mesLectura}) b
+       FULL OUTER JOIN (SELECT * FROM AP_LECTURAS WHERE Anio = ${anio} AND Mes = ${mesTexto}) l
            ON LTRIM(RTRIM(l.ClaveCatastral)) = LTRIM(RTRIM(b.acometida_id))
-          AND l.Anio = ${anio} AND l.Mes = ${mesTexto}
-       WHERE b.mes_lectura = ${mesLectura}
-         AND (
+       WHERE (
                l.ClaveCatastral IS NULL
+               OR b.acometida_id IS NULL
                OR l.LecturaAnterior <> b.lectura_anterior
                OR l.LecturaActual <> b.lectura_actual
              )`,
@@ -180,17 +196,22 @@ export class SqlServer2000ReconciliationRepository implements LecturasReconcilia
   ): Promise<DetalleAuditoriaResponse> {
     try {
       let filtroStatus = "r.status <> 'OK'";
-      if (params.tipo_filtro === 'DUPLICADOS') filtroStatus = "r.status = 'DUPLICADO_EN_SQL_SERVER'";
-      if (params.tipo_filtro === 'DIFERENTES') filtroStatus = "r.status = 'DIFERENTE'";
-      if (params.tipo_filtro === 'SOLO_POSTGRES') filtroStatus = "r.status = 'SOLO_EN_POSTGRES'";
+      if (params.tipo_filtro === 'DUPLICADOS')
+        filtroStatus = "r.status = 'DUPLICADO_EN_SQL_SERVER'";
+      if (params.tipo_filtro === 'DIFERENTES')
+        filtroStatus = "r.status = 'DIFERENTE'";
+      if (params.tipo_filtro === 'SOLO_POSTGRES')
+        filtroStatus = "r.status = 'SOLO_EN_POSTGRES'";
+      if (params.tipo_filtro === 'SOLO_SQL_SERVER')
+        filtroStatus = "r.status = 'SOLO_SQL_SERVER'";
 
       const query = `
 SELECT
     r.*
 FROM (
     SELECT
-        b.acometida_id,
-        b.mes_lectura,
+        COALESCE(b.acometida_id, l.ClaveCatastral) AS acometida_id,
+        COALESCE(b.mes_lectura, ${this.sqlString(params.periodo.mesLectura)}) AS mes_lectura,
         b.lectura_anterior AS pg_lectura_anterior,
         l.ap_lectura_anterior,
         b.lectura_actual   AS pg_lectura_actual,
@@ -198,13 +219,14 @@ FROM (
         COALESCE(l.total_en_sql_server, 0) AS total_en_sql_server,
         CASE
             WHEN l.ClaveCatastral IS NULL THEN 'SOLO_EN_POSTGRES'
+            WHEN b.acometida_id IS NULL THEN 'SOLO_SQL_SERVER'
             WHEN l.total_en_sql_server > 1 THEN 'DUPLICADO_EN_SQL_SERVER'
             WHEN COALESCE(l.ap_lectura_anterior, -1) <> COALESCE(b.lectura_anterior, -1)
               OR COALESCE(l.ap_lectura_actual, -1)   <> COALESCE(b.lectura_actual, -1) THEN 'DIFERENTE'
             ELSE 'OK'
         END AS status
-    FROM lecturas_postgres b
-    LEFT JOIN (
+    FROM (SELECT * FROM lecturas_postgres WHERE mes_lectura = ${this.sqlString(params.periodo.mesLectura)}) b
+    FULL OUTER JOIN (
         SELECT
             LTRIM(RTRIM(ClaveCatastral)) AS ClaveCatastral,
             MAX(LecturaAnterior) AS ap_lectura_anterior,
@@ -215,7 +237,6 @@ FROM (
           AND UPPER(LTRIM(RTRIM(Mes))) = ${this.sqlString(params.periodo.mesTexto.toUpperCase())} 
         GROUP BY LTRIM(RTRIM(ClaveCatastral))
     ) l ON LTRIM(RTRIM(b.acometida_id)) = l.ClaveCatastral
-    WHERE b.mes_lectura = ${this.sqlString(params.periodo.mesLectura)}
 ) r
 WHERE
     ${filtroStatus}
@@ -316,13 +337,21 @@ FROM (
         data: {
           total_cuentas_revisadas: Number(row?.total_cuentas_revisadas ?? 0),
           total_conciliados_ok: Number(row?.total_conciliados_ok ?? 0),
-          total_lecturas_discrepantes: Number(row?.total_lecturas_discrepantes ?? 0),
+          total_lecturas_discrepantes: Number(
+            row?.total_lecturas_discrepantes ?? 0,
+          ),
           total_con_duplicados: Number(row?.total_con_duplicados ?? 0),
-          cuentas_duplicadas_en_origen: Number(row?.cuentas_duplicadas_en_origen ?? 0),
-          cuentas_duplicadas_en_ap_lecturas: Number(row?.cuentas_duplicadas_en_ap_lecturas ?? 0),
+          cuentas_duplicadas_en_origen: Number(
+            row?.cuentas_duplicadas_en_origen ?? 0,
+          ),
+          cuentas_duplicadas_en_ap_lecturas: Number(
+            row?.cuentas_duplicadas_en_ap_lecturas ?? 0,
+          ),
           total_pendientes_migrar: Number(row?.total_pendientes_migrar ?? 0),
           total_huerfanas_en_ap: Number(row?.total_huerfanas_en_ap ?? 0),
-          porcentaje_sincronizacion: Number(row?.porcentaje_sincronizacion ?? 0),
+          porcentaje_sincronizacion: Number(
+            row?.porcentaje_sincronizacion ?? 0,
+          ),
         },
       };
     } catch (error) {
