@@ -605,7 +605,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
           LEFT JOIN dbo.Datos_ingreso_interes_cache c
               ON di.Cod_Ingreso = c.Cod_Ingreso
   
-          WHERE l.Anio = CAST(? AS INT) AND l.Mes = CAST(? AS VARCHAR(20))
+          WHERE l.Anio = CAST(${year} AS INT) AND l.Mes = CAST('${month}' AS VARCHAR(20))
   
           GROUP BY
               l.Anio,
@@ -616,12 +616,12 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
               l.Mes,
               l.Sector;
         `;
-
+  
       console.log(query);
-
+  
       const result =
-        await this.sqlServerService.query<DashboardKpiSqlResult>(query, [year, month]);
-
+        await this.sqlServerService.query<DashboardKpiSqlResult>(query);
+  
       if (!result || result.length === 0) {
         return [];
       }
