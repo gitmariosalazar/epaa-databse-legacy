@@ -550,8 +550,6 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
     try {
       console.log(year, month);
       const query = /*sql*/ `
-          SET NOCOUNT ON;
-          SET ANSI_WARNINGS OFF;
 
           SELECT
               l.Anio AS year,
