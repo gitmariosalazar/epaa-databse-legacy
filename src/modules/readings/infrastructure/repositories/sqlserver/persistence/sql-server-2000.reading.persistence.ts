@@ -605,7 +605,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
           LEFT JOIN dbo.Datos_ingreso_interes_cache c
               ON di.Cod_Ingreso = c.Cod_Ingreso
   
-          WHERE l.Anio = ? AND l.Mes = ?
+          WHERE l.Anio = CAST(? AS INT) AND l.Mes = CAST(? AS VARCHAR(20))
   
           GROUP BY
               l.Anio,
