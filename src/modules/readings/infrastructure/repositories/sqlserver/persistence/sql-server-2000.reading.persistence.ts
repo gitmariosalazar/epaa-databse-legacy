@@ -623,14 +623,8 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
               l.Sector;
         `;
 
-      const queryParams: any[] = [
-        { name: 'year', value: year },
-        { name: 'month', value: month },
-      ];
-
       const result = await this.sqlServerService.query<DashboardKpiSqlResult>(
         query,
-        queryParams,
       );
 
       if (!result || result.length === 0) {
