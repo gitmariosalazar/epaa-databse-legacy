@@ -548,9 +548,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
     month: string,
   ): Promise<DashboardKpiResponse[]> {
     try {
-      console.log(year, month);
       const query = /*sql*/ `
-
           SELECT
               l.Anio AS year,
               UPPER(LTRIM(RTRIM(l.Mes))) AS month,
@@ -601,13 +599,13 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
                   COALESCE(c.interes_calculado, 0)
               )                                     AS total_debt_amount
   
-          FROM AP_LECTURAS l WITH (NOLOCK)
-          LEFT JOIN Datos_ingreso di WITH (NOLOCK)
+          FROM AP_LECTURAS l
+          LEFT JOIN Datos_ingreso di
               ON di.Cod_Ingreso = l.CodigoIngresoARentas
-          LEFT JOIN dbo.Datos_ingreso_interes_cache c WITH (NOLOCK)
+          LEFT JOIN dbo.Datos_ingreso_interes_cache c
               ON di.Cod_Ingreso = c.Cod_Ingreso
   
-          WHERE l.Anio = ${year} AND l.Mes = '${month}'
+          WHERE l.Anio = ? AND l.Mes = ?
   
           GROUP BY
               l.Anio,
@@ -622,7 +620,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
       console.log(query);
 
       const result =
-        await this.sqlServerService.query<DashboardKpiSqlResult>(query);
+        await this.sqlServerService.query<DashboardKpiSqlResult>(query, [year, month]);
 
       if (!result || result.length === 0) {
         return [];
