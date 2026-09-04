@@ -373,7 +373,7 @@ export class ReadingService implements InterfaceReadingUseCase {
         month,
       );
       if (!kpis || kpis.length === 0) {
-        throw new Error('No KPIs found for the specified period');
+        return [];
       }
       return kpis;
     } catch (error) {

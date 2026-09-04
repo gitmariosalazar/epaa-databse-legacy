@@ -558,7 +558,7 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
       );
 
       if (!result || result.length === 0) {
-        throw new Error('No KPIs found for the specified period');
+        return [];
       }
 
       return SQLServerReadingAdapter.toDomainArray(result);
