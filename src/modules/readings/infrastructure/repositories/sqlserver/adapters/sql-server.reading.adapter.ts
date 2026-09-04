@@ -1,5 +1,11 @@
-import { ReadingResponse } from '../../../../domain/schemas/dto/response/readings.response';
-import { ReadingSQLResult } from '../../../interfaces/reading.sql.response';
+import {
+  DashboardKpiResponse,
+  ReadingResponse,
+} from '../../../../domain/schemas/dto/response/readings.response';
+import {
+  DashboardKpiSqlResult,
+  ReadingSQLResult,
+} from '../../../interfaces/reading.sql.response';
 
 export class SQLServerReadingAdapter {
   static toDomain(data: ReadingSQLResult): ReadingResponse {
@@ -47,5 +53,31 @@ export class SQLServerReadingAdapter {
       cadastralKey: data.cadastralKey ? String(data.cadastralKey).trim() : '',
       readingId: data.readingId != null ? String(data.readingId) : '',
     };
+  }
+
+  static toDomainArray(
+    dataArray: DashboardKpiSqlResult[],
+  ): DashboardKpiResponse[] {
+    return dataArray.map((data) => ({
+      year: data.year,
+      month: data.month,
+      sector: data.sector,
+      totalMetersRead: data.total_meters_read,
+      totalConsumptionM3: data.total_consumption_m3,
+      averageConsumptionM3: data.average_consumption_m3,
+      consumptionValue: data.consumption_value,
+      totalSewageValue: data.total_sewage_value,
+      totalBilledWater: data.total_billed_water,
+      totalPaidWater: data.total_paid_water,
+      totalUnpaidWater: data.total_unpaid_water,
+      totalTrashRate: data.total_trash_rate,
+      totalOldImprovementsInterest: data.total_old_improvements_interest,
+      totalSurcharge: data.total_surcharge,
+      totalBillsGenerated: data.total_bills_generated,
+      totalInterestCalculated: data.total_interest_calculated,
+      unpaidBillsCount: data.unpaid_bills_count,
+      paidBillsCount: data.paid_bills_count,
+      totalDebtAmount: data.total_debt_amount,
+    }));
   }
 }

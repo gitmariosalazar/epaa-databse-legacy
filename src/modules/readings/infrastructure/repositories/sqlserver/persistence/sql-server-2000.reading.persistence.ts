@@ -5,11 +5,15 @@ import {
   ReadingSQLResult,
   RangoTarifaSQLResult,
   TarifaSQLResult,
+  DashboardKpiSqlResult,
 } from '../../../interfaces/reading.sql.response';
 import { InterfaceReadingsRepository } from '../../../../domain/contracts/readings.interface.repository';
 import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
 import { ReadingModel } from '../../../../domain/schemas/model/sqlserver/reading.model';
-import { ReadingResponse } from '../../../../domain/schemas/dto/response/readings.response';
+import {
+  DashboardKpiResponse,
+  ReadingResponse,
+} from '../../../../domain/schemas/dto/response/readings.response';
 import { formatDateForSQLServer } from '../../../../../../shared/utils/format-date';
 import { FindCurrentReadingParams } from '../../../../domain/schemas/dto/request/find-current-reading.paramss';
 import { MONTHS_REVERSE } from '../../../../../../shared/consts/months';
@@ -535,6 +539,107 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
       return valorPagar;
     } catch (error) {
       console.error('Error al calcular ValorPagarConsumo:', error);
+      throw error;
+    }
+  }
+
+  async getDashboardKpisByPeriod(
+    year: number,
+    month: string,
+  ): Promise<DashboardKpiResponse[]> {
+    try {
+      const query = /*sql*/ `
+          DECLARE @searchYear INT
+          DECLARE @searchMonth VARCHAR(20)
+  
+          SET @searchYear = ${year}
+          SET @searchMonth = '${month}'
+  
+          SELECT
+              l.Anio AS year,
+              UPPER(LTRIM(RTRIM(l.Mes))) AS month,
+              l.Sector AS sector,
+  
+              -- Cantidad de lecturas
+              COUNT(l.ClaveCatastral) AS total_meters_read,
+  
+              -- Consumos (Metros Cúbicos)
+              SUM(CASE
+                  WHEN l.LecturaActual IS NOT NULL AND l.LecturaAnterior IS NOT NULL
+                  THEN (l.LecturaActual - l.LecturaAnterior)
+                  ELSE 0
+              END) AS total_consumption_m3,
+  
+              AVG(CASE
+                  WHEN l.LecturaActual IS NOT NULL AND l.LecturaAnterior IS NOT NULL
+                  THEN (l.LecturaActual - l.LecturaAnterior)
+                  ELSE NULL
+              END) AS average_consumption_m3,
+  
+              -- Valores propios de AP_LECTURAS
+              SUM(COALESCE(l.ValorAPagar, 0))       AS consuption_value,
+              SUM(COALESCE(l.TasaAlcantarillado,0)) AS total_sewage_value, -- Alcantarillado
+  
+              -- Valores financieros (Agua y Tasas en Datos_ingreso)
+              SUM(COALESCE(di.Valor_Titulo, 0))     AS total_billed_water, -- Equivale al total de agua (EPAA value)
+  
+              SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN COALESCE(di.Valor_Titulo, 0) ELSE 0 END) AS total_paid_water,
+              SUM(CASE WHEN di.Fecha_Pago IS NULL THEN COALESCE(di.Valor_Titulo, 0) ELSE 0 END) AS total_unpaid_water,
+  
+              SUM(COALESCE(di.tasa_basura, 0))      AS total_trash_rate, -- Basura real
+              SUM(COALESCE(di.interes_mejoras, 0))  AS total_old_improvements_interest,
+              SUM(COALESCE(di.Recargo, 0))          AS total_surcharge,
+              COUNT(di.Cod_Ingreso)                 AS total_bills_generated,
+  
+              -- Interés calculado desde la caché
+              SUM(COALESCE(c.interes_calculado, 0)) AS total_interest_calculated,
+              SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS unpaid_bills_count,
+              SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS paid_bills_count,
+  
+              -- Total deuda general consolidada
+              SUM(
+                  COALESCE(di.tasa_basura, 0) +
+                  COALESCE(di.Valor_Titulo, 0) +
+                  COALESCE(di.interes_mejoras, 0) +
+                  COALESCE(di.Recargo, 0) +
+                  COALESCE(c.interes_calculado, 0)
+              )                                     AS total_debt_amount
+  
+          FROM AP_LECTURAS l
+          LEFT JOIN Datos_ingreso di
+              ON di.Cod_Ingreso = l.CodigoIngresoARentas
+          LEFT JOIN dbo.Datos_ingreso_interes_cache c
+              ON di.Cod_Ingreso = c.Cod_Ingreso
+  
+          WHERE l.Anio = @searchYear AND l.Mes = @searchMonth
+  
+          GROUP BY
+              l.Anio,
+              l.Mes,
+              l.Sector
+          ORDER BY
+              l.Anio,
+              l.Mes,
+              l.Sector;
+        `;
+
+      const queryParams: any[] = [
+        { name: 'year', value: year },
+        { name: 'month', value: month },
+      ];
+
+      const result = await this.sqlServerService.query<DashboardKpiSqlResult>(
+        query,
+        queryParams,
+      );
+
+      if (!result || result.length === 0) {
+        throw new Error('No KPIs found for the specified period');
+      }
+
+      return SQLServerReadingAdapter.toDomainArray(result);
+    } catch (error) {
+      console.error('Error fetching dashboard KPIs:', error);
       throw error;
     }
   }

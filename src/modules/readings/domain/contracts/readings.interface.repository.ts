@@ -1,5 +1,8 @@
 import { FindCurrentReadingParams } from '../schemas/dto/request/find-current-reading.paramss';
-import { ReadingResponse } from '../schemas/dto/response/readings.response';
+import {
+  DashboardKpiResponse,
+  ReadingResponse,
+} from '../schemas/dto/response/readings.response';
 import { ReadingModel } from '../schemas/model/sqlserver/reading.model';
 
 export interface InterfaceReadingsRepository {
@@ -23,4 +26,8 @@ export interface InterfaceReadingsRepository {
     params: FindCurrentReadingParams,
     reading: ReadingModel,
   ): Promise<ReadingResponse>;
+  getDashboardKpisByPeriod(
+    year: number,
+    month: string,
+  ): Promise<DashboardKpiResponse[]>;
 }

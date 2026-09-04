@@ -127,4 +127,22 @@ export class ReadingController {
       params.consumptionM3,
     );
   }
+
+  @Get('get-dashboard-kpis-by-period')
+  @MessagePattern('epaa-legacy.reading.get-dashboard-kpis-by-period')
+  async getDashboardKpisByPeriod(
+    @Payload()
+    params: {
+      year: number;
+      month: string;
+    },
+  ) {
+    console.log(
+      `Received getDashboardKpisByPeriod request: ${JSON.stringify(params)}`,
+    );
+    return await this.readingService.getDashboardKpisByPeriod(
+      params.year,
+      params.month,
+    );
+  }
 }

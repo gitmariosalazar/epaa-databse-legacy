@@ -1,7 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InterfaceReadingUseCase } from '../usecases/reading.use-case.interface';
 import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/create.reading.request';
-import { ReadingResponse } from '../../domain/schemas/dto/response/readings.response';
+import {
+  DashboardKpiResponse,
+  ReadingResponse,
+} from '../../domain/schemas/dto/response/readings.response';
 import { InterfaceReadingsRepository } from '../../domain/contracts/readings.interface.repository';
 import { ReadingModel } from '../../domain/schemas/model/sqlserver/reading.model';
 import { ReadingMapper } from '../mappers/readings.mapper';
@@ -299,10 +302,11 @@ export class ReadingService implements InterfaceReadingUseCase {
       const updatedReadingModel: ReadingModel =
         ReadingMapper.fromUpdateReadingRequestToReadingModel(request);
 
-      const updatedReading = await this.readingsRepository.updateSpecialCurrentReading(
-        params,
-        updatedReadingModel,
-      );
+      const updatedReading =
+        await this.readingsRepository.updateSpecialCurrentReading(
+          params,
+          updatedReadingModel,
+        );
 
       //console.log(updatedReading);
 
@@ -354,6 +358,24 @@ export class ReadingService implements InterfaceReadingUseCase {
         consumptionM3,
       );
       return readingValue;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getDashboardKpisByPeriod(
+    year: number,
+    month: string,
+  ): Promise<DashboardKpiResponse[]> {
+    try {
+      const kpis = await this.readingsRepository.getDashboardKpisByPeriod(
+        year,
+        month,
+      );
+      if (!kpis || kpis.length === 0) {
+        throw new Error('No KPIs found for the specified period');
+      }
+      return kpis;
     } catch (error) {
       throw error;
     }
