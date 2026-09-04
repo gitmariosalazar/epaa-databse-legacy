@@ -548,13 +548,8 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
     month: string,
   ): Promise<DashboardKpiResponse[]> {
     try {
+      console.log(year, month);
       const query = /*sql*/ `
-          DECLARE @searchYear INT
-          DECLARE @searchMonth VARCHAR(20)
-  
-          SET @searchYear = ${year}
-          SET @searchMonth = '${month}'
-  
           SELECT
               l.Anio AS year,
               UPPER(LTRIM(RTRIM(l.Mes))) AS month,
@@ -611,7 +606,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
           LEFT JOIN dbo.Datos_ingreso_interes_cache c
               ON di.Cod_Ingreso = c.Cod_Ingreso
   
-          WHERE l.Anio = @searchYear AND l.Mes = @searchMonth
+          WHERE l.Anio = ${year} AND l.Mes = '${month}'
   
           GROUP BY
               l.Anio,
@@ -623,9 +618,10 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
               l.Sector;
         `;
 
-      const result = await this.sqlServerService.query<DashboardKpiSqlResult>(
-        query,
-      );
+      console.log(query);
+
+      const result =
+        await this.sqlServerService.query<DashboardKpiSqlResult>(query);
 
       if (!result || result.length === 0) {
         return [];
