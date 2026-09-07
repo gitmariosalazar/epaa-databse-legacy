@@ -22,6 +22,7 @@ export class PostgresLecturasRepository implements LecturasSourceRepository {
       const result = await client.query(
         `
         SELECT
+            l.acometida_id,
             l.mes_lectura,
             l.fecha_lectura,
             l.hora_lectura,
