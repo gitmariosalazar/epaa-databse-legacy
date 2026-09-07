@@ -20,8 +20,8 @@ export class PostgresLecturasRepository implements LecturasSourceRepository {
     await client.connect();
     try {
       const result = await client.query(
-        `SELECT
-            l.acometida_id,
+        `
+        SELECT
             l.mes_lectura,
             l.fecha_lectura,
             l.hora_lectura,
@@ -31,12 +31,13 @@ export class PostgresLecturasRepository implements LecturasSourceRepository {
             l.lectura_actual,
             l.novedad,
             l.tipo_novedad_lectura_id,
-            l.codigo_lectura,
-            l.usuario_ingreso
-         FROM lectura l
+            l.codigo_lectura, u.username from lectura l
+          inner join public.usuario_lectura ul on l.lectura_id = ul.lectura_id
+          inner join public.usuarios u on u.usuario_id = ul.usuario_id
          WHERE l.mes_lectura = ANY($1)
            AND COALESCE(l.novedad, '') !~* 'CAMBIO|INICIAL'
-         ORDER BY l.acometida_id, l.mes_lectura`,
+         ORDER BY l.acometida_id, l.mes_lectura;
+         `,
         [months],
       );
       return result.rows.map((row) => this.mapRow(row));
