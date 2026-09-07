@@ -31,7 +31,9 @@ export class PostgresLecturasRepository implements LecturasSourceRepository {
             l.lectura_actual,
             l.novedad,
             l.tipo_novedad_lectura_id,
-            l.codigo_lectura, u.username from lectura l
+            l.codigo_lectura,
+            u.username AS usuario_ingreso
+          from lectura l
           inner join public.usuario_lectura ul on l.lectura_id = ul.lectura_id
           inner join public.usuarios u on u.usuario_id = ul.usuario_id
          WHERE l.mes_lectura = ANY($1)
