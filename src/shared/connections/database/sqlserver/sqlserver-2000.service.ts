@@ -1,5 +1,9 @@
 import * as odbc from 'odbc';
-import { DatabaseAbstract, IDatabaseClient, MutationResponse } from '../abstract/abstract.database';
+import {
+  DatabaseAbstract,
+  IDatabaseClient,
+  MutationResponse,
+} from '../abstract/abstract.database';
 import { RpcException } from '@nestjs/microservices';
 import { environments } from '../../../../settings/environments/environments';
 import { statusCode } from '../../../../settings/environments/status-code';
@@ -7,10 +11,7 @@ import { statusCode } from '../../../../settings/environments/status-code';
 export class ODBCClientWrapper implements IDatabaseClient {
   constructor(private readonly connection: odbc.Connection) {}
 
-  async query<T>(
-    sql: string,
-    params?: any[],
-  ): Promise<T[]> {
+  async query<T>(sql: string, params?: any[]): Promise<T[]> {
     const safeParams = params || [];
     const result = await this.connection.query<T>(sql, safeParams);
     return Array.isArray(result) ? result : [];
@@ -49,8 +50,8 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       return;
     }
 
-    const connectionString = `DSN=SQLServer2000;UID=${environments.DATABASE_USER};PWD=${environments.DATABASE_PASSWORD};DATABASE=${environments.DATABASE_NAME};`;
-    
+    const connectionString = `DSN=SQLServer2000;UID=${environments.DATABASE_USER};PWD=${environments.DATABASE_PASSWORD};DATABASE=${environments.DATABASE_NAME};APP=EpaaLegacyService_SIGEPAA;`;
+
     try {
       DatabaseServiceSQLServer2000.pool = await odbc.pool({
         connectionString,
@@ -60,7 +61,10 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       this.isConnected = true;
       console.log('🛢️ Connected to SQL Server 2000');
     } catch (err: any) {
-      console.error('❌ SQL Server 2000 Connection Failed (Non-fatal at startup):', err.message);
+      console.error(
+        '❌ SQL Server 2000 Connection Failed (Non-fatal at startup):',
+        err.message,
+      );
       this.isConnected = false;
       DatabaseServiceSQLServer2000.pool = null;
     }
@@ -68,10 +72,14 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
 
   public async query<T>(sql: string, params: any[] = []): Promise<T[]> {
     if (!this.isConnected || !DatabaseServiceSQLServer2000.pool) {
-        await this.connect();
-        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2000 is down' });
+      await this.connect();
+      if (!this.isConnected)
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'SQL Server 2000 is down',
+        });
     }
-    
+
     let lastError: any = null;
     for (let attempt = 1; attempt <= this.maxQueryRetries; attempt++) {
       let conn: odbc.Connection | null = null;
@@ -79,30 +87,43 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
         conn = await DatabaseServiceSQLServer2000.pool!.connect();
         const result = await Promise.race([
           conn.query<T>(sql, params),
-          new Promise<T[]>((_, reject) => 
-            setTimeout(() => reject(new Error('Query timeout')), this.queryTimeoutMs)
-          )
+          new Promise<T[]>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Query timeout')),
+              this.queryTimeoutMs,
+            ),
+          ),
         ]);
         return Array.isArray(result) ? result : [];
       } catch (err: any) {
         lastError = err;
-        const isCursorError = err.sqlState === '24000' || (err.message && err.message.includes('Invalid cursor state'));
-        const isCommunicationError = (err.odbcErrors && Array.isArray(err.odbcErrors) && err.odbcErrors.some((e: any) => e.state === '08S01' || e.state === '08001')) || (err.message && err.message.includes('Communication link failure'));
+        const isCursorError =
+          err.sqlState === '24000' ||
+          (err.message && err.message.includes('Invalid cursor state'));
+        const isCommunicationError =
+          (err.odbcErrors &&
+            Array.isArray(err.odbcErrors) &&
+            err.odbcErrors.some(
+              (e: any) => e.state === '08S01' || e.state === '08001',
+            )) ||
+          (err.message && err.message.includes('Communication link failure'));
 
         if (conn && isCursorError) {
-            await conn.query('DEALLOCATE ALL CURSORS;').catch(() => {});
+          await conn.query('DEALLOCATE ALL CURSORS;').catch(() => {});
         }
 
         if (isCursorError || isCommunicationError) {
-            if (DatabaseServiceSQLServer2000.pool) {
-                await DatabaseServiceSQLServer2000.pool.close().catch(() => {});
-                DatabaseServiceSQLServer2000.pool = null;
-            }
-            this.isConnected = false;
-            await this.connect();
+          if (DatabaseServiceSQLServer2000.pool) {
+            await DatabaseServiceSQLServer2000.pool.close().catch(() => {});
+            DatabaseServiceSQLServer2000.pool = null;
+          }
+          this.isConnected = false;
+          await this.connect();
         }
         if (attempt < this.maxQueryRetries) {
-            await new Promise(r => setTimeout(r, this.queryRetryDelayMs * Math.pow(2, attempt)));
+          await new Promise((r) =>
+            setTimeout(r, this.queryRetryDelayMs * Math.pow(2, attempt)),
+          );
         }
       } finally {
         if (conn) {
@@ -111,19 +132,28 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       }
     }
 
-    const odbcDetails = lastError?.odbcErrors ? ` - Details: ${JSON.stringify(lastError.odbcErrors)}` : '';
+    const odbcDetails = lastError?.odbcErrors
+      ? ` - Details: ${JSON.stringify(lastError.odbcErrors)}`
+      : '';
     throw new RpcException({
       statusCode: statusCode.INTERNAL_SERVER_ERROR,
       message: (lastError?.message || 'Database query failed') + odbcDetails,
     });
   }
 
-  public async execute(sql: string, params: any[] = []): Promise<MutationResponse> {
+  public async execute(
+    sql: string,
+    params: any[] = [],
+  ): Promise<MutationResponse> {
     if (!this.isConnected || !DatabaseServiceSQLServer2000.pool) {
-        await this.connect();
-        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2000 is down' });
+      await this.connect();
+      if (!this.isConnected)
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'SQL Server 2000 is down',
+        });
     }
-    
+
     let lastError: any = null;
     for (let attempt = 1; attempt <= this.maxQueryRetries; attempt++) {
       let conn: odbc.Connection | null = null;
@@ -135,23 +165,33 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
         };
       } catch (err: any) {
         lastError = err;
-        const isCursorError = err.sqlState === '24000' || (err.message && err.message.includes('Invalid cursor state'));
-        const isCommunicationError = (err.odbcErrors && Array.isArray(err.odbcErrors) && err.odbcErrors.some((e: any) => e.state === '08S01' || e.state === '08001')) || (err.message && err.message.includes('Communication link failure'));
+        const isCursorError =
+          err.sqlState === '24000' ||
+          (err.message && err.message.includes('Invalid cursor state'));
+        const isCommunicationError =
+          (err.odbcErrors &&
+            Array.isArray(err.odbcErrors) &&
+            err.odbcErrors.some(
+              (e: any) => e.state === '08S01' || e.state === '08001',
+            )) ||
+          (err.message && err.message.includes('Communication link failure'));
 
         if (conn && isCursorError) {
-            await conn.query('DEALLOCATE ALL CURSORS;').catch(() => {});
+          await conn.query('DEALLOCATE ALL CURSORS;').catch(() => {});
         }
 
         if (isCursorError || isCommunicationError) {
-            if (DatabaseServiceSQLServer2000.pool) {
-                await DatabaseServiceSQLServer2000.pool.close().catch(() => {});
-                DatabaseServiceSQLServer2000.pool = null;
-            }
-            this.isConnected = false;
-            await this.connect();
+          if (DatabaseServiceSQLServer2000.pool) {
+            await DatabaseServiceSQLServer2000.pool.close().catch(() => {});
+            DatabaseServiceSQLServer2000.pool = null;
+          }
+          this.isConnected = false;
+          await this.connect();
         }
         if (attempt < this.maxQueryRetries) {
-            await new Promise(r => setTimeout(r, this.queryRetryDelayMs * Math.pow(2, attempt)));
+          await new Promise((r) =>
+            setTimeout(r, this.queryRetryDelayMs * Math.pow(2, attempt)),
+          );
         }
       } finally {
         if (conn) {
@@ -160,10 +200,13 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       }
     }
 
-    const odbcDetails = lastError?.odbcErrors ? ` - Details: ${JSON.stringify(lastError.odbcErrors)}` : '';
+    const odbcDetails = lastError?.odbcErrors
+      ? ` - Details: ${JSON.stringify(lastError.odbcErrors)}`
+      : '';
     throw new RpcException({
       statusCode: statusCode.INTERNAL_SERVER_ERROR,
-      message: (lastError?.message || 'Database execution failed') + odbcDetails,
+      message:
+        (lastError?.message || 'Database execution failed') + odbcDetails,
     });
   }
 
@@ -171,8 +214,12 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
     operations: (client: IDatabaseClient) => Promise<T>,
   ): Promise<T> {
     if (!this.isConnected || !DatabaseServiceSQLServer2000.pool) {
-        await this.connect();
-        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2000 is down' });
+      await this.connect();
+      if (!this.isConnected)
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'SQL Server 2000 is down',
+        });
     }
     const conn = await DatabaseServiceSQLServer2000.pool!.connect();
     try {
@@ -182,20 +229,32 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
       await conn.query('COMMIT TRANSACTION');
       return result;
     } catch (error: any) {
-      await conn.query('IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION').catch(() => {});
-      
-      const isCursorError = error.sqlState === '24000' || (error.message && error.message.includes('Invalid cursor state'));
-      const isCommunicationError = (error.odbcErrors && Array.isArray(error.odbcErrors) && error.odbcErrors.some((e: any) => e.state === '08S01' || e.state === '08001')) || (error.message && error.message.includes('Communication link failure'));
+      await conn
+        .query('IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION')
+        .catch(() => {});
+
+      const isCursorError =
+        error.sqlState === '24000' ||
+        (error.message && error.message.includes('Invalid cursor state'));
+      const isCommunicationError =
+        (error.odbcErrors &&
+          Array.isArray(error.odbcErrors) &&
+          error.odbcErrors.some(
+            (e: any) => e.state === '08S01' || e.state === '08001',
+          )) ||
+        (error.message && error.message.includes('Communication link failure'));
 
       if (isCursorError || isCommunicationError) {
-          if (DatabaseServiceSQLServer2000.pool) {
-              await DatabaseServiceSQLServer2000.pool.close().catch(() => {});
-              DatabaseServiceSQLServer2000.pool = null;
-          }
-          this.isConnected = false;
+        if (DatabaseServiceSQLServer2000.pool) {
+          await DatabaseServiceSQLServer2000.pool.close().catch(() => {});
+          DatabaseServiceSQLServer2000.pool = null;
+        }
+        this.isConnected = false;
       }
-      
-      const odbcDetails = error.odbcErrors ? ` - Details: ${JSON.stringify(error.odbcErrors)}` : '';
+
+      const odbcDetails = error.odbcErrors
+        ? ` - Details: ${JSON.stringify(error.odbcErrors)}`
+        : '';
       throw new RpcException({
         statusCode: statusCode.INTERNAL_SERVER_ERROR,
         message: (error?.message || 'Transaction failed') + odbcDetails,
@@ -207,8 +266,12 @@ export class DatabaseServiceSQLServer2000 extends DatabaseAbstract {
 
   public async getClient(): Promise<IDatabaseClient> {
     if (!this.isConnected || !DatabaseServiceSQLServer2000.pool) {
-        await this.connect();
-        if (!this.isConnected) throw new RpcException({ statusCode: statusCode.INTERNAL_SERVER_ERROR, message: 'SQL Server 2000 is down' });
+      await this.connect();
+      if (!this.isConnected)
+        throw new RpcException({
+          statusCode: statusCode.INTERNAL_SERVER_ERROR,
+          message: 'SQL Server 2000 is down',
+        });
     }
     const conn = await DatabaseServiceSQLServer2000.pool!.connect();
     return new ODBCClientWrapper(conn);
