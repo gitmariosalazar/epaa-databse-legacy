@@ -10,6 +10,7 @@ export interface LecturaRecord {
   novedad: string | null;
   tipoNovedadLecturaId: number | null;
   codigoLectura: string | null;
+  usuarioIngreso: string | null;
 }
 
 export const LECTURAS_SOURCE_REPOSITORY = Symbol('LECTURAS_SOURCE_REPOSITORY');

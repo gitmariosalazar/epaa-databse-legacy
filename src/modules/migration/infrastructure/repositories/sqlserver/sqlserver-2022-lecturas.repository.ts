@@ -31,7 +31,8 @@ export class SqlServer2022LecturasRepository implements LecturasTargetRepository
         lectura_actual          FLOAT,
         novedad                 VARCHAR(500),
         tipo_novedad_lectura_id INT,
-        codigo_lectura          VARCHAR(50)
+        codigo_lectura          VARCHAR(50),
+        usuario_ingreso         VARCHAR(50)
       );
     `);
   }
@@ -50,7 +51,7 @@ export class SqlServer2022LecturasRepository implements LecturasTargetRepository
         for (let j = 0; j < batch.length; j += CHUNK_SIZE) {
           const chunk = batch.slice(j, j + CHUNK_SIZE);
           const values: string[] = [];
-          
+
           chunk.forEach((record) => {
             values.push(`(
               ${this.sqlString(record.acometidaId)},
@@ -63,15 +64,16 @@ export class SqlServer2022LecturasRepository implements LecturasTargetRepository
               ${this.sqlNumber(record.lecturaActual)},
               ${this.sqlString(record.novedad)},
               ${this.sqlNumber(record.tipoNovedadLecturaId)},
-              ${this.sqlString(record.codigoLectura)}
+              ${this.sqlString(record.codigoLectura)},
+              ${this.sqlString(record.usuarioIngreso)}
             )`);
           });
 
           await conn.execute(
             `INSERT INTO ${TABLE_NAME}
              (acometida_id, mes_lectura, fecha_lectura, hora_lectura, sector, cuenta,
-              lectura_anterior, lectura_actual, novedad, tipo_novedad_lectura_id, codigo_lectura)
-             VALUES ${values.join(', ')}`
+              lectura_anterior, lectura_actual, novedad, tipo_novedad_lectura_id, codigo_lectura, usuario_ingreso)
+             VALUES ${values.join(', ')}`,
           );
         }
       });
@@ -99,6 +101,7 @@ export class SqlServer2022LecturasRepository implements LecturasTargetRepository
       novedad: row.novedad,
       tipoNovedadLecturaId: row.tipo_novedad_lectura_id,
       codigoLectura: row.codigo_lectura,
+      usuarioIngreso: row.usuario_ingreso,
     }));
   }
 

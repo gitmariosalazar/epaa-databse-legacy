@@ -37,7 +37,8 @@ export class SqlServer2000LecturasRepository implements LecturasTargetRepository
         lectura_actual          FLOAT,
         novedad                 NVARCHAR(500),
         tipo_novedad_lectura_id INT,
-        codigo_lectura          VARCHAR(50)
+        codigo_lectura          VARCHAR(50),
+        usuario_ingreso            VARCHAR(50)
       );
     `);
   }
@@ -65,12 +66,13 @@ export class SqlServer2000LecturasRepository implements LecturasTargetRepository
               ${this.sqlNumber(record.lecturaActual)},
               ${this.sqlString(record.novedad)},
               ${this.sqlNumber(record.tipoNovedadLecturaId)},
-              ${this.sqlString(record.codigoLectura)}`);
+              ${this.sqlString(record.codigoLectura)},
+              ${this.sqlString(record.usuarioIngreso)}`);
         }
 
         const insertSql = `INSERT INTO ${TABLE_NAME}
           (acometida_id, mes_lectura, fecha_lectura, hora_lectura, sector, cuenta,
-           lectura_anterior, lectura_actual, novedad, tipo_novedad_lectura_id, codigo_lectura)
+           lectura_anterior, lectura_actual, novedad, tipo_novedad_lectura_id, codigo_lectura, usuario_ingreso)
           ${selects.join(' UNION ALL ')}`;
 
         await conn.execute(insertSql);
@@ -99,6 +101,7 @@ export class SqlServer2000LecturasRepository implements LecturasTargetRepository
       novedad: row.novedad,
       tipoNovedadLecturaId: row.tipo_novedad_lectura_id,
       codigoLectura: row.codigo_lectura,
+      usuarioIngreso: row.usuario_ingreso,
     }));
   }
 

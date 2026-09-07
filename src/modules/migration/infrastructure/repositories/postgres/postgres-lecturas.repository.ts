@@ -31,7 +31,8 @@ export class PostgresLecturasRepository implements LecturasSourceRepository {
             l.lectura_actual,
             l.novedad,
             l.tipo_novedad_lectura_id,
-            l.codigo_lectura
+            l.codigo_lectura,
+            l.usuario_ingreso
          FROM lectura l
          WHERE l.mes_lectura = ANY($1)
            AND COALESCE(l.novedad, '') !~* 'CAMBIO|INICIAL'
@@ -57,6 +58,7 @@ export class PostgresLecturasRepository implements LecturasSourceRepository {
       novedad: this.cleanString(row.novedad),
       tipoNovedadLecturaId: this.parseNumber(row.tipo_novedad_lectura_id),
       codigoLectura: this.cleanString(row.codigo_lectura),
+      usuarioIngreso: this.cleanString(row.usuario_ingreso),
     };
   }
 
