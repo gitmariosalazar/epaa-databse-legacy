@@ -12,6 +12,7 @@ import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/cre
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import { ReadingNotFoundException } from '../../domain/exceptions/reading-not-found.exception';
+import { environments } from '../../../../settings/environments/environments';
 
 @Controller('readings')
 export class ReadingController {
@@ -28,7 +29,7 @@ export class ReadingController {
       const result = await this.readingService.createReading(reading);
       const consumer = context.getConsumer();
       const message = context.getMessage();
-      const topic = context.getTopic();
+      const topic = environments.KAFKA_TOPIC;
       await consumer.commitOffsets([
         {
           topic,
@@ -79,7 +80,7 @@ export class ReadingController {
       );
       const consumer = context.getConsumer();
       const message = context.getMessage();
-      const topic = context.getTopic();
+      const topic = environments.KAFKA_TOPIC;
       await consumer.commitOffsets([
         {
           topic,
@@ -95,7 +96,7 @@ export class ReadingController {
         // Hacemos commit para sacarlo de Kafka y avisamos al Gateway.
         const consumer = context.getConsumer();
         const message = context.getMessage();
-        const topic = context.getTopic();
+        const topic = environments.KAFKA_TOPIC;
         await consumer.commitOffsets([
           { topic, partition: context.getPartition(), offset: (Number(message.offset) + 1).toString() }
         ]);
@@ -134,7 +135,7 @@ export class ReadingController {
       );
       const consumer = context.getConsumer();
       const message = context.getMessage();
-      const topic = context.getTopic();
+      const topic = environments.KAFKA_TOPIC;
       await consumer.commitOffsets([
         {
           topic,
@@ -150,7 +151,7 @@ export class ReadingController {
         // Hacemos commit para sacarlo de Kafka y avisamos al Gateway.
         const consumer = context.getConsumer();
         const message = context.getMessage();
-        const topic = context.getTopic();
+        const topic = environments.KAFKA_TOPIC;
         await consumer.commitOffsets([
           { topic, partition: context.getPartition(), offset: (Number(message.offset) + 1).toString() }
         ]);
