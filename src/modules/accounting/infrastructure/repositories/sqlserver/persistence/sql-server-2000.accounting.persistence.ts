@@ -897,16 +897,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
                 END
 
         LEFT JOIN AP_LECTURAS l
-            ON l.ClaveCatastral = di.ClaveCatastral
-          AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
-          AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(
-                CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))
-                    WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
-                    WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
-                    WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
-                    WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
-                END
-            )
+            ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
         WHERE 
             (
@@ -1022,16 +1013,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
               END
 
       LEFT JOIN AP_LECTURAS l
-          ON l.ClaveCatastral = di.ClaveCatastral
-        AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
-        AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(
-              CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))
-                  WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
-                  WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
-                  WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
-                  WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
-              END
-          )
+          ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
       WHERE 
           (
@@ -1245,16 +1227,7 @@ export class SQLServer2000AccountingPersistence implements InterfaceAccountingRe
                 END
 
         LEFT JOIN AP_LECTURAS l
-            ON l.ClaveCatastral = di.ClaveCatastral
-          AND l.Anio = YEAR(DATEADD(month, -1, di.Fecha_Venc_Interes))
-          AND UPPER(LTRIM(RTRIM(l.Mes))) = UPPER(
-                CASE MONTH(DATEADD(month, -1, di.Fecha_Venc_Interes))
-                    WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
-                    WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
-                    WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
-                    WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
-                END
-            )
+            ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
         LEFT JOIN AP_NotasCredito anc
             ON di.ClaveCatastral = anc.Cuenta
