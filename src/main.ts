@@ -38,6 +38,11 @@ async function bootstrap() {
           rebalanceTimeout: 300000,
           maxWaitTimeInMs: 5000,
         },
+        run: {
+          autoCommit: false,
+          autoCommitInterval: 5000,
+          autoCommitThreshold: 100,
+        },
       },
       environments.KAFKA_TOPIC,
     ),

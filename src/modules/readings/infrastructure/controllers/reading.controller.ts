@@ -1,6 +1,13 @@
 import { Controller, Get, Post, Put } from '@nestjs/common';
 import { ReadingService } from '../../application/services/reading.service';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import {
+  Ctx,
+  KafkaContext,
+  MessagePattern,
+  Payload,
+  KafkaRetriableException,
+  RpcException,
+} from '@nestjs/microservices';
 import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/create.reading.request';
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
@@ -12,20 +19,32 @@ export class ReadingController {
 
   @Post('create-reading-legacy')
   @MessagePattern('epaa-legacy.reading.create-reading-legacy')
-  async createReading(@Payload() reading: CreateReadingLegacyRequest) {
+  async createReading(
+    @Payload() reading: CreateReadingLegacyRequest,
+    @Ctx() context: KafkaContext,
+  ) {
     try {
       console.log(`Received createReading request: ${JSON.stringify(reading)}`);
-      return await this.readingService.createReading(reading);
+      const result = await this.readingService.createReading(reading);
+      const consumer = context.getConsumer();
+      const message = context.getMessage();
+      const topic = context.getTopic();
+      await consumer.commitOffsets([
+        {
+          topic,
+          partition: context.getPartition(),
+          offset: (Number(message.offset) + 1).toString(),
+        },
+      ]);
+      return result;
     } catch (error) {
       const err = error as Error;
 
       console.error(`Error in createReading: ${err.message}`, err);
-      // Retornar un objeto de error en lugar de arrojar una excepción
-      // evita que Kafka reintente el evento en un bucle infinito.
-      return {
-        statusCode: 500,
-        message: err.message || 'Internal server error',
-      };
+      
+      // Lanzamos KafkaRetriableException para que Kafka NO haga commit
+      // y reintente este mensaje hasta que la DB responda correctamente.
+      throw new KafkaRetriableException(err.message || 'Internal server error');
     }
   }
 
@@ -46,6 +65,7 @@ export class ReadingController {
       params: FindCurrentReadingParams;
       request: UpdateReadingRequest;
     },
+    @Ctx() context: KafkaContext,
   ) {
     try {
       /*
@@ -53,24 +73,42 @@ export class ReadingController {
         `Received updateCurrentReading request: ${JSON.stringify(data)}`,
       );
       */
-      return await this.readingService.updateCurrentReading(
+      const result = await this.readingService.updateCurrentReading(
         data.params,
         data.request,
       );
+      const consumer = context.getConsumer();
+      const message = context.getMessage();
+      const topic = context.getTopic();
+      await consumer.commitOffsets([
+        {
+          topic,
+          partition: context.getPartition(),
+          offset: (Number(message.offset) + 1).toString(),
+        },
+      ]);
+      return result;
     } catch (error) {
       if (error instanceof ReadingNotFoundException) {
         console.warn(`Reading not found: ${error.message}`);
-        return {
+        // Es un error de negocio (404), NO queremos reintentarlo. 
+        // Hacemos commit para sacarlo de Kafka y avisamos al Gateway.
+        const consumer = context.getConsumer();
+        const message = context.getMessage();
+        const topic = context.getTopic();
+        await consumer.commitOffsets([
+          { topic, partition: context.getPartition(), offset: (Number(message.offset) + 1).toString() }
+        ]);
+        
+        throw new RpcException({
           statusCode: 404,
           message: error.message,
-        };
+        });
       }
       const err = error as Error;
       console.error(`Error updating reading: ${err}`);
-      return {
-        statusCode: 500,
-        message: err.message || 'Internal server error',
-      };
+      // Error de servidor/DB (500). Pedimos reintento a Kafka.
+      throw new KafkaRetriableException(err.message || 'Internal server error');
     }
   }
 
@@ -82,31 +120,50 @@ export class ReadingController {
       params: FindCurrentReadingParams;
       request: UpdateReadingRequest;
     },
+    @Ctx() context: KafkaContext,
   ) {
     try {
       /*
       console.log(
-        `Received updateCurrentReading request: ${JSON.stringify(data)}`,
+        `Received updateSpecialCurrentReading request: ${JSON.stringify(data)}`,
       );
       */
-      return await this.readingService.updateSpecialCurrentReading(
+      const result = await this.readingService.updateSpecialCurrentReading(
         data.params,
         data.request,
       );
+      const consumer = context.getConsumer();
+      const message = context.getMessage();
+      const topic = context.getTopic();
+      await consumer.commitOffsets([
+        {
+          topic,
+          partition: context.getPartition(),
+          offset: (Number(message.offset) + 1).toString(),
+        },
+      ]);
+      return result;
     } catch (error) {
       if (error instanceof ReadingNotFoundException) {
         console.warn(`Reading not found: ${error.message}`);
-        return {
+        // Es un error de negocio (404), NO queremos reintentarlo. 
+        // Hacemos commit para sacarlo de Kafka y avisamos al Gateway.
+        const consumer = context.getConsumer();
+        const message = context.getMessage();
+        const topic = context.getTopic();
+        await consumer.commitOffsets([
+          { topic, partition: context.getPartition(), offset: (Number(message.offset) + 1).toString() }
+        ]);
+        
+        throw new RpcException({
           statusCode: 404,
           message: error.message,
-        };
+        });
       }
       const err = error as Error;
       console.error(`Error updating reading: ${err}`);
-      return {
-        statusCode: 500,
-        message: err.message || 'Internal server error',
-      };
+      // Error de servidor/DB (500). Pedimos reintento a Kafka.
+      throw new KafkaRetriableException(err.message || 'Internal server error');
     }
   }
 
