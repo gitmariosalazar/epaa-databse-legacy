@@ -339,9 +339,7 @@ export class AccountingController {
   @Get('get-monthly-collection-summary')
   @MessagePattern('epaa-legacy.accounting.get-monthly-collection-summary')
   getMonthlyCollectionSummary(@Payload() monthsBack: number) {
-    console.log(
-      `Received getMonthlyCollectionSummary request: ${monthsBack}`,
-    );
+    console.log(`Received getMonthlyCollectionSummary request: ${monthsBack}`);
     return this.accountingService.getMonthlyCollectionSummary(monthsBack);
   }
 
@@ -373,7 +371,27 @@ export class AccountingController {
   @Get('get-citizen-summary')
   @MessagePattern('epaa-legacy.accounting.get-citizen-summary')
   getCitizenSummary(@Payload() params: DateRangeParams) {
-    console.log(`Received getCitizenSummary request: ${JSON.stringify(params)}`);
+    console.log(
+      `Received getCitizenSummary request: ${JSON.stringify(params)}`,
+    );
     return this.accountingService.getCitizenSummary(params);
+  }
+
+  @Get('find-history-invoices')
+  @MessagePattern('epaa-legacy.accounting.find-history-invoices')
+  findHistoryInvoices(
+    @Payload()
+    data: {
+      cardId: string;
+      period: { startDate: string; endDate: string };
+    },
+  ) {
+    console.log(
+      `Received findHistoryInvoices request: ${JSON.stringify(data)}`,
+    );
+    return this.accountingService.findHistoryInvoicesByCadastralKeyOrCardId(
+      data.cardId,
+      data.period,
+    );
   }
 }

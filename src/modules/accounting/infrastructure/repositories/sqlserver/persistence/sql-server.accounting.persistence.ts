@@ -1462,4 +1462,443 @@ export class SQLServerAccountingPersistence implements InterfaceAccountingReposi
       throw error;
     }
   }
+
+  async findHistoryInvoicesByCadastralKeyOrCardId(
+    searchValue: string,
+    period: { startDate: string; endDate: string },
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      const initDate = period.startDate
+        .replace('T', ' ')
+        .replace('Z', '')
+        .split('.')[0];
+      const endDate = period.endDate.split('T')[0] + ' 23:59:59.997';
+
+      const query: string = /* SQL */ `
+        SET NOCOUNT ON;
+
+        -- Parámetro de búsqueda original
+        DECLARE @searchParam VARCHAR(50)
+        SET @searchParam = '${String(searchValue.trim())}'
+
+        -- NUEVO: Parámetros para rango de fechas (Desde - Hasta)
+        -- Puedes inyectar las fechas desde tu código (ej. '2023-01-01') o dejarlas como NULL para omitir el filtro
+        DECLARE @startDate DATETIME; -- Ejemplo para últimos 5 meses: DATEADD(MONTH, -5, GETDATE())
+        DECLARE @endDate DATETIME;   -- Ejemplo: GETDATE()
+
+        SET @startDate = CONVERT(DATETIME, '${initDate}', 120); -- Ej. últimos 5 meses: DATEADD(MONTH, -5, GETDATE())
+        SET @endDate = CONVERT(DATETIME, '${endDate}', 120);   -- Ej: GETDATE()
+
+        IF CHARINDEX('-', @searchParam) = 0
+        BEGIN
+            -- BÚSQUEDA POR CÉDULA (CodCliente_Ingreso)
+            SELECT
+            -- ── Identificación del cliente y suministro ──────────────────────────────────
+            di.Cod_Ingreso                  AS income_code,
+            c.CED_IDENT_CIUDADANO           AS card_id,
+            c.NOMBRES_CIUDADANO             AS name,
+            c.APELLIDOS_CIUDADANO           AS last_name,
+            di.ClaveCatastral               AS cadastral_key,
+            di.Direccion                    AS address,
+            a.Tarifa                        AS rate,
+
+            -- Interes
+            CASE
+                WHEN di.Fecha_Pago IS NULL AND di.Estado_Ingreso IS NULL
+                    THEN dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
+                ELSE di.Intereses
+            END AS interest_value,
+
+            -- ── Período de facturación ────────────────────────────────────────────────────
+            l.Mes                           AS month,
+            l.Anio                          AS year,
+
+            CASE MONTH(di.Fecha_Venc_Interes)
+                WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+                WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+                WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+                WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+            END                             AS month_due,
+
+            YEAR(di.Fecha_Venc_Interes)     AS year_due,
+            di.Fecha_Venc_Interes           AS due_date,
+            di.Fecha_Pago                   AS payment_date,
+
+            -- ── Lectura del medidor ───────────────────────────────────────────────────────
+            l.LecturaActual                 AS current_reading,
+            l.LecturaAnterior               AS previous_reading,
+            CASE
+                WHEN l.LecturaActual IS NOT NULL
+                THEN (l.LecturaActual - l.LecturaAnterior)
+                ELSE NULL
+            END                             AS consumption,
+
+            CASE
+                WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE()
+                    THEN 'Pendiente de lectura (período actual/futuro)'
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE()
+                    THEN 'Lectura no registrada o pendiente'
+                ELSE 'No disponible'
+            END                             AS reading_status,
+
+            -- ── EPAA: valor del servicio de agua ─────────────────────────────────────────
+            -- Valor por consumo de agua (según lectura del medidor)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.Valor_Titulo    ELSE NULL END AS epaa_value,
+            -- Valor por servicios de terceros (alcantarillado, etc.)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros   ELSE NULL END AS third_party_value,
+            -- Valor unitario por m³ consumido
+            l.ValorAPagar                   AS reading_value,
+            -- Recargo por mora u otro concepto general
+            di.Recargo                      AS surcharge,
+            -- Total EPAA: agua + terceros (sin basura ni ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                  + COALESCE(di.ValorTerceros, 0)
+                  + CASE WHEN di.Fecha_Pago IS NULL THEN dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) ELSE COALESCE(di.Intereses, 0) END
+                  + COALESCE(di.Recargo, 0)
+                ELSE NULL
+            END                             AS total_epaa_value,
+
+            -- ── Tasa de recolección de basura ─────────────────────────────────────────────
+            -- Tarifa de basura OFICIAL (para mostrar como información de la tabla)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN ISNULL(v.Valor, di.tasa_basura)     ELSE NULL END AS trash_rate_official,
+
+            -- Lo que EFECTIVAMENTE paga el usuario por basura este mes
+            -- (Si hay saldo a favor y cubre todo, paga 0)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN
+                    CASE
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN
+                            CASE
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL
+            END                             AS trash_rate,
+
+            -- Crédito original que arrastra del pasado (sólo informativo)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
+            -- Saldo a favor actual
+            CASE WHEN l.LecturaActual IS NOT NULL THEN anc.Valor ELSE NULL END AS balance_in_favor_current_month,
+            -- Saldo a favor sobrante para el PRÓXIMO MES
+            CASE WHEN l.LecturaActual IS NOT NULL AND COALESCE(anc.Valor, 0) > 0
+                THEN
+                    CASE
+                        WHEN anc.Valor > ISNULL(v.Valor, di.tasa_basura) THEN anc.Valor - ISNULL(v.Valor, di.tasa_basura)
+                        ELSE 0
+                    END
+                ELSE NULL
+            END                             AS balance_in_favor_next_month,
+
+            -- Saldo en contra: se anula por completo (nunca hay saldo a favor de la empresa)
+            NULL                            AS balance_against_next_month,
+            -- Descuento aplicado sobre la tasa de basura (solo en registros pagados, aquí siempre 0)
+            COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,
+            -- Total neto de basura = lo que le toca pagar finalmente este mes
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN
+                    CASE
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN
+                            CASE
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL
+            END                             AS total_trash_rate,
+
+            -- ── Totales de la planilla ────────────────────────────────────────────────────
+            -- Total base: EPAA + terceros + basura actual + recargo (sin ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                  + COALESCE(di.ValorTerceros, 0)
+                  + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                  + CASE WHEN di.Fecha_Pago IS NULL THEN dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) ELSE COALESCE(di.Intereses, 0) END
+                  + COALESCE(di.Recargo, 0)
+                -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
+                ELSE NULL
+            END                             AS total,
+
+            -- Total ajustado: Total consolidado del cliente
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                  + COALESCE(di.ValorTerceros, 0)
+                  + COALESCE(di.Recargo, 0)
+                  + CASE WHEN di.Fecha_Pago IS NULL THEN dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) ELSE COALESCE(di.Intereses, 0) END
+                  + CASE
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN
+                            CASE
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL
+            END                             AS adjusted_total,
+
+            -- ── Metadatos de ingreso ──────────────────────────────────────────────────────
+            di.Estado_Ingreso               AS income_status,
+            di.Fecha_Ingreso                AS income_date,
+            CASE
+                WHEN di.Fecha_Venc_Interes < DATEADD(dd, DATEDIFF(dd, 0, GETDATE()), 0) THEN 'Vencido'
+                ELSE 'No Vencido'
+            END AS due_date_status
+
+        FROM Datos_ingreso di
+        INNER JOIN CIUDADANO c
+            ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
+
+        INNER JOIN AP_ACOMETIDAS a
+            ON a.Sector =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
+                        AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
+                        AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
+                    THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
+                    ELSE -1
+                END
+            AND a.Cuenta =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
+                        AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
+                    THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
+                    ELSE -1
+                END
+
+        LEFT JOIN AP_LECTURAS l
+            ON l.CodigoIngresoARentas = di.Cod_Ingreso
+
+        LEFT JOIN AP_NotasCredito anc
+            ON di.ClaveCatastral = anc.Cuenta
+
+        LEFT JOIN Valor v
+            ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
+
+        WHERE
+            di.CodCliente_Ingreso = @searchParam
+            -- Filtro por rango de fechas aplicado a Fecha_Venc_Interes
+            AND (@startDate IS NULL OR di.Fecha_Ingreso >= @startDate)
+            AND (@endDate IS NULL OR di.Fecha_Ingreso <= @endDate)
+
+            AND di.convenio IS NULL
+
+        ORDER BY
+            di.ClaveCatastral,
+            di.Fecha_Venc_Interes DESC;
+        END
+        ELSE
+        BEGIN
+            -- BÚSQUEDA POR CLAVE CATASTRAL
+            SELECT
+                            -- ── Identificación del cliente y suministro ──────────────────────────────────
+            di.Cod_Ingreso                  AS income_code,
+            c.CED_IDENT_CIUDADANO           AS card_id,
+            c.NOMBRES_CIUDADANO             AS name,
+            c.APELLIDOS_CIUDADANO           AS last_name,
+            di.ClaveCatastral               AS cadastral_key,
+            di.Direccion                    AS address,
+            a.Tarifa                        AS rate,
+            di.Intereses,
+
+            -- Interes
+            CASE
+                WHEN di.Fecha_Pago IS NULL AND di.Estado_Ingreso IS NULL
+                    THEN dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE())
+                ELSE di.Intereses
+            END AS interest_value,
+
+            -- ── Período de facturación ────────────────────────────────────────────────────
+            l.Mes                           AS month,
+            l.Anio                          AS year,
+
+            CASE MONTH(di.Fecha_Venc_Interes)
+                WHEN 1 THEN 'ENERO' WHEN 2 THEN 'FEBRERO' WHEN 3 THEN 'MARZO'
+                WHEN 4 THEN 'ABRIL' WHEN 5 THEN 'MAYO' WHEN 6 THEN 'JUNIO'
+                WHEN 7 THEN 'JULIO' WHEN 8 THEN 'AGOSTO' WHEN 9 THEN 'SEPTIEMBRE'
+                WHEN 10 THEN 'OCTUBRE' WHEN 11 THEN 'NOVIEMBRE' WHEN 12 THEN 'DICIEMBRE'
+            END                             AS month_due,
+
+            YEAR(di.Fecha_Venc_Interes)     AS year_due,
+            di.Fecha_Venc_Interes           AS due_date,
+            di.Fecha_Pago                   AS payment_date,
+
+            -- ── Lectura del medidor ───────────────────────────────────────────────────────
+            l.LecturaActual                 AS current_reading,
+            l.LecturaAnterior               AS previous_reading,
+            CASE
+                WHEN l.LecturaActual IS NOT NULL
+                THEN (l.LecturaActual - l.LecturaAnterior)
+                ELSE NULL
+            END                             AS consumption,
+
+            CASE
+                WHEN l.LecturaActual IS NOT NULL THEN 'Lectura registrada'
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes >= GETDATE()
+                    THEN 'Pendiente de lectura (período actual/futuro)'
+                WHEN l.LecturaActual IS NULL AND di.Fecha_Venc_Interes < GETDATE()
+                    THEN 'Lectura no registrada o pendiente'
+                ELSE 'No disponible'
+            END                             AS reading_status,
+
+            -- ── EPAA: valor del servicio de agua ─────────────────────────────────────────
+            -- Valor por consumo de agua (según lectura del medidor)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.Valor_Titulo    ELSE NULL END AS epaa_value,
+            -- Valor por servicios de terceros (alcantarillado, etc.)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.ValorTerceros   ELSE NULL END AS third_party_value,
+            -- Valor unitario por m³ consumido
+            l.ValorAPagar                   AS reading_value,
+            -- Recargo por mora u otro concepto general
+            di.Recargo                      AS surcharge,
+            -- Total EPAA: agua + terceros (sin basura ni ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                  + COALESCE(di.ValorTerceros, 0)
+                  + CASE WHEN di.Fecha_Pago IS NULL THEN dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) ELSE COALESCE(di.Intereses, 0) END
+                  + COALESCE(di.Recargo, 0)
+                ELSE NULL
+            END                             AS total_epaa_value,
+
+            -- ── Tasa de recolección de basura ─────────────────────────────────────────────
+            -- Tarifa de basura OFICIAL (para mostrar como información de la tabla)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN ISNULL(v.Valor, di.tasa_basura)     ELSE NULL END AS trash_rate_official,
+
+            -- Lo que EFECTIVAMENTE paga el usuario por basura este mes
+            -- (Si hay saldo a favor y cubre todo, paga 0)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN
+                    CASE
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN
+                            CASE
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL
+            END                             AS trash_rate,
+
+            -- Crédito original que arrastra del pasado (sólo informativo)
+            CASE WHEN l.LecturaActual IS NOT NULL THEN di.tasa_basura_anterior_oficial ELSE NULL END AS trash_rate_previous,
+            -- Saldo a favor actual
+            CASE WHEN l.LecturaActual IS NOT NULL THEN anc.Valor ELSE NULL END AS balance_in_favor_current_month,
+            -- Saldo a favor sobrante para el PRÓXIMO MES
+            CASE WHEN l.LecturaActual IS NOT NULL AND COALESCE(anc.Valor, 0) > 0
+                THEN
+                    CASE
+                        WHEN anc.Valor > ISNULL(v.Valor, di.tasa_basura) THEN anc.Valor - ISNULL(v.Valor, di.tasa_basura)
+                        ELSE 0
+                    END
+                ELSE NULL
+            END                             AS balance_in_favor_next_month,
+
+            -- Saldo en contra: se anula por completo (nunca hay saldo a favor de la empresa)
+            NULL                            AS balance_against_next_month,
+            -- Descuento aplicado sobre la tasa de basura (solo en registros pagados, aquí siempre 0)
+            COALESCE(di.descuento_tb, 0)    AS discount_trash_rate,
+            -- Total neto de basura = lo que le toca pagar finalmente este mes
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN
+                    CASE
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN
+                            CASE
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL
+            END                             AS total_trash_rate,
+
+            -- ── Totales de la planilla ────────────────────────────────────────────────────
+            -- Total base: EPAA + terceros + basura actual + recargo (sin ajuste de tarifa)
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                  + COALESCE(di.ValorTerceros, 0)
+                  + COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                  + CASE WHEN di.Fecha_Pago IS NULL THEN dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) ELSE COALESCE(di.Intereses, 0) END
+                  + COALESCE(di.Recargo, 0)
+                -- descuento_tb no aplica: solo existe en registros pagados (Fecha_Pago IS NOT NULL)
+                ELSE NULL
+            END                             AS total,
+
+            -- Total ajustado: Total consolidado del cliente
+            CASE WHEN l.LecturaActual IS NOT NULL
+                THEN COALESCE(di.Valor_Titulo, 0)
+                  + COALESCE(di.ValorTerceros, 0)
+                  + COALESCE(di.Recargo, 0)
+                  + CASE WHEN di.Fecha_Pago IS NULL THEN dbo.fn_CalcularInteresIndividual(di.Valor_Titulo, di.Fecha_Venc_Interes, GETDATE()) ELSE COALESCE(di.Intereses, 0) END
+                  + CASE
+                        WHEN COALESCE(anc.Valor, 0) > 0 THEN
+                            CASE
+                                WHEN anc.Valor >= ISNULL(v.Valor, di.tasa_basura) THEN 0
+                                ELSE ISNULL(v.Valor, di.tasa_basura) - anc.Valor
+                            END
+                        ELSE COALESCE(ISNULL(v.Valor, di.tasa_basura), 0)
+                    END
+                ELSE NULL
+            END                             AS adjusted_total,
+
+            -- ── Metadatos de ingreso ──────────────────────────────────────────────────────
+            di.Estado_Ingreso               AS income_status,
+            di.Fecha_Ingreso                AS income_date,
+            CASE
+                WHEN di.Fecha_Venc_Interes < DATEADD(dd, DATEDIFF(dd, 0, GETDATE()), 0) THEN 'Vencido'
+                ELSE 'No Vencido'
+            END AS due_date_status
+
+        FROM Datos_ingreso di
+        INNER JOIN CIUDADANO c
+            ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
+
+        INNER JOIN AP_ACOMETIDAS a
+            ON a.Sector =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
+                        AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
+                        AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
+                    THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
+                    ELSE -1
+                END
+            AND a.Cuenta =
+                CASE
+                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
+                        AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
+                    THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
+                    ELSE -1
+                END
+
+        LEFT JOIN AP_LECTURAS l
+            ON l.CodigoIngresoARentas = di.Cod_Ingreso
+
+        LEFT JOIN AP_NotasCredito anc
+            ON di.ClaveCatastral = anc.Cuenta
+
+        LEFT JOIN Valor v
+            ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
+
+            WHERE
+                di.ClaveCatastral = @searchParam
+                AND (@startDate IS NULL OR di.Fecha_Ingreso >= @startDate)
+                AND (@endDate IS NULL OR di.Fecha_Ingreso <= @endDate)
+                AND di.convenio IS NULL
+            ORDER BY
+                di.ClaveCatastral,
+                di.Fecha_Venc_Interes DESC;
+        END;
+      `;
+      const result =
+        await this.sqlServerService.query<PendingReadingSQLResult>(query);
+      return result.map(SQLServerAccountingAdapter.toDomainPending);
+    } catch (error) {
+      console.error(
+        'Error al obtener historial de facturas por clave o identificación:',
+        error,
+      );
+      throw error;
+    }
+  }
 }

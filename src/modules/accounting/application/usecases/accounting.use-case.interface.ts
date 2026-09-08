@@ -38,7 +38,9 @@ export interface InterfaceAccountingUseCase {
     cadastralKey: string,
   ): Promise<PendingReadingResponse[]>;
 
-  findPendingReadingsByCardId(cardId: string): Promise<PendingReadingResponse[]>;
+  findPendingReadingsByCardId(
+    cardId: string,
+  ): Promise<PendingReadingResponse[]>;
 
   findPendingReadingsByCadastralKeyOrCardId(
     searchValue: string,
@@ -46,5 +48,13 @@ export interface InterfaceAccountingUseCase {
 
   findPendingReadingsByCadastralKeyOrCardIdAll(
     searchValue: string,
+  ): Promise<PendingReadingResponse[]>;
+
+  findHistoryInvoicesByCadastralKeyOrCardId(
+    searchValue: string,
+    period: {
+      startDate: string;
+      endDate: string;
+    },
   ): Promise<PendingReadingResponse[]>;
 }

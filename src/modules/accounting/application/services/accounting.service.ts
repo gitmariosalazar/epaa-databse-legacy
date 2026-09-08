@@ -647,4 +647,21 @@ export class AccountingService
       throw error;
     }
   }
+
+  async findHistoryInvoicesByCadastralKeyOrCardId(
+    searchValue: string,
+    period: {
+      startDate: string;
+      endDate: string;
+    },
+  ): Promise<PendingReadingResponse[]> {
+    try {
+      return await this.accountingRepository.findHistoryInvoicesByCadastralKeyOrCardId(
+        searchValue,
+        period,
+      );
+    } catch (error) {
+      throw error;
+    }
+  }
 }
