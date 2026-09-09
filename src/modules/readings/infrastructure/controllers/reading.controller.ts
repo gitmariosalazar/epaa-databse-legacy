@@ -42,7 +42,7 @@ export class ReadingController {
       const err = error as Error;
 
       console.error(`Error in createReading: ${err.message}`, err);
-      
+
       // Lanzamos KafkaRetriableException para que Kafka NO haga commit
       // y reintente este mensaje hasta que la DB responda correctamente.
       throw new KafkaRetriableException(err.message || 'Internal server error');
@@ -92,15 +92,19 @@ export class ReadingController {
     } catch (error) {
       if (error instanceof ReadingNotFoundException) {
         console.warn(`Reading not found: ${error.message}`);
-        // Es un error de negocio (404), NO queremos reintentarlo. 
+        // Es un error de negocio (404), NO queremos reintentarlo.
         // Hacemos commit para sacarlo de Kafka y avisamos al Gateway.
         const consumer = context.getConsumer();
         const message = context.getMessage();
         const topic = environments.KAFKA_TOPIC;
         await consumer.commitOffsets([
-          { topic, partition: context.getPartition(), offset: (Number(message.offset) + 1).toString() }
+          {
+            topic,
+            partition: context.getPartition(),
+            offset: (Number(message.offset) + 1).toString(),
+          },
         ]);
-        
+
         throw new RpcException({
           statusCode: 404,
           message: error.message,
@@ -147,15 +151,19 @@ export class ReadingController {
     } catch (error) {
       if (error instanceof ReadingNotFoundException) {
         console.warn(`Reading not found: ${error.message}`);
-        // Es un error de negocio (404), NO queremos reintentarlo. 
+        // Es un error de negocio (404), NO queremos reintentarlo.
         // Hacemos commit para sacarlo de Kafka y avisamos al Gateway.
         const consumer = context.getConsumer();
         const message = context.getMessage();
         const topic = environments.KAFKA_TOPIC;
         await consumer.commitOffsets([
-          { topic, partition: context.getPartition(), offset: (Number(message.offset) + 1).toString() }
+          {
+            topic,
+            partition: context.getPartition(),
+            offset: (Number(message.offset) + 1).toString(),
+          },
         ]);
-        
+
         throw new RpcException({
           statusCode: 404,
           message: error.message,
@@ -195,9 +203,6 @@ export class ReadingController {
       month: string;
     },
   ) {
-    console.log(
-      `Received getDashboardKpisByPeriod request: ${JSON.stringify(params)}`,
-    );
     return await this.readingService.getDashboardKpisByPeriod(
       params.year,
       params.month,
