@@ -208,4 +208,10 @@ export class ReadingController {
       params.month,
     );
   }
+
+  @Get('get-dashboard-kpis-by-year')
+  @MessagePattern('epaa-legacy.reading.get-dashboard-kpis-by-year')
+  async getDashboardKpisByYear(@Payload() params: { year: number }) {
+    return await this.readingService.getDashboardKpisByYear(params.year);
+  }
 }

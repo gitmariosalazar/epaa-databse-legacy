@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SQLServerReadingAdapter } from '../adapters/sql-server.reading.adapter';
 import {
+  DashboardKpiAnnualSqlResult,
   ReadingSQL2000Result,
   ReadingSQLResult,
   RangoTarifaSQLResult,
@@ -571,7 +572,7 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
               END) AS average_consumption_m3,
   
               -- Valores propios de AP_LECTURAS
-              SUM(COALESCE(l.ValorAPagar, 0))       AS consuption_value,
+              SUM(COALESCE(l.ValorAPagar, 0))       AS consumption_value,
               SUM(COALESCE(l.TasaAlcantarillado,0)) AS total_sewage_value, -- Alcantarillado
   
               -- Valores financieros (Agua y Tasas en Datos_ingreso)
@@ -587,17 +588,83 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
   
               -- Interés calculado desde la caché
               SUM(COALESCE(c.interes_calculado, 0)) AS total_interest_calculated,
-              SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS unpaid_bills_count,
-              SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS paid_bills_count,
+              SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS unpaid_bills_count,
+              SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS paid_bills_count,
   
-              -- Total deuda general consolidada
-              SUM(
-                  COALESCE(di.tasa_basura, 0) +
-                  COALESCE(di.Valor_Titulo, 0) +
-                  COALESCE(di.interes_mejoras, 0) +
-                  COALESCE(di.Recargo, 0) +
-                  COALESCE(c.interes_calculado, 0)
-              )                                     AS total_debt_amount
+            -- Total deuda general consolidada (Solo facturas no pagadas)
+            SUM(
+                CASE WHEN di.Fecha_Pago IS NULL THEN
+                    (COALESCE(di.tasa_basura, 0) +
+                      COALESCE(di.Valor_Titulo, 0) +
+                      COALESCE(di.interes_mejoras, 0) +
+                      COALESCE(di.Recargo, 0) +
+                      COALESCE(c.interes_calculado, 0))
+                ELSE 0 END
+            ) AS total_debt_amount,
+
+            -- Total a recaudar (Incluye facturas pagadas y no pagadas)
+            SUM(
+              COALESCE(di.tasa_basura, 0) +
+              COALESCE(di.Valor_Titulo, 0) +
+              COALESCE(di.interes_mejoras, 0) +
+              COALESCE(di.Recargo, 0) +
+              COALESCE(c.interes_calculado, 0)
+            ) AS total_amount_to_collect,
+
+            -- Total a recaudar por facturas no pagadas
+            SUM(
+              CASE WHEN di.Fecha_Pago IS NULL THEN
+                COALESCE(di.tasa_basura, 0) +
+                COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) +
+                COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+              ELSE 0 END
+            ) AS total_amount_to_collect_unpaid,
+
+            -- Total a recaudar por facturas pagadas
+            SUM(
+              CASE WHEN di.Fecha_Pago IS NOT NULL THEN
+                COALESCE(di.tasa_basura, 0) +
+                COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) +
+                COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+              ELSE 0 END
+            ) AS total_amount_to_collect_paid,
+
+            -- Total a recaudar por facturas vencidas
+            SUM(
+              CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN
+                COALESCE(di.tasa_basura, 0) +
+                COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) +
+                COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+              ELSE 0 END
+            ) AS total_amount_to_collect_overdue,
+
+            -- Total a recaudar por facturas próximas a vencer
+            SUM(
+              CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento >= GETDATE() THEN
+                COALESCE(di.tasa_basura, 0) +
+                COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) +
+                COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+              ELSE 0 END
+            ) AS total_amount_to_collect_upcoming,
+
+            -- Total a recaudar por facturas anuladas
+            SUM(
+              CASE WHEN di.Fecha_Pago IS NULL AND di.Estado_Ingreso IN ('A', 'B', '0') THEN
+                COALESCE(di.tasa_basura, 0) +
+                COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) +
+                COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+              ELSE 0 END
+            ) AS total_amount_to_collect_canceled
   
           FROM AP_LECTURAS l
           LEFT JOIN Datos_ingreso di
@@ -616,12 +683,12 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
               l.Mes,
               l.Sector;
         `;
-  
+
       console.log(query);
-  
+
       const result =
         await this.sqlServerService.query<DashboardKpiSqlResult>(query);
-  
+
       if (!result || result.length === 0) {
         return [];
       }
@@ -629,6 +696,90 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
       return SQLServerReadingAdapter.toDomainArray(result);
     } catch (error) {
       console.error('Error fetching dashboard KPIs:', error);
+      throw error;
+    }
+  }
+
+  async getDashboardKpisByYear(year: number): Promise<DashboardKpiResponse[]> {
+    try {
+      const query = /*sql*/ `
+        SELECT
+            l.Anio AS year,
+            l.Sector AS sector,
+            COUNT(l.ClaveCatastral) AS total_meters_read,
+            SUM(CASE
+                WHEN l.LecturaActual IS NOT NULL AND l.LecturaAnterior IS NOT NULL
+                THEN l.LecturaActual - l.LecturaAnterior
+                ELSE 0
+            END) AS total_consumption_m3,
+            AVG(CASE
+                WHEN l.LecturaActual IS NOT NULL AND l.LecturaAnterior IS NOT NULL
+                THEN l.LecturaActual - l.LecturaAnterior
+                ELSE NULL
+            END) AS average_consumption_m3,
+            SUM(COALESCE(l.ValorAPagar, 0)) AS consumption_value,
+            SUM(COALESCE(l.TasaAlcantarillado, 0)) AS total_sewage_value,
+            SUM(COALESCE(di.Valor_Titulo, 0)) AS total_billed_water,
+            SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN COALESCE(di.Valor_Titulo, 0) ELSE 0 END) AS total_paid_water,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL THEN COALESCE(di.Valor_Titulo, 0) ELSE 0 END) AS total_unpaid_water,
+            SUM(COALESCE(di.tasa_basura, 0)) AS total_trash_rate,
+            SUM(COALESCE(di.interes_mejoras, 0)) AS total_old_improvements_interest,
+            SUM(COALESCE(di.Recargo, 0)) AS total_surcharge,
+            COUNT(di.Cod_Ingreso) AS total_bills_generated,
+            SUM(COALESCE(c.interes_calculado, 0)) AS total_interest_calculated,
+            SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS unpaid_bills_count,
+            SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS paid_bills_count,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL THEN
+                COALESCE(di.tasa_basura, 0) + COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) + COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+                ELSE 0 END) AS total_debt_amount,
+            SUM(COALESCE(di.tasa_basura, 0) + COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) + COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)) AS total_amount_to_collect,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL THEN
+                COALESCE(di.tasa_basura, 0) + COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) + COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+                ELSE 0 END) AS total_amount_to_collect_unpaid,
+            SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN
+                COALESCE(di.tasa_basura, 0) + COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) + COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+                ELSE 0 END) AS total_amount_to_collect_paid,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN
+                COALESCE(di.tasa_basura, 0) + COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) + COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+                ELSE 0 END) AS total_amount_to_collect_overdue,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento >= GETDATE() THEN
+                COALESCE(di.tasa_basura, 0) + COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) + COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+                ELSE 0 END) AS total_amount_to_collect_upcoming,
+            SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Estado_Ingreso IN ('A', 'B', '0') THEN
+                COALESCE(di.tasa_basura, 0) + COALESCE(di.Valor_Titulo, 0) +
+                COALESCE(di.interes_mejoras, 0) + COALESCE(di.Recargo, 0) +
+                COALESCE(c.interes_calculado, 0)
+                ELSE 0 END) AS total_amount_to_collect_canceled
+        FROM AP_LECTURAS l
+        LEFT JOIN Datos_ingreso di ON di.Cod_Ingreso = l.CodigoIngresoARentas
+        LEFT JOIN dbo.Datos_ingreso_interes_cache c ON di.Cod_Ingreso = c.Cod_Ingreso
+        WHERE l.Anio = CAST(${year} AS INT)
+        GROUP BY l.Anio, l.Sector
+        ORDER BY l.Anio, l.Sector;
+      `;
+
+      const result =
+        await this.sqlServerService.query<DashboardKpiAnnualSqlResult>(query);
+
+      if (!result || result.length === 0) {
+        return [];
+      }
+
+      return SQLServerReadingAdapter.toAnnualDomainArray(result);
+    } catch (error) {
+      console.error('Error fetching annual dashboard KPIs:', error);
       throw error;
     }
   }

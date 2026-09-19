@@ -3,6 +3,7 @@ import {
   ReadingResponse,
 } from '../../../../domain/schemas/dto/response/readings.response';
 import {
+  DashboardKpiAnnualSqlResult,
   DashboardKpiSqlResult,
   ReadingSQLResult,
 } from '../../../interfaces/reading.sql.response';
@@ -58,7 +59,8 @@ export class SQLServerReadingAdapter {
   static toDomainArray(
     dataArray: DashboardKpiSqlResult[],
   ): DashboardKpiResponse[] {
-    const sanitize = (val: any) => (typeof val === 'bigint' ? Number(val) : val);
+    const sanitize = (val: any) =>
+      typeof val === 'bigint' ? Number(val) : val;
 
     return dataArray.map((data) => ({
       year: sanitize(data.year),
@@ -73,13 +75,39 @@ export class SQLServerReadingAdapter {
       totalPaidWater: sanitize(data.total_paid_water),
       totalUnpaidWater: sanitize(data.total_unpaid_water),
       totalTrashRate: sanitize(data.total_trash_rate),
-      totalOldImprovementsInterest: sanitize(data.total_old_improvements_interest),
+      totalOldImprovementsInterest: sanitize(
+        data.total_old_improvements_interest,
+      ),
       totalSurcharge: sanitize(data.total_surcharge),
       totalBillsGenerated: sanitize(data.total_bills_generated),
       totalInterestCalculated: sanitize(data.total_interest_calculated),
       unpaidBillsCount: sanitize(data.unpaid_bills_count),
       paidBillsCount: sanitize(data.paid_bills_count),
       totalDebtAmount: sanitize(data.total_debt_amount),
+      totalAmountToCollect: sanitize(data.total_amount_to_collect ?? 0),
+      totalAmountToCollectUnpaid: sanitize(
+        data.total_amount_to_collect_unpaid ?? 0,
+      ),
+      totalAmountToCollectPaid: sanitize(
+        data.total_amount_to_collect_paid ?? 0,
+      ),
+      totalAmountToCollectOverdue: sanitize(
+        data.total_amount_to_collect_overdue ?? 0,
+      ),
+      totalAmountToCollectUpcoming: sanitize(
+        data.total_amount_to_collect_upcoming ?? 0,
+      ),
+      totalAmountToCollectCanceled: sanitize(
+        data.total_amount_to_collect_canceled ?? 0,
+      ),
     }));
+  }
+
+  static toAnnualDomainArray(
+    dataArray: DashboardKpiAnnualSqlResult[],
+  ): DashboardKpiResponse[] {
+    return SQLServerReadingAdapter.toDomainArray(
+      dataArray.map((data) => ({ ...data, month: 'ANUAL' })),
+    );
   }
 }

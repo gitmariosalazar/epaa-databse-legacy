@@ -32,4 +32,5 @@ export interface InterfaceReadingUseCase {
     year: number,
     month: string,
   ): Promise<DashboardKpiResponse[]>;
+  getDashboardKpisByYear(year: number): Promise<DashboardKpiResponse[]>;
 }

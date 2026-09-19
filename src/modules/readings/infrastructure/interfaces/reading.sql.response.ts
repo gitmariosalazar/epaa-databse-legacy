@@ -80,4 +80,14 @@ export interface DashboardKpiSqlResult {
 
   // Total deuda general consolidada
   total_debt_amount: number;
+
+  // Totales financieros adicionales
+  total_amount_to_collect: number;
+  total_amount_to_collect_unpaid: number;
+  total_amount_to_collect_paid: number;
+  total_amount_to_collect_overdue: number;
+  total_amount_to_collect_upcoming: number;
+  total_amount_to_collect_canceled: number;
 }
+
+export type DashboardKpiAnnualSqlResult = Omit<DashboardKpiSqlResult, 'month'>;

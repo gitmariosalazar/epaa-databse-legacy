@@ -380,4 +380,16 @@ export class ReadingService implements InterfaceReadingUseCase {
       throw error;
     }
   }
+
+  async getDashboardKpisByYear(year: number): Promise<DashboardKpiResponse[]> {
+    try {
+      const kpis = await this.readingsRepository.getDashboardKpisByYear(year);
+      if (!kpis || kpis.length === 0) {
+        return [];
+      }
+      return kpis;
+    } catch (error) {
+      throw error;
+    }
+  }
 }

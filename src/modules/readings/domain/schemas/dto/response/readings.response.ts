@@ -50,4 +50,12 @@ export interface DashboardKpiResponse {
 
   // Total deuda general consolidada
   totalDebtAmount: number;
+
+  // Totales financieros adicionales
+  totalAmountToCollect: number;
+  totalAmountToCollectUnpaid: number;
+  totalAmountToCollectPaid: number;
+  totalAmountToCollectOverdue: number;
+  totalAmountToCollectUpcoming: number;
+  totalAmountToCollectCanceled: number;
 }

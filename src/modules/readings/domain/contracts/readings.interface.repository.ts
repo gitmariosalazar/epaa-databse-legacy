@@ -30,4 +30,5 @@ export interface InterfaceReadingsRepository {
     year: number,
     month: string,
   ): Promise<DashboardKpiResponse[]>;
+  getDashboardKpisByYear(year: number): Promise<DashboardKpiResponse[]>;
 }
