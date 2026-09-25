@@ -214,4 +214,19 @@ export class ReadingController {
   async getDashboardKpisByYear(@Payload() params: { year: number }) {
     return await this.readingService.getDashboardKpisByYear(params.year);
   }
+
+  @Get('get-dashboard-kpis-by-year-and-sector')
+  @MessagePattern('epaa-legacy.reading.get-dashboard-kpis-by-year-and-sector')
+  async getDashboardKpisByYearAndSector(
+    @Payload()
+    params: {
+      year: number;
+      sector: string;
+    },
+  ) {
+    return await this.readingService.getDashboardKpisByYearAndSector(
+      params.year,
+      params.sector,
+    );
+  }
 }

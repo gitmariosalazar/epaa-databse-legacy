@@ -31,4 +31,8 @@ export interface InterfaceReadingsRepository {
     month: string,
   ): Promise<DashboardKpiResponse[]>;
   getDashboardKpisByYear(year: number): Promise<DashboardKpiResponse[]>;
+  getDashboardKpisByYearAndSector(
+    year: number,
+    sector: string,
+  ): Promise<DashboardKpiResponse[]>;
 }

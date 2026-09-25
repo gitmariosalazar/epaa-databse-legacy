@@ -35,6 +35,8 @@ export class ReadingService implements InterfaceReadingUseCase {
         'novelty',
       ];
 
+      console.log('CreateReadingLegacyRequest:', request);
+
       const missingFieldsMessages: string[] = validateFields(
         request,
         requiredFields,
@@ -67,8 +69,6 @@ export class ReadingService implements InterfaceReadingUseCase {
       request.readingTime = hour;
       request.readingDate = now;
       request.readingTime = hour;
-      request.month = MONTHS[now.getMonth() + 1];
-      request.year = now.getFullYear();
       const sectorVal = request.cadastralKey.split('-')[0]
         ? parseInt(request.cadastralKey.split('-')[0])
         : 1;
@@ -384,6 +384,25 @@ export class ReadingService implements InterfaceReadingUseCase {
   async getDashboardKpisByYear(year: number): Promise<DashboardKpiResponse[]> {
     try {
       const kpis = await this.readingsRepository.getDashboardKpisByYear(year);
+      if (!kpis || kpis.length === 0) {
+        return [];
+      }
+      return kpis;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getDashboardKpisByYearAndSector(
+    year: number,
+    sector: string,
+  ): Promise<DashboardKpiResponse[]> {
+    try {
+      const kpis =
+        await this.readingsRepository.getDashboardKpisByYearAndSector(
+          year,
+          sector,
+        );
       if (!kpis || kpis.length === 0) {
         return [];
       }
