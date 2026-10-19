@@ -7,6 +7,7 @@ export class ReadingModel {
   private currentReading: number;
   private rentalIncomeCode: number | null;
   private novelty: string | null;
+  private meterStatus: string | null;
   private readingValue: number | null;
   private sewerRate: number | null;
   private reconnection: number | null;
@@ -27,6 +28,7 @@ export class ReadingModel {
     currentReading: number,
     rentalIncomeCode: number | null,
     novelty: string | null,
+    meterStatus: string | null,
     readingValue: number | null,
     sewerRate: number | null,
     reconnection: number | null,
@@ -46,6 +48,7 @@ export class ReadingModel {
     this.currentReading = currentReading;
     this.rentalIncomeCode = rentalIncomeCode;
     this.novelty = novelty;
+    this.meterStatus = meterStatus;
     this.readingValue = readingValue;
     this.sewerRate = sewerRate;
     this.reconnection = reconnection;
@@ -90,6 +93,12 @@ export class ReadingModel {
     return this.novelty;
   }
 
+  getMeterStatus(): string | null {
+    return this.meterStatus;
+  }
+  setMeterStatus(meterStatus: string | null): void {
+    this.meterStatus = meterStatus;
+  }
   getReadingValue(): number | null {
     return this.readingValue;
   }

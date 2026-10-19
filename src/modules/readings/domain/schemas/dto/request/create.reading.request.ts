@@ -7,6 +7,7 @@ export class CreateReadingLegacyRequest {
   currentReading!: number;
   rentalIncomeCode!: number | null;
   novelty!: string | null;
+  meterStatus!: string | null;
   readingValue!: number | null;
   sewerRate!: number | null;
   reconnection!: number | null;

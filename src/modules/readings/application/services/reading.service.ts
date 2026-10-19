@@ -8,7 +8,10 @@ import {
 import { InterfaceReadingsRepository } from '../../domain/contracts/readings.interface.repository';
 import { ReadingModel } from '../../domain/schemas/model/sqlserver/reading.model';
 import { ReadingMapper } from '../mappers/readings.mapper';
-import { validateFields } from '../../../../shared/validators/fields.validators';
+import {
+  LegacyNovelty,
+  validateFields,
+} from '../../../../shared/validators/fields.validators';
 import { statusCode } from '../../../../settings/environments/status-code';
 import { MONTHS } from '../../../../shared/consts/months';
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
@@ -35,8 +38,6 @@ export class ReadingService implements InterfaceReadingUseCase {
         'novelty',
       ];
 
-      console.log('CreateReadingLegacyRequest:', request);
-
       const missingFieldsMessages: string[] = validateFields(
         request,
         requiredFields,
@@ -45,8 +46,12 @@ export class ReadingService implements InterfaceReadingUseCase {
         throw new Error(JSON.stringify(missingFieldsMessages));
       }
 
-      const changeNovelty: string | null = this.changeNovelty(request.novelty);
+      const changeNovelty: LegacyNovelty = this.changeNovelty(
+        request.meterStatus,
+        Number(request.previousReading),
+      );
       request.novelty = changeNovelty;
+      console.log('CreateReadingLegacyRequest:', request);
 
       const valueConsumoAgua = await this.calculateReadingValue(
         request.cadastralKey,
@@ -196,7 +201,10 @@ export class ReadingService implements InterfaceReadingUseCase {
       }
       */
 
-      const changeNovelty: string | null = this.changeNovelty(request.novelty);
+      const changeNovelty: LegacyNovelty = this.changeNovelty(
+        request.meterStatus,
+        Number(request.previousReading),
+      );
       request.novelty = changeNovelty;
       const valueConsumoAgua = await this.calculateReadingValue(
         request.cadastralKey,
@@ -288,7 +296,10 @@ export class ReadingService implements InterfaceReadingUseCase {
       }
       */
 
-      const changeNovelty: string | null = this.changeNovelty(request.novelty);
+      const changeNovelty: LegacyNovelty = this.changeNovelty(
+        request.meterStatus,
+        Number(request.previousReading),
+      );
       request.novelty = changeNovelty;
       const valueConsumoAgua = await this.calculateReadingValue(
         request.cadastralKey,
@@ -320,32 +331,62 @@ export class ReadingService implements InterfaceReadingUseCase {
     }
   }
 
-  private changeNovelty(novelty: string | null): string | null {
-    if (!novelty) {
-      return null;
+  private changeNovelty(
+    meterStatus: string | null | undefined,
+    previousReading: number,
+  ): LegacyNovelty {
+    if (!meterStatus) {
+      return 'FALTA LECTURA';
     }
-    const noveltyUpper = novelty.toUpperCase();
+
+    // Limpia tildes, pasa a mayúsculas y quita espacios en blanco extremos
+    const status = meterStatus
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .trim();
+
+    // 1. DAÑADO: Si el estado físico o el motivo indican daño, rotura, freno o inexistencia
     if (
-      noveltyUpper.includes('CONSUMO MUY BAJO') ||
-      noveltyUpper.includes('ALERTA CONSUMO BAJO')
+      status.includes('MALO') ||
+      status.includes('DESTRUIDO') ||
+      status.includes('FRENADO') ||
+      status.includes('DANADO') ||
+      status.includes('ROTO') ||
+      status.includes('DAÑADO') ||
+      status.includes('ROBADO') ||
+      status.includes('INEXISTENTE')
     ) {
-      return 'NORMAL';
+      return 'DAÑADO';
     }
+
+    // 2. SUSPENDIDO: Válvula cerrada o corte de servicio
     if (
-      noveltyUpper.includes('CONSUMO MUY ALTO') ||
-      noveltyUpper.includes('ALERTA CONSUMO ALTO')
+      status.includes('SUSPENDIDO') ||
+      status.includes('VALVULA CERRADA') ||
+      status.includes('CORTE')
     ) {
-      return 'CONSUMO ALTO';
+      return 'SUSPENDIDO';
     }
-    if (noveltyUpper.includes('LECTURA INICIAL')) {
+
+    // 3. NUEVO: solo si es la primera lectura (lectura anterior en 0)
+    if (previousReading === 0) {
       return 'NUEVO';
     }
 
-    if (noveltyUpper.includes('LECTURA INVÁLIDA')) {
-      return 'LECTURA INVALIDA';
+    // 4. FALTA LECTURA: Sin acceso, predio deshabitado o no identificado
+    if (
+      status.includes('NO IDENTIFICADO') ||
+      status.includes('DESHABITADO') ||
+      status.includes('INVALIDA') ||
+      status.includes('FALTA') ||
+      status.includes('SIN LECTURA')
+    ) {
+      return 'FALTA LECTURA';
     }
 
-    return novelty;
+    // 5. NORMAL: Medidor en buen estado (BUENO, REGULAR) o cualquier estado operativo
+    return 'NORMAL';
   }
 
   async calculateReadingValue(

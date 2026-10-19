@@ -26,34 +26,19 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
     try {
       const monthNumber = MONTHS_REVERSE[reading.getMonth()];
       const query: string = `
+      SELECT TOP 0 Sector AS sector, Cuenta AS account, Anio AS year, Mes AS month, LecturaAnterior AS previousReading, LecturaActual AS currentReading, CodigoIngresoARentas AS rentalIncomeCode, Novedad AS novelty, ValorAPagar AS readingValue, TasaAlcantarillado AS sewerRate, Reconexion AS reconnection, CAST(Cod_ingreso AS BIGINT) AS incomeCode, FechaCaptura AS readingDate, HoraCaptura AS readingTime, ClaveCatastral AS cadastralKey, id_lectura AS readingId, usuario AS username INTO #out FROM AP_LECTURAS;
       INSERT INTO AP_LECTURAS
       (
       Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, CodigoIngresoARentas, Novedad, ValorAPagar, TasaAlcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral, id_lectura, usuario, mesnum,
       valor_consumo_agua, valor_tasa_alcantarillado
       )
-      OUTPUT
-      inserted.Sector       AS sector,
-      inserted.Cuenta       AS account,
-      inserted.Anio         AS year,
-      inserted.Mes          AS month,
-      inserted.LecturaAnterior AS previousReading,
-      inserted.LecturaActual   AS currentReading,
-      inserted.CodigoIngresoARentas AS rentalIncomeCode,
-      inserted.Novedad      AS novelty,
-      inserted.ValorAPagar  AS readingValue,
-      inserted.TasaAlcantarillado AS sewerRate,
-      inserted.Reconexion   AS reconnection,
-      inserted.Cod_ingreso  AS incomeCode,
-      inserted.FechaCaptura AS readingDate,
-      inserted.HoraCaptura  AS readingTime,
-      inserted.ClaveCatastral AS cadastralKey,
-      inserted.id_lectura AS readingId,
-      inserted.usuario AS username
+      OUTPUT inserted.Sector, inserted.Cuenta, inserted.Anio, inserted.Mes, inserted.LecturaAnterior, inserted.LecturaActual, inserted.CodigoIngresoARentas, inserted.Novedad, inserted.ValorAPagar, inserted.TasaAlcantarillado, inserted.Reconexion, inserted.Cod_ingreso, inserted.FechaCaptura, inserted.HoraCaptura, inserted.ClaveCatastral, inserted.id_lectura, inserted.usuario INTO #out (sector, account, year, month, previousReading, currentReading, rentalIncomeCode, novelty, readingValue, sewerRate, reconnection, incomeCode, readingDate, readingTime, cadastralKey, readingId, username)
       VALUES
       (
       @sector, @account, @year, @month, @previousReading, @currentReading, @rentalIncomeCode, @novelty, @readingValue, @sewerRate, @reconnection, @readingDate, @readingTime, @cadastralKey, @readingId, @username, @monthNumber,
       @readingValueCalculated, @sewerRateValue
       );
+      SELECT * FROM #out;
       `;
       const params: any[] = [
         { name: 'sector', value: reading.getSector() },
@@ -160,6 +145,7 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
       );
       */
       const query: string = `
+      SELECT TOP 0 Sector AS sector, Cuenta AS account, Anio AS year, Mes AS month, LecturaAnterior AS previousReading, LecturaActual AS currentReading, CodigoIngresoARentas AS rentalIncomeCode, Novedad AS novelty, ValorAPagar AS readingValue, TasaAlcantarillado AS sewerRate, Reconexion AS reconnection, CAST(Cod_ingreso AS BIGINT) AS incomeCode, FechaCaptura AS readingDate, HoraCaptura AS readingTime, ClaveCatastral AS cadastralKey, id_lectura AS readingId, usuario AS username INTO #out FROM AP_LECTURAS;
       UPDATE AP_LECTURAS
       SET
         LecturaActual = @currentReading,
@@ -174,26 +160,11 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         updated_at = GETDATE(),
         valor_consumo_agua = @readingValueCalculated,
         valor_tasa_alcantarillado = @sewerRate
-      OUTPUT
-        inserted.Sector       AS sector,
-        inserted.Cuenta       AS account,
-        inserted.Anio         AS year,
-        inserted.Mes          AS month,
-        inserted.LecturaAnterior AS previousReading,
-        inserted.LecturaActual   AS currentReading,
-        inserted.CodigoIngresoARentas AS rentalIncomeCode,
-        inserted.Novedad      AS novelty,
-        inserted.ValorAPagar  AS readingValue,
-        inserted.TasaAlcantarillado AS sewerRate,
-        inserted.Reconexion   AS reconnection,
-        inserted.Cod_ingreso  AS incomeCode,
-        inserted.FechaCaptura AS readingDate,
-        inserted.HoraCaptura  AS readingTime,
-        inserted.ClaveCatastral AS cadastralKey,
-        inserted.id_lectura AS readingId
+      OUTPUT inserted.Sector, inserted.Cuenta, inserted.Anio, inserted.Mes, inserted.LecturaAnterior, inserted.LecturaActual, inserted.CodigoIngresoARentas, inserted.Novedad, inserted.ValorAPagar, inserted.TasaAlcantarillado, inserted.Reconexion, inserted.Cod_ingreso, inserted.FechaCaptura, inserted.HoraCaptura, inserted.ClaveCatastral, inserted.id_lectura, inserted.usuario INTO #out (sector, account, year, month, previousReading, currentReading, rentalIncomeCode, novelty, readingValue, sewerRate, reconnection, incomeCode, readingDate, readingTime, cadastralKey, readingId, username)
       WHERE
         Sector = @sector AND Cuenta = @account --AND Cod_ingreso = @incomeCode
-        AND Anio = @year AND Mes = @month AND id_lectura = @readingId; --AND FechaCaptura IS NULL;
+        AND Anio = @year AND Mes = @month AND id_lectura = @readingId; --AND FechaCaptura IS NULL
+      SELECT * FROM #out;
       `;
       const queryParams: any[] = [
         {
@@ -254,6 +225,7 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         reading,
       );
       const query: string = `
+      SELECT TOP 0 Sector AS sector, Cuenta AS account, Anio AS year, Mes AS month, LecturaAnterior AS previousReading, LecturaActual AS currentReading, CodigoIngresoARentas AS rentalIncomeCode, Novedad AS novelty, ValorAPagar AS readingValue, TasaAlcantarillado AS sewerRate, Reconexion AS reconnection, CAST(Cod_ingreso AS BIGINT) AS incomeCode, FechaCaptura AS readingDate, HoraCaptura AS readingTime, ClaveCatastral AS cadastralKey, id_lectura AS readingId, usuario AS username INTO #out FROM AP_LECTURAS;
       UPDATE AP_LECTURAS
       SET
         LecturaAnterior = @previousReading,
@@ -269,26 +241,11 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         updated_at = GETDATE(),
         valor_consumo_agua = @readingValueCalculated,
         valor_tasa_alcantarillado = @sewerRate
-      OUTPUT
-        inserted.Sector       AS sector,
-        inserted.Cuenta       AS account,
-        inserted.Anio         AS year,
-        inserted.Mes          AS month,
-        inserted.LecturaAnterior AS previousReading,
-        inserted.LecturaActual   AS currentReading,
-        inserted.CodigoIngresoARentas AS rentalIncomeCode,
-        inserted.Novedad      AS novelty,
-        inserted.ValorAPagar  AS readingValue,
-        inserted.TasaAlcantarillado AS sewerRate,
-        inserted.Reconexion   AS reconnection,
-        inserted.Cod_ingreso  AS incomeCode,
-        inserted.FechaCaptura AS readingDate,
-        inserted.HoraCaptura  AS readingTime,
-        inserted.ClaveCatastral AS cadastralKey,
-        inserted.id_lectura AS readingId
+      OUTPUT inserted.Sector, inserted.Cuenta, inserted.Anio, inserted.Mes, inserted.LecturaAnterior, inserted.LecturaActual, inserted.CodigoIngresoARentas, inserted.Novedad, inserted.ValorAPagar, inserted.TasaAlcantarillado, inserted.Reconexion, inserted.Cod_ingreso, inserted.FechaCaptura, inserted.HoraCaptura, inserted.ClaveCatastral, inserted.id_lectura, inserted.usuario INTO #out (sector, account, year, month, previousReading, currentReading, rentalIncomeCode, novelty, readingValue, sewerRate, reconnection, incomeCode, readingDate, readingTime, cadastralKey, readingId, username)
       WHERE
         Sector = @sector AND Cuenta = @account --AND Cod_ingreso = @incomeCode
-        AND Anio = @year AND Mes = @month AND id_lectura = @readingId; --AND FechaCaptura IS NULL;
+        AND Anio = @year AND Mes = @month AND id_lectura = @readingId; --AND FechaCaptura IS NULL
+      SELECT * FROM #out;
       `;
       const queryParams: any[] = [
         {

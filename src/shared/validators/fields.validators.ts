@@ -17,3 +17,10 @@ export const validateFields = (
   }
   return missingFieldsMessages;
 };
+
+export type LegacyNovelty =
+  | 'NORMAL'
+  | 'DAÑADO'
+  | 'FALTA LECTURA'
+  | 'NUEVO'
+  | 'SUSPENDIDO';

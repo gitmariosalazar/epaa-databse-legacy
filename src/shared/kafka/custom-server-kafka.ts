@@ -14,7 +14,7 @@ export class CustomServerKafka extends ServerKafka implements CustomTransportStr
   public async listen(callback: (err?: unknown, ...args: unknown[]) => void) {
     const originalBindEvents = this.bindEvents.bind(this);
     this.bindEvents = async (consumer: any) => {
-      await consumer.subscribe({ topics: [this.mainTopic], fromBeginning: false });
+      await consumer.subscribe({ topics: [this.mainTopic], fromBeginning: true });
       await originalBindEvents(consumer);
     };
     return super.listen(callback);
