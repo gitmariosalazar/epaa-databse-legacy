@@ -51,7 +51,7 @@ export class ReadingService implements InterfaceReadingUseCase {
         Number(request.previousReading),
       );
       request.novelty = changeNovelty;
-      console.log('CreateReadingLegacyRequest:', request);
+      //console.log('CreateReadingLegacyRequest:', request);
 
       const valueConsumoAgua = await this.calculateReadingValue(
         request.cadastralKey,
@@ -92,9 +92,11 @@ export class ReadingService implements InterfaceReadingUseCase {
       });
       if (existingReading) {
         // En lugar de fallar o duplicar, retornamos exitosamente la lectura previa
+        /*
         console.warn(
           `[Idempotency Check] Reading already exists for Sector ${sectorVal}, Account ${accountVal} in ${request.month}/${request.year}. Skipping duplicate insert.`,
         );
+        */
         return existingReading;
       }
 
@@ -335,6 +337,7 @@ export class ReadingService implements InterfaceReadingUseCase {
     meterStatus: string | null | undefined,
     previousReading: number,
   ): LegacyNovelty {
+    //console.log('Previous reading:', previousReading, meterStatus);
     if (!meterStatus) {
       return 'FALTA LECTURA';
     }

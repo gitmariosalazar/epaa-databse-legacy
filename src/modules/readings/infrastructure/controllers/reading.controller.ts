@@ -25,7 +25,7 @@ export class ReadingController {
     @Ctx() context: KafkaContext,
   ) {
     try {
-      console.log(`Received createReading request: ${JSON.stringify(reading)}`);
+      //console.log(`Received createReading request: ${JSON.stringify(reading)}`);
       const result = await this.readingService.createReading(reading);
       const consumer = context.getConsumer();
       const message = context.getMessage();
