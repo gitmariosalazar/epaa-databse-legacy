@@ -133,17 +133,6 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
     reading: ReadingModel,
   ): Promise<ReadingResponse> {
     try {
-      /*
-      console.log(
-        'Received updateCurrentReading request in Persistence:',
-        reading,
-      );
-      /*
-      console.log(
-        'Received updateCurrentReading params in Persistence:',
-        params,
-      );
-      */
       const query: string = `
       SELECT TOP 0 Sector AS sector, Cuenta AS account, Anio AS year, Mes AS month, LecturaAnterior AS previousReading, LecturaActual AS currentReading, CodigoIngresoARentas AS rentalIncomeCode, Novedad AS novelty, ValorAPagar AS readingValue, TasaAlcantarillado AS sewerRate, Reconexion AS reconnection, CAST(Cod_ingreso AS BIGINT) AS incomeCode, FechaCaptura AS readingDate, HoraCaptura AS readingTime, ClaveCatastral AS cadastralKey, id_lectura AS readingId, usuario AS username INTO #out FROM AP_LECTURAS;
       UPDATE AP_LECTURAS
@@ -220,10 +209,6 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
     reading: ReadingModel,
   ): Promise<ReadingResponse> {
     try {
-      console.log(
-        'Received updateCurrentReading request in Persistence:',
-        reading,
-      );
       const query: string = `
       SELECT TOP 0 Sector AS sector, Cuenta AS account, Anio AS year, Mes AS month, LecturaAnterior AS previousReading, LecturaActual AS currentReading, CodigoIngresoARentas AS rentalIncomeCode, Novedad AS novelty, ValorAPagar AS readingValue, TasaAlcantarillado AS sewerRate, Reconexion AS reconnection, CAST(Cod_ingreso AS BIGINT) AS incomeCode, FechaCaptura AS readingDate, HoraCaptura AS readingTime, ClaveCatastral AS cadastralKey, id_lectura AS readingId, usuario AS username INTO #out FROM AP_LECTURAS;
       UPDATE AP_LECTURAS

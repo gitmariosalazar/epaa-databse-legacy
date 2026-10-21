@@ -52,9 +52,6 @@ export class ReadingController {
   @Get('find-current-reading')
   @MessagePattern('epaa-legacy.reading.find-current-reading')
   findCurrentReading(@Payload() params: FindCurrentReadingParams) {
-    console.log(
-      `Received findCurrentReading request: ${JSON.stringify(params)}`,
-    );
     return this.readingService.findCurrentReading(params);
   }
 
@@ -69,11 +66,6 @@ export class ReadingController {
     @Ctx() context: KafkaContext,
   ) {
     try {
-      /*
-      console.log(
-        `Received updateCurrentReading request: ${JSON.stringify(data)}`,
-      );
-      */
       const result = await this.readingService.updateCurrentReading(
         data.params,
         data.request,
@@ -128,11 +120,6 @@ export class ReadingController {
     @Ctx() context: KafkaContext,
   ) {
     try {
-      /*
-      console.log(
-        `Received updateSpecialCurrentReading request: ${JSON.stringify(data)}`,
-      );
-      */
       const result = await this.readingService.updateSpecialCurrentReading(
         data.params,
         data.request,

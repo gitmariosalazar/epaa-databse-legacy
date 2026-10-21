@@ -4,7 +4,7 @@ const config = {
   password: process.env.DATABASE_PASSWORD || 'your_password',
   server: process.env.DATABASE_HOST || 'localhost',
   database: process.env.DATABASE_NAME || 'epaa',
-  options: { encrypt: false, trustServerCertificate: true }
+  options: { encrypt: false, trustServerCertificate: true },
 };
 
 async function run() {
@@ -20,7 +20,6 @@ async function run() {
         SELECT 'ERROR' as d, ERROR_MESSAGE() as msg;
       END CATCH
     `);
-    console.log(result.recordset);
   } catch (err) {
     console.error(err);
   }

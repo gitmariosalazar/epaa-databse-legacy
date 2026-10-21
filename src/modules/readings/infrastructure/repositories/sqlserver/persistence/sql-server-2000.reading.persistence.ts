@@ -164,7 +164,6 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
           const insertQuery = `INSERT INTO AP_LECTURAS (Sector, Cuenta, Anio, Mes, LecturaAnterior, LecturaActual, Novedad, valor_tasa_alcantarillado, Reconexion, FechaCaptura, HoraCaptura, ClaveCatastral, usuario, id_lectura,mesnum, valor_consumo_agua) VALUES (${Number(reading.getSector())}, ${Number(reading.getAccount())}, '${String(reading.getYear())}', '${String(reading.getMonth())}', ${Number(reading.getPreviousReading())}, ${Number(reading.getCurrentReading())}, '${String(reading.getNovelty())}', ${reading.getSewerRate() != null ? parseFloat(reading.getSewerRate()?.toFixed(8)!) : 'NULL'}, ${reading.getReconnection() != null ? parseFloat(reading.getReconnection()?.toFixed(8)!) : 'NULL'}, '${formattedDate}', '${String(reading.getReadingTime())}', '${String(reading.getCadastralKey())}', '${String(reading.getUsername())}', '${String(reading.getReadingId())}', '${monthNumber}', ${reading.getReadingValueCalculated() != null ? parseFloat(reading.getReadingValueCalculated()?.toFixed(3)!) : 'NULL'})`;
 
           lastQuery = insertQuery;
-          console.log('Executing Insert Query:', lastQuery);
 
           const inserted = await conn.query(insertQuery);
 
@@ -201,10 +200,6 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
           if (!selectResult[0]) {
             throw new DatabaseError('Failed to retrieve inserted reading');
           }
-
-          console.log(
-            `Successfully created reading for sector ${reading.getSector()}, account ${reading.getAccount()}`,
-          );
           return SQLServerReadingAdapter.toDomain2000(selectResult[0]);
         },
       );
