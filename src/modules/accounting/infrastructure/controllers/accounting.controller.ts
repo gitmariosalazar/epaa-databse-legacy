@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { DateRangeParams } from '../../domain/schemas/dto/response/entry-data.response';
 import { AccountingService } from '../../application/services/accounting.service';
+import { UpdateDailyInterestsService } from '../../application/services/update-daily-interests.service';
 import { raw } from 'express';
 import {
   GeneralCollectionsParams,
@@ -14,7 +15,10 @@ import {
 
 @Controller('accounting')
 export class AccountingController {
-  constructor(private readonly accountingService: AccountingService) {}
+  constructor(
+    private readonly accountingService: AccountingService,
+    private readonly updateDailyInterestsService: UpdateDailyInterestsService,
+  ) {}
 
   @Get('find-payment-readings-by-payment-date')
   @MessagePattern(
@@ -312,5 +316,10 @@ export class AccountingController {
       data.cardId,
       data.period,
     );
+  }
+
+  @MessagePattern('epaa-legacy.accounting.execute-daily-interest')
+  executeDailyInterest() {
+    return this.updateDailyInterestsService.execute();
   }
 }

@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AccountingService } from '../../../application/services/accounting.service';
+import { UpdateDailyInterestsService } from '../../../application/services/update-daily-interests.service';
 import { AccountingController } from '../../controllers/accounting.controller';
 import { SQLServer2000AccountingPersistence } from '../../repositories/sqlserver/persistence/sql-server-2000.accounting.persistence';
 import { SQLServer2000EntryDataPersistence } from '../../repositories/sqlserver/persistence/sql-server-2000.accounting.entry-data.persistence';
 import { SqlServer2000GeneralCollectionPersistence } from '../../repositories/sqlserver/persistence/sql-server-2000.general-collection.persistence';
 import { SqlServer2000AgreementsPersistence } from '../../repositories/sqlserver/persistence/sql-server-2000.agreements.persistence';
+import { SqlServer2000InterestPersistence } from '../../repositories/sqlserver/persistence/sql-server-2000.interest.persistence';
 import { ExternalPayrollPersistence } from '../../repositories/http/persistence/external-payroll.persistence';
 import { DatabasePersistenceModule } from '../../../../../shared/connections/database/database-persistence.module';
 
@@ -13,6 +15,7 @@ import { DatabasePersistenceModule } from '../../../../../shared/connections/dat
   controllers: [AccountingController],
   providers: [
     AccountingService,
+    UpdateDailyInterestsService,
     {
       provide: 'AccountingRepository',
       useClass: SQLServer2000AccountingPersistence,
@@ -33,7 +36,11 @@ import { DatabasePersistenceModule } from '../../../../../shared/connections/dat
       provide: 'AgreementsRepository',
       useClass: SqlServer2000AgreementsPersistence,
     },
+    {
+      provide: 'IInterestRepository',
+      useClass: SqlServer2000InterestPersistence,
+    },
   ],
-  exports: [AccountingService],
+  exports: [AccountingService, UpdateDailyInterestsService],
 })
 export class AccountingModuleUsingSQLServer2000 {}
