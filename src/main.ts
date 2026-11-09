@@ -39,7 +39,7 @@ async function bootstrap() {
           maxWaitTimeInMs: 5000,
         },
         run: {
-          autoCommit: false,
+          autoCommit: true,
           autoCommitInterval: 5000,
           autoCommitThreshold: 100,
         },
