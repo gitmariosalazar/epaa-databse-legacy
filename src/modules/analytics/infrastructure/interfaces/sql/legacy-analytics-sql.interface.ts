@@ -1,0 +1,98 @@
+export interface LegacyExecutiveDashboardSqlResult {
+  PeriodoAnio: string | number;
+  PeriodoMes: string;
+  TotalLecturasTomadas: string | number;
+  TotalSectoresCubiertos: string | number;
+  TotalAcometidasActivas: string | number;
+  VolumenTotal_M3: string | number;
+  ConsumoPromedioPorCuenta_M3: string | number;
+  ConsumoMinimo_M3: string | number;
+  ConsumoMaximo_M3: string | number;
+  RecaudacionAgua_USD: string | number;
+  RecaudacionAlcantarillado_USD: string | number;
+  FacturacionTotal_USD: string | number;
+  TicketPromedioPorCuenta_USD: string | number;
+  TarifaEfectivaMedia_USD_M3: string | number;
+  TotalLecturasConNovedad: string | number;
+  PorcentajeNovedadOperativa: string | number;
+}
+
+export interface LegacySectorPerformanceSqlResult {
+  Sector: string | number;
+  TotalLecturas: string | number;
+  M3_Consumidos: string | number;
+  ConsumoPromedio_M3: string | number;
+  TotalAgua_USD: string | number;
+  TotalAlcantarillado_USD: string | number;
+  TotalFacturado_USD: string | number;
+  PctAporteIngresos?: string | number;
+  PctAporteVolumen_M3?: string | number;
+  TarifaEfectiva_USD_M3: string | number;
+  CasosConNovedad: string | number;
+  PctIncidencias?: string | number;
+  RankRecaudacion?: string | number;
+  RankConsumoM3?: string | number;
+}
+
+export interface LegacyMonthlyTrendSqlResult {
+  Anio: string | number;
+  MesNumero: string | number;
+  NombreMes: string;
+  TotalLecturas: string | number;
+  VolumenTotal_M3: string | number;
+  DeltaVolumen_M3?: string | number | null;
+  PctCrecimiento_M3?: string | number | null;
+  IngresoAgua_USD: string | number;
+  IngresoAlcantarillado_USD: string | number;
+  IngresoTotal_USD: string | number;
+  DeltaIngresos_USD?: string | number | null;
+  PctCrecimiento_Ingresos?: string | number | null;
+}
+
+export interface LegacyNoveltyEconomicImpactSqlResult {
+  Novedad: string;
+  TotalCasos: string | number;
+  PctDelTotal?: string | number;
+  Volumen_M3: string | number;
+  Promedio_M3: string | number;
+  TotalAgua_USD: string | number;
+  TotalAlcantarillado_USD: string | number;
+  TotalRecaudado_USD: string | number;
+}
+
+export interface LegacyTopConsumerSqlResult {
+  LecturaId: string | number;
+  Sector: string | number;
+  Cuenta: string | number;
+  ClaveCatastral: string;
+  NumeroDeMedidor: string | null;
+  Direccion: string | null;
+  Cliente: string;
+  LecturaAnterior: string | number;
+  LecturaActual: string | number;
+  M3_Consumidos: string | number;
+  ValorAgua_USD: string | number;
+  ValorAlcantarillado_USD: string | number;
+  TotalFacturado_USD: string | number;
+  Novedad: string | null;
+  FechaCaptura: string | Date | null;
+  Latitud?: string | number | null;
+  Longitud?: string | number | null;
+}
+
+export interface LegacyInterannualComparisonSqlResult {
+  Sector: string | number;
+  Acometidas_Homologas: string | number;
+  Lecturas_2025: string | number;
+  Lecturas_2026: string | number;
+  Delta_Lecturas: string | number;
+  M3_2025: string | number;
+  M3_2026: string | number;
+  Delta_M3: string | number;
+  Pct_Var_M3: string | number;
+  Facturado_2025_USD: string | number;
+  Facturado_2026_USD: string | number;
+  Delta_USD: string | number;
+  Pct_Var_USD: string | number;
+  Diagnostico_Gestion: string;
+}
