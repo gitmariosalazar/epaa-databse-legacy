@@ -4,6 +4,7 @@ import { LegacyMonthlyTrendModel } from '../schemas/model/legacy-monthly-trend.m
 import { LegacyNoveltyEconomicImpactModel } from '../schemas/model/legacy-novelty-economic-impact.model';
 import { LegacyTopConsumerModel } from '../schemas/model/legacy-top-consumer.model';
 import { LegacyInterannualComparisonModel } from '../schemas/model/legacy-interannual-comparison.model';
+import { LegacyMonthlyConnectionGrowthModel } from '../schemas/model/legacy-monthly-connection-growth.model';
 
 export interface LegacyExecutiveDashboardFilter {
   year?: number;
@@ -49,6 +50,11 @@ export interface LegacyInterannualComparisonFilter {
   onlyHomologous?: boolean;
 }
 
+export interface LegacyMonthlyConnectionGrowthFilter {
+  baseYear?: number;
+  targetYear?: number;
+}
+
 export interface InterfaceLegacyAnalyticsRepository {
   getExecutiveDashboard(filter: LegacyExecutiveDashboardFilter): Promise<LegacyExecutiveDashboardModel>;
   getSectorPerformance(filter: LegacySectorPerformanceFilter): Promise<LegacySectorPerformanceModel[]>;
@@ -56,4 +62,5 @@ export interface InterfaceLegacyAnalyticsRepository {
   getNoveltyEconomicImpact(filter: LegacyNoveltyEconomicImpactFilter): Promise<LegacyNoveltyEconomicImpactModel[]>;
   getTopConsumers(filter: LegacyTopConsumersFilter): Promise<LegacyTopConsumerModel[]>;
   getInterannualComparison(filter: LegacyInterannualComparisonFilter): Promise<LegacyInterannualComparisonModel[]>;
+  getMonthlyConnectionGrowth(filter: LegacyMonthlyConnectionGrowthFilter): Promise<LegacyMonthlyConnectionGrowthModel[]>;
 }

@@ -13,4 +13,10 @@ export class LegacySectorPerformanceResponse {
   noveltyPercentage!: number;
   revenueRank!: number;
   volumeRank!: number;
+  totalTitleUsd?: number;
+  totalTrashTaxUsd?: number;
+  totalThirdPartiesUsd?: number;
+  totalInterestUsd?: number;
+  totalSurchargesUsd?: number;
+  totalBilledEpaaUsd?: number;
 }

@@ -14,5 +14,11 @@ export class LegacyInterannualComparisonModel {
     public readonly deltaBilledUsd: number,
     public readonly varianceBilledPercentage: number,
     public readonly managementDiagnostic: string,
+    public readonly titleBaseYearUsd?: number,
+    public readonly titleTargetYearUsd?: number,
+    public readonly interestBaseYearUsd?: number,
+    public readonly interestTargetYearUsd?: number,
+    public readonly surchargesBaseYearUsd?: number,
+    public readonly surchargesTargetYearUsd?: number,
   ) {}
 }

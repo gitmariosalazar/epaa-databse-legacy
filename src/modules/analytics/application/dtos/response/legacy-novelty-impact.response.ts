@@ -7,4 +7,10 @@ export class LegacyNoveltyEconomicImpactResponse {
   waterBilledUsd!: number;
   sewerBilledUsd!: number;
   totalBilledUsd!: number;
+  totalTitleUsd?: number;
+  totalTrashTaxUsd?: number;
+  totalThirdPartiesUsd?: number;
+  totalInterestUsd?: number;
+  totalSurchargesUsd?: number;
+  totalBilledEpaaUsd?: number;
 }

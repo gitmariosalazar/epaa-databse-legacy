@@ -17,5 +17,11 @@ export class LegacyTopConsumerModel {
     public readonly readingDate: string,
     public readonly latitude: number | null,
     public readonly longitude: number | null,
+    public readonly titleBilledUsd?: number,
+    public readonly trashTaxBilledUsd?: number,
+    public readonly thirdPartiesBilledUsd?: number,
+    public readonly interestBilledUsd?: number,
+    public readonly surchargesBilledUsd?: number,
+    public readonly totalBilledEpaaUsd?: number,
   ) {}
 }

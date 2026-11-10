@@ -8,6 +8,7 @@ import { GetLegacyMonthlyTrendAnalyticsUseCase } from '../../application/usecase
 import { GetLegacyNoveltyEconomicImpactAnalyticsUseCase } from '../../application/usecases/GetLegacyNoveltyEconomicImpactAnalyticsUseCase';
 import { GetLegacyTopConsumersAnalyticsUseCase } from '../../application/usecases/GetLegacyTopConsumersAnalyticsUseCase';
 import { GetLegacyInterannualComparisonAnalyticsUseCase } from '../../application/usecases/GetLegacyInterannualComparisonAnalyticsUseCase';
+import { GetLegacyMonthlyConnectionGrowthAnalyticsUseCase } from '../../application/usecases/GetLegacyMonthlyConnectionGrowthAnalyticsUseCase';
 import { DatabasePersistenceModule } from '../../../../shared/connections/database/database-persistence.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { DatabasePersistenceModule } from '../../../../shared/connections/databa
     GetLegacyNoveltyEconomicImpactAnalyticsUseCase,
     GetLegacyTopConsumersAnalyticsUseCase,
     GetLegacyInterannualComparisonAnalyticsUseCase,
+    GetLegacyMonthlyConnectionGrowthAnalyticsUseCase,
     {
       provide: 'LegacyAnalyticsRepository',
       useClass: LegacyAnalyticsSQLServer2000Persistence,
@@ -32,6 +34,7 @@ import { DatabasePersistenceModule } from '../../../../shared/connections/databa
     GetLegacyNoveltyEconomicImpactAnalyticsUseCase,
     GetLegacyTopConsumersAnalyticsUseCase,
     GetLegacyInterannualComparisonAnalyticsUseCase,
+    GetLegacyMonthlyConnectionGrowthAnalyticsUseCase,
     'LegacyAnalyticsRepository',
   ],
 })

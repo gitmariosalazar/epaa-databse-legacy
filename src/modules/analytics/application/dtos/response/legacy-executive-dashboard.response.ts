@@ -15,4 +15,10 @@ export class LegacyExecutiveDashboardResponse {
   weightedAverageEffectiveTariffUsdPerM3!: number;
   totalReadingsWithNovelty!: number;
   operativeNoveltyPercentage!: number;
+  totalTitleUsd?: number;
+  totalTrashTaxUsd?: number;
+  totalThirdPartiesUsd?: number;
+  totalInterestUsd?: number;
+  totalSurchargesUsd?: number;
+  totalBilledEpaaUsd?: number;
 }

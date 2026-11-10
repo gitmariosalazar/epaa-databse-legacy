@@ -16,5 +16,11 @@ export class LegacyExecutiveDashboardModel {
     public readonly weightedAverageEffectiveTariffUsdPerM3: number,
     public readonly totalReadingsWithNovelty: number,
     public readonly operativeNoveltyPercentage: number,
+    public readonly totalTitleUsd?: number,
+    public readonly totalTrashTaxUsd?: number,
+    public readonly totalThirdPartiesUsd?: number,
+    public readonly totalInterestUsd?: number,
+    public readonly totalSurchargesUsd?: number,
+    public readonly totalBilledEpaaUsd?: number,
   ) {}
 }

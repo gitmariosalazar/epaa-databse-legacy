@@ -16,4 +16,10 @@ export class LegacyTopConsumerResponse {
   readingDate!: string;
   latitude!: number | null;
   longitude!: number | null;
+  titleBilledUsd?: number;
+  trashTaxBilledUsd?: number;
+  thirdPartiesBilledUsd?: number;
+  interestBilledUsd?: number;
+  surchargesBilledUsd?: number;
+  totalBilledEpaaUsd?: number;
 }

@@ -13,4 +13,10 @@ export class LegacyInterannualComparisonResponse {
   deltaBilledUsd!: number;
   varianceBilledPercentage!: number;
   managementDiagnostic!: string;
+  titleBaseYearUsd?: number;
+  titleTargetYearUsd?: number;
+  interestBaseYearUsd?: number;
+  interestTargetYearUsd?: number;
+  surchargesBaseYearUsd?: number;
+  surchargesTargetYearUsd?: number;
 }

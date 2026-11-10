@@ -12,5 +12,11 @@ export class LegacyMonthlyTrendModel {
     public readonly totalBilledUsd: number,
     public readonly deltaRevenueUsd: number | null,
     public readonly growthRevenuePercentage: number | null,
+    public readonly totalTitleUsd?: number,
+    public readonly totalTrashTaxUsd?: number,
+    public readonly totalThirdPartiesUsd?: number,
+    public readonly totalInterestUsd?: number,
+    public readonly totalSurchargesUsd?: number,
+    public readonly totalBilledEpaaUsd?: number,
   ) {}
 }

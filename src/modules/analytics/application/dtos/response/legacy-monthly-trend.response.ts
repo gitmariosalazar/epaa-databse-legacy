@@ -11,4 +11,10 @@ export class LegacyMonthlyTrendResponse {
   totalBilledUsd!: number;
   deltaRevenueUsd!: number | null;
   growthRevenuePercentage!: number | null;
+  totalTitleUsd?: number;
+  totalTrashTaxUsd?: number;
+  totalThirdPartiesUsd?: number;
+  totalInterestUsd?: number;
+  totalSurchargesUsd?: number;
+  totalBilledEpaaUsd?: number;
 }

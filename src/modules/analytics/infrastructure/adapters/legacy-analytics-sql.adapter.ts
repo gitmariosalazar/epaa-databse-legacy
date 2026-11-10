@@ -4,6 +4,7 @@ import { LegacyMonthlyTrendModel } from '../../domain/schemas/model/legacy-month
 import { LegacyNoveltyEconomicImpactModel } from '../../domain/schemas/model/legacy-novelty-economic-impact.model';
 import { LegacyTopConsumerModel } from '../../domain/schemas/model/legacy-top-consumer.model';
 import { LegacyInterannualComparisonModel } from '../../domain/schemas/model/legacy-interannual-comparison.model';
+import { LegacyMonthlyConnectionGrowthModel } from '../../domain/schemas/model/legacy-monthly-connection-growth.model';
 
 import {
   LegacyExecutiveDashboardSqlResult,
@@ -12,6 +13,7 @@ import {
   LegacyNoveltyEconomicImpactSqlResult,
   LegacyTopConsumerSqlResult,
   LegacyInterannualComparisonSqlResult,
+  LegacyMonthlyConnectionGrowthSqlResult,
 } from '../interfaces/sql/legacy-analytics-sql.interface';
 
 function parseNumber(value: string | number | null | undefined, defaultValue = 0): number {
@@ -49,11 +51,17 @@ export class LegacyAnalyticsSQLAdapter {
       parseNumber(sqlResult.ConsumoMaximo_M3),
       parseNumber(sqlResult.RecaudacionAgua_USD),
       parseNumber(sqlResult.RecaudacionAlcantarillado_USD),
-      parseNumber(sqlResult.FacturacionTotal_USD),
+      parseNumber(sqlResult.FacturacionTotal_USD ?? sqlResult.FacturacionTotalEpaa_USD),
       parseNumber(sqlResult.TicketPromedioPorCuenta_USD),
       parseNumber(sqlResult.TarifaEfectivaMedia_USD_M3),
       parseNumber(sqlResult.TotalLecturasConNovedad),
       parseNumber(sqlResult.PorcentajeNovedadOperativa),
+      parseNullableNumber(sqlResult.TotalTitulo) ?? undefined,
+      parseNullableNumber(sqlResult.TotalTasaBasura) ?? undefined,
+      parseNullableNumber(sqlResult.TotalTerceros) ?? undefined,
+      parseNullableNumber(sqlResult.TotalInteres) ?? undefined,
+      parseNullableNumber(sqlResult.TotalRecargos) ?? undefined,
+      parseNullableNumber(sqlResult.FacturacionTotalEpaa_USD ?? sqlResult.FacturacionTotal_USD) ?? undefined,
     );
   }
 
@@ -142,6 +150,12 @@ export class LegacyAnalyticsSQLAdapter {
         noveltyPct,
         revRank,
         volRank,
+        parseNullableNumber(r.TotalTitulo_USD) ?? undefined,
+        parseNullableNumber(r.TotalTasaBasura_USD) ?? undefined,
+        parseNullableNumber(r.TotalTerceros_USD) ?? undefined,
+        parseNullableNumber(r.TotalInteres_USD) ?? undefined,
+        parseNullableNumber(r.TotalRecargo_USD) ?? undefined,
+        parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.TotalFacturado_USD) ?? undefined,
       );
     });
   }
@@ -198,6 +212,12 @@ export class LegacyAnalyticsSQLAdapter {
         totalBilled,
         deltaRev,
         pctGrowthRev,
+        parseNullableNumber(r.TotalTitulo_USD) ?? undefined,
+        parseNullableNumber(r.TotalTasaBasura_USD) ?? undefined,
+        parseNullableNumber(r.TotalTerceros_USD) ?? undefined,
+        parseNullableNumber(r.TotalInteres_USD) ?? undefined,
+        parseNullableNumber(r.TotalRecargo_USD) ?? undefined,
+        parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.IngresoTotal_USD) ?? undefined,
       );
     });
   }
@@ -228,6 +248,12 @@ export class LegacyAnalyticsSQLAdapter {
         parseNumber(r.TotalAgua_USD),
         parseNumber(r.TotalAlcantarillado_USD),
         parseNumber(r.TotalRecaudado_USD),
+        parseNullableNumber(r.TotalTitulo_USD) ?? undefined,
+        parseNullableNumber(r.TotalTasaBasura_USD) ?? undefined,
+        parseNullableNumber(r.TotalTerceros_USD) ?? undefined,
+        parseNullableNumber(r.TotalInteres_USD) ?? undefined,
+        parseNullableNumber(r.TotalRecargo_USD) ?? undefined,
+        parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.TotalRecaudado_USD) ?? undefined,
       );
     });
   }
@@ -258,6 +284,12 @@ export class LegacyAnalyticsSQLAdapter {
       dateStr,
       parseNullableNumber(r.Latitud),
       parseNullableNumber(r.Longitud),
+      parseNullableNumber(r.ValorTitulo_USD) ?? undefined,
+      parseNullableNumber(r.TasaBasura_USD) ?? undefined,
+      parseNullableNumber(r.ValorTerceros_USD) ?? undefined,
+      parseNullableNumber(r.Interes_USD) ?? undefined,
+      parseNullableNumber(r.Recargo_USD) ?? undefined,
+      parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.TotalFacturado_USD) ?? undefined,
     );
   }
 
@@ -285,6 +317,12 @@ export class LegacyAnalyticsSQLAdapter {
       parseNumber(r.Delta_USD),
       parseNumber(r.Pct_Var_USD),
       r.Diagnostico_Gestion ?? '',
+      parseNullableNumber(r.Titulo_2025_USD) ?? undefined,
+      parseNullableNumber(r.Titulo_2026_USD) ?? undefined,
+      parseNullableNumber(r.Interes_2025_USD) ?? undefined,
+      parseNullableNumber(r.Interes_2026_USD) ?? undefined,
+      parseNullableNumber(r.Recargo_2025_USD) ?? undefined,
+      parseNullableNumber(r.Recargo_2026_USD) ?? undefined,
     );
   }
 
@@ -292,5 +330,27 @@ export class LegacyAnalyticsSQLAdapter {
     rows: LegacyInterannualComparisonSqlResult[],
   ): LegacyInterannualComparisonModel[] {
     return rows.map((r) => LegacyAnalyticsSQLAdapter.toInterannualComparisonModel(r));
+  }
+
+  static toMonthlyConnectionGrowthModel(
+    r: LegacyMonthlyConnectionGrowthSqlResult,
+  ): LegacyMonthlyConnectionGrowthModel {
+    return new LegacyMonthlyConnectionGrowthModel(
+      parseNumber(r.MesNumero),
+      String(r.NombreMes ?? '').trim(),
+      parseNumber(r.Acometidas_2025),
+      parseNumber(r.Aumento_Mes_2025),
+      parseNumber(r.Acometidas_2026),
+      parseNumber(r.Aumento_Mes_2026),
+      parseNumber(r.Dif_2026_vs_2025),
+      parseNumber(r.Pct_Var_Interanual),
+      String(r.Estado_2026 ?? '').trim(),
+    );
+  }
+
+  static toMonthlyConnectionGrowthModelList(
+    rows: LegacyMonthlyConnectionGrowthSqlResult[],
+  ): LegacyMonthlyConnectionGrowthModel[] {
+    return rows.map((r) => LegacyAnalyticsSQLAdapter.toMonthlyConnectionGrowthModel(r));
   }
 }
