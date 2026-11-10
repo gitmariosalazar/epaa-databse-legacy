@@ -94,6 +94,11 @@ export class LegacyAnalyticsSQLServer2022Persistence
               ISNULL(di.ValorTerceros, 0) AS ValorTerceros,
               ISNULL(int.interes_calculado, 0) AS interes_calculado,
               ISNULL(di.Recargo, 0) AS Recargo,
+              ISNULL(di.interes_mejoras, 0) AS interes_mejoras,
+              di.Cod_Ingreso,
+              di.Fecha_Pago,
+              di.Fecha_Vencimiento,
+              di.Estado_Ingreso,
               ISNULL(L.Novedad, 'NORMAL') AS Novedad
           FROM AP_LECTURAS L
           INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
@@ -133,7 +138,44 @@ export class LegacyAnalyticsSQLServer2022Persistence
           CAST(
               (SUM(CASE WHEN Novedad NOT IN ('NORMAL', 'LECTURA NORMAL') THEN 1.0 ELSE 0.0 END) / NULLIF(COUNT(*), 0)) * 100.0 
               AS DECIMAL(5,2)
-          )                                                                   AS PorcentajeNovedadOperativa
+          )                                                                   AS PorcentajeNovedadOperativa,
+          CAST(SUM(interes_mejoras) AS DECIMAL(18,2))                         AS TotalInteresMejoras,
+          CAST(SUM(CASE WHEN Fecha_Pago IS NOT NULL THEN Valor_Titulo ELSE 0 END) AS DECIMAL(18,2)) AS TotalAguaPagada_USD,
+          CAST(SUM(CASE WHEN Fecha_Pago IS NULL THEN Valor_Titulo ELSE 0 END) AS DECIMAL(18,2))     AS TotalAguaImpaga_USD,
+          COUNT(Cod_Ingreso)                                                  AS TotalFacturasGeneradas,
+          SUM(CASE WHEN Cod_Ingreso IS NOT NULL AND Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS TotalFacturasPagadas,
+          SUM(CASE WHEN Cod_Ingreso IS NOT NULL AND Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS TotalFacturasImpagas,
+          SUM(CASE WHEN Fecha_Pago IS NULL AND Fecha_Vencimiento < GETDATE() THEN 1 ELSE 0 END) AS TotalFacturasVencidas,
+          SUM(CASE WHEN Fecha_Pago IS NULL AND Fecha_Vencimiento >= GETDATE() THEN 1 ELSE 0 END) AS TotalFacturasPorVencer,
+          SUM(CASE WHEN Fecha_Pago IS NULL AND Estado_Ingreso IN ('A', 'B', '0') THEN 1 ELSE 0 END) AS TotalFacturasAnuladas,
+          CAST(SUM(
+              Valor_Titulo + tasa_basura + ValorTerceros + interes_mejoras + Recargo + interes_calculado
+          ) AS DECIMAL(18,2))                                                 AS TotalGeneralEmision_USD,
+          CAST(SUM(
+              CASE WHEN Fecha_Pago IS NOT NULL THEN
+                  Valor_Titulo + tasa_basura + ValorTerceros + interes_mejoras + Recargo + interes_calculado
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalRecaudado_USD,
+          CAST(SUM(
+              CASE WHEN Fecha_Pago IS NULL THEN
+                  Valor_Titulo + tasa_basura + ValorTerceros + interes_mejoras + Recargo + interes_calculado
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalPendiente_USD,
+          CAST(SUM(
+              CASE WHEN Fecha_Pago IS NULL AND Fecha_Vencimiento < GETDATE() THEN
+                  Valor_Titulo + tasa_basura + ValorTerceros + interes_mejoras + Recargo + interes_calculado
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalVencidoMora_USD,
+          CAST(SUM(
+              CASE WHEN Fecha_Pago IS NULL AND Fecha_Vencimiento >= GETDATE() THEN
+                  Valor_Titulo + tasa_basura + ValorTerceros + interes_mejoras + Recargo + interes_calculado
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalPorVencer_USD,
+          CAST(SUM(
+              CASE WHEN Fecha_Pago IS NULL AND Estado_Ingreso IN ('A', 'B', '0') THEN
+                  Valor_Titulo + tasa_basura + ValorTerceros + interes_mejoras + Recargo + interes_calculado
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalAnulado_USD
       FROM CTE_Lecturas
       GROUP BY Anio, Mes;
     `;
@@ -190,7 +232,61 @@ export class LegacyAnalyticsSQLServer2022Persistence
               CAST(SUM(ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS TotalRecargo_USD,
               CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS FacturacionTotalEpaa_USD,
               CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS TotalFacturado_USD,
-              SUM(CASE WHEN ISNULL(L.Novedad, 'NORMAL') NOT IN ('NORMAL', 'LECTURA NORMAL') THEN 1 ELSE 0 END) AS CasosConNovedad
+              SUM(CASE WHEN ISNULL(L.Novedad, 'NORMAL') NOT IN ('NORMAL', 'LECTURA NORMAL') THEN 1 ELSE 0 END) AS CasosConNovedad,
+              CAST(SUM(ISNULL(di.interes_mejoras, 0)) AS DECIMAL(18,2)) AS TotalInteresMejoras_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NOT NULL THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalRecaudado_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalPendiente_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalVencidoMora_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento >= GETDATE() THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalPorVencer_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL AND di.Estado_Ingreso IN ('A', 'B', '0') THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalAnulado_USD,
+              SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS FacturasPagadas,
+              SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS FacturasPendientes,
+              SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN 1 ELSE 0 END) AS FacturasVencidas
           FROM AP_LECTURAS L
           INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
           LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
@@ -225,7 +321,16 @@ export class LegacyAnalyticsSQLServer2022Persistence
           CasosConNovedad,
           ROUND((CasosConNovedad * 100.0) / NULLIF(TotalLecturas, 0), 2) AS PctIncidencias,
           DENSE_RANK() OVER (ORDER BY TotalFacturado_USD DESC) AS RankRecaudacion,
-          DENSE_RANK() OVER (ORDER BY M3_Consumidos DESC) AS RankConsumoM3
+          DENSE_RANK() OVER (ORDER BY M3_Consumidos DESC) AS RankConsumoM3,
+          TotalInteresMejoras_USD,
+          TotalRecaudado_USD,
+          TotalPendiente_USD,
+          TotalVencidoMora_USD,
+          TotalPorVencer_USD,
+          TotalAnulado_USD,
+          FacturasPagadas,
+          FacturasPendientes,
+          FacturasVencidas
       FROM CTE_Sector
       ${orderByClause};
     `;
@@ -279,7 +384,61 @@ export class LegacyAnalyticsSQLServer2022Persistence
               CAST(SUM(ISNULL(int.interes_calculado, 0)) AS DECIMAL(18,2)) AS TotalInteres_USD,
               CAST(SUM(ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS TotalRecargo_USD,
               CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS FacturacionTotalEpaa_USD,
-              CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS IngresoTotal_USD
+              CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS IngresoTotal_USD,
+              CAST(SUM(ISNULL(di.interes_mejoras, 0)) AS DECIMAL(18,2)) AS TotalInteresMejoras_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NOT NULL THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalRecaudado_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalPendiente_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalVencidoMora_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento >= GETDATE() THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalPorVencer_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL AND di.Estado_Ingreso IN ('A', 'B', '0') THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+              ELSE 0 END
+          ) AS DECIMAL(18,2)) AS TotalAnulado_USD,
+          SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS FacturasPagadas,
+          SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS FacturasPendientes,
+          SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN 1 ELSE 0 END) AS FacturasVencidas
           FROM AP_LECTURAS L
           INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
           LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
@@ -322,7 +481,16 @@ export class LegacyAnalyticsSQLServer2022Persistence
           FacturacionTotalEpaa_USD,
           IngresoTotal_USD,
           IngresoTotal_USD - LAG(IngresoTotal_USD) OVER (ORDER BY MesNumero) AS DeltaIngresos_USD,
-          ROUND(((IngresoTotal_USD - LAG(IngresoTotal_USD) OVER (ORDER BY MesNumero)) * 100.0) / NULLIF(LAG(IngresoTotal_USD) OVER (ORDER BY MesNumero), 0), 2) AS PctCrecimiento_Ingresos
+          ROUND(((IngresoTotal_USD - LAG(IngresoTotal_USD) OVER (ORDER BY MesNumero)) * 100.0) / NULLIF(LAG(IngresoTotal_USD) OVER (ORDER BY MesNumero), 0), 2) AS PctCrecimiento_Ingresos,
+          TotalInteresMejoras_USD,
+          TotalRecaudado_USD,
+          TotalPendiente_USD,
+          TotalVencidoMora_USD,
+          TotalPorVencer_USD,
+          TotalAnulado_USD,
+          FacturasPagadas,
+          FacturasPendientes,
+          FacturasVencidas
       FROM CTE_Meses
       WHERE MesNumero BETWEEN ${startMonth} AND ${endMonth}
       ORDER BY MesNumero ASC;
@@ -362,7 +530,40 @@ export class LegacyAnalyticsSQLServer2022Persistence
               CAST(SUM(ISNULL(int.interes_calculado, 0)) AS DECIMAL(18,2)) AS TotalInteres_USD,
               CAST(SUM(ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS TotalRecargo_USD,
               CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS FacturacionTotalEpaa_USD,
-              CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS TotalRecaudado_USD
+              CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS TotalRecaudado_USD,
+              CAST(SUM(ISNULL(di.interes_mejoras, 0)) AS DECIMAL(18,2)) AS TotalInteresMejoras_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NOT NULL THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalCobrado_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalPendiente_USD,
+              CAST(SUM(
+                  CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN
+                      ISNULL(di.Valor_Titulo, 0) +
+                      ISNULL(di.tasa_basura, 0) +
+                      ISNULL(di.ValorTerceros, 0) +
+                      ISNULL(di.interes_mejoras, 0) +
+                      ISNULL(di.Recargo, 0) +
+                      ISNULL(int.interes_calculado, 0)
+                  ELSE 0 END
+              ) AS DECIMAL(18,2)) AS TotalVencidoMora_USD,
+              SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS CasosPagados,
+              SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS CasosPendientes
           FROM AP_LECTURAS L
           INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
           LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
@@ -385,7 +586,13 @@ export class LegacyAnalyticsSQLServer2022Persistence
           TotalInteres_USD,
           TotalRecargo_USD,
           FacturacionTotalEpaa_USD,
-          TotalRecaudado_USD
+          TotalRecaudado_USD,
+          TotalInteresMejoras_USD,
+          TotalCobrado_USD,
+          TotalPendiente_USD,
+          TotalVencidoMora_USD,
+          CasosPagados,
+          CasosPendientes
       FROM CTE_Novedades
       ORDER BY TotalCasos DESC;
     `;
@@ -444,7 +651,35 @@ export class LegacyAnalyticsSQLServer2022Persistence
           ISNULL(L.Novedad, 'NORMAL')                                         AS Novedad,
           L.FechaCaptura,
           A.Latitud,
-          A.Longitud
+          A.Longitud,
+          di.Fecha_Pago                                                       AS FechaPago,
+          di.Fecha_Vencimiento                                                AS FechaVencimiento,
+          CASE 
+              WHEN di.Fecha_Pago IS NOT NULL THEN 'PAGADO'
+              WHEN di.Fecha_Vencimiento < GETDATE() THEN 'VENCIDO / MORA'
+              ELSE 'POR VENCER'
+          END                                                                 AS EstadoPago,
+          CAST(ISNULL(di.interes_mejoras, 0) AS DECIMAL(18,2))               AS InteresMejoras_USD,
+          CAST(
+              CASE WHEN di.Fecha_Pago IS NOT NULL THEN
+                  ISNULL(di.Valor_Titulo, 0) +
+                  ISNULL(di.tasa_basura, 0) +
+                  ISNULL(di.ValorTerceros, 0) +
+                  ISNULL(di.interes_mejoras, 0) +
+                  ISNULL(di.Recargo, 0) +
+                  ISNULL(int.interes_calculado, 0)
+              ELSE 0 END
+          AS DECIMAL(18,2))                                                   AS ValorTotalPagado_USD,
+          CAST(
+              CASE WHEN di.Fecha_Pago IS NULL THEN
+                  ISNULL(di.Valor_Titulo, 0) +
+                  ISNULL(di.tasa_basura, 0) +
+                  ISNULL(di.ValorTerceros, 0) +
+                  ISNULL(di.interes_mejoras, 0) +
+                  ISNULL(di.Recargo, 0) +
+                  ISNULL(int.interes_calculado, 0)
+              ELSE 0 END
+          AS DECIMAL(18,2))                                                   AS ValorTotalPendiente_USD
       FROM AP_LECTURAS L
       INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
       LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
@@ -510,6 +745,18 @@ export class LegacyAnalyticsSQLServer2022Persistence
             CAST(SUM(ISNULL(int26.interes_calculado, 0)) AS DECIMAL(18,2))     AS Interes_2026_USD,
             CAST(SUM(ISNULL(di25.Recargo, 0)) AS DECIMAL(18,2))                AS Recargo_2025_USD,
             CAST(SUM(ISNULL(di26.Recargo, 0)) AS DECIMAL(18,2))                AS Recargo_2026_USD,
+            CAST(SUM(ISNULL(di25.interes_mejoras, 0)) AS DECIMAL(18,2))        AS InteresMejoras_2025_USD,
+            CAST(SUM(ISNULL(di26.interes_mejoras, 0)) AS DECIMAL(18,2))        AS InteresMejoras_2026_USD,
+            CAST(SUM(CASE WHEN di25.Fecha_Pago IS NOT NULL THEN (ISNULL(di25.Valor_Titulo, 0) + ISNULL(di25.tasa_basura, 0) + ISNULL(di25.ValorTerceros, 0) + ISNULL(di25.interes_mejoras, 0) + ISNULL(di25.Recargo, 0) + ISNULL(int25.interes_calculado, 0)) ELSE 0 END) AS DECIMAL(18,2)) AS Recaudado_2025_USD,
+            CAST(SUM(CASE WHEN di26.Fecha_Pago IS NOT NULL THEN (ISNULL(di26.Valor_Titulo, 0) + ISNULL(di26.tasa_basura, 0) + ISNULL(di26.ValorTerceros, 0) + ISNULL(di26.interes_mejoras, 0) + ISNULL(di26.Recargo, 0) + ISNULL(int26.interes_calculado, 0)) ELSE 0 END) AS DECIMAL(18,2)) AS Recaudado_2026_USD,
+            CAST((SUM(CASE WHEN di26.Fecha_Pago IS NOT NULL THEN (ISNULL(di26.Valor_Titulo, 0) + ISNULL(di26.tasa_basura, 0) + ISNULL(di26.ValorTerceros, 0) + ISNULL(di26.interes_mejoras, 0) + ISNULL(di26.Recargo, 0) + ISNULL(int26.interes_calculado, 0)) ELSE 0 END) -
+                  SUM(CASE WHEN di25.Fecha_Pago IS NOT NULL THEN (ISNULL(di25.Valor_Titulo, 0) + ISNULL(di25.tasa_basura, 0) + ISNULL(di25.ValorTerceros, 0) + ISNULL(di25.interes_mejoras, 0) + ISNULL(di25.Recargo, 0) + ISNULL(int25.interes_calculado, 0)) ELSE 0 END)) AS DECIMAL(18,2)) AS Delta_Recaudado_USD,
+            CAST(SUM(CASE WHEN di25.Fecha_Pago IS NULL THEN (ISNULL(di25.Valor_Titulo, 0) + ISNULL(di25.tasa_basura, 0) + ISNULL(di25.ValorTerceros, 0) + ISNULL(di25.interes_mejoras, 0) + ISNULL(di25.Recargo, 0) + ISNULL(int25.interes_calculado, 0)) ELSE 0 END) AS DECIMAL(18,2)) AS Pendiente_2025_USD,
+            CAST(SUM(CASE WHEN di26.Fecha_Pago IS NULL THEN (ISNULL(di26.Valor_Titulo, 0) + ISNULL(di26.tasa_basura, 0) + ISNULL(di26.ValorTerceros, 0) + ISNULL(di26.interes_mejoras, 0) + ISNULL(di26.Recargo, 0) + ISNULL(int26.interes_calculado, 0)) ELSE 0 END) AS DECIMAL(18,2)) AS Pendiente_2026_USD,
+            CAST((SUM(CASE WHEN di26.Fecha_Pago IS NULL THEN (ISNULL(di26.Valor_Titulo, 0) + ISNULL(di26.tasa_basura, 0) + ISNULL(di26.ValorTerceros, 0) + ISNULL(di26.interes_mejoras, 0) + ISNULL(di26.Recargo, 0) + ISNULL(int26.interes_calculado, 0)) ELSE 0 END) -
+                  SUM(CASE WHEN di25.Fecha_Pago IS NULL THEN (ISNULL(di25.Valor_Titulo, 0) + ISNULL(di25.tasa_basura, 0) + ISNULL(di25.ValorTerceros, 0) + ISNULL(di25.interes_mejoras, 0) + ISNULL(di25.Recargo, 0) + ISNULL(int25.interes_calculado, 0)) ELSE 0 END)) AS DECIMAL(18,2)) AS Delta_Pendiente_USD,
+            CAST(SUM(CASE WHEN di25.Fecha_Pago IS NULL AND di25.Fecha_Vencimiento < GETDATE() THEN (ISNULL(di25.Valor_Titulo, 0) + ISNULL(di25.tasa_basura, 0) + ISNULL(di25.ValorTerceros, 0) + ISNULL(di25.interes_mejoras, 0) + ISNULL(di25.Recargo, 0) + ISNULL(int25.interes_calculado, 0)) ELSE 0 END) AS DECIMAL(18,2)) AS VencidoMora_2025_USD,
+            CAST(SUM(CASE WHEN di26.Fecha_Pago IS NULL AND di26.Fecha_Vencimiento < GETDATE() THEN (ISNULL(di26.Valor_Titulo, 0) + ISNULL(di26.tasa_basura, 0) + ISNULL(di26.ValorTerceros, 0) + ISNULL(di26.interes_mejoras, 0) + ISNULL(di26.Recargo, 0) + ISNULL(int26.interes_calculado, 0)) ELSE 0 END) AS DECIMAL(18,2)) AS VencidoMora_2026_USD,
             CAST((SUM(ISNULL(di26.Valor_Titulo, 0) + ISNULL(int26.interes_calculado, 0) + ISNULL(di26.Recargo, 0)) - SUM(ISNULL(di25.Valor_Titulo, 0) + ISNULL(int25.interes_calculado, 0) + ISNULL(di25.Recargo, 0))) AS DECIMAL(18,2)) AS Delta_USD,
             CAST(
                 CASE 
@@ -595,6 +842,16 @@ export class LegacyAnalyticsSQLServer2022Persistence
             CAST(ISNULL(m26.Interes_2026_USD, 0) AS DECIMAL(18,2))            AS Interes_2026_USD,
             CAST(ISNULL(m25.Recargo_2025_USD, 0) AS DECIMAL(18,2))            AS Recargo_2025_USD,
             CAST(ISNULL(m26.Recargo_2026_USD, 0) AS DECIMAL(18,2))            AS Recargo_2026_USD,
+            CAST(ISNULL(m25.InteresMejoras_2025_USD, 0) AS DECIMAL(18,2))     AS InteresMejoras_2025_USD,
+            CAST(ISNULL(m26.InteresMejoras_2026_USD, 0) AS DECIMAL(18,2))     AS InteresMejoras_2026_USD,
+            CAST(ISNULL(m25.Recaudado_USD, 0) AS DECIMAL(18,2))                AS Recaudado_2025_USD,
+            CAST(ISNULL(m26.Recaudado_USD, 0) AS DECIMAL(18,2))                AS Recaudado_2026_USD,
+            CAST((ISNULL(m26.Recaudado_USD, 0) - ISNULL(m25.Recaudado_USD, 0)) AS DECIMAL(18,2)) AS Delta_Recaudado_USD,
+            CAST(ISNULL(m25.Pendiente_USD, 0) AS DECIMAL(18,2))                AS Pendiente_2025_USD,
+            CAST(ISNULL(m26.Pendiente_USD, 0) AS DECIMAL(18,2))                AS Pendiente_2026_USD,
+            CAST((ISNULL(m26.Pendiente_USD, 0) - ISNULL(m25.Pendiente_USD, 0)) AS DECIMAL(18,2)) AS Delta_Pendiente_USD,
+            CAST(ISNULL(m25.VencidoMora_USD, 0) AS DECIMAL(18,2))              AS VencidoMora_2025_USD,
+            CAST(ISNULL(m26.VencidoMora_USD, 0) AS DECIMAL(18,2))              AS VencidoMora_2026_USD,
             CAST((ISNULL(m26.Facturado_2026_USD, 0) - ISNULL(m25.Facturado_2025_USD, 0)) AS DECIMAL(18,2)) AS Delta_USD,
             CAST(
                 CASE 
@@ -628,7 +885,11 @@ export class LegacyAnalyticsSQLServer2022Persistence
                     SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS Facturado_2025_USD,
                     SUM(ISNULL(di.Valor_Titulo, 0)) AS Titulo_2025_USD,
                     SUM(ISNULL(int.interes_calculado, 0)) AS Interes_2025_USD,
-                    SUM(ISNULL(di.Recargo, 0)) AS Recargo_2025_USD
+                    SUM(ISNULL(di.Recargo, 0)) AS Recargo_2025_USD,
+                    SUM(ISNULL(di.interes_mejoras, 0)) AS InteresMejoras_2025_USD,
+                    SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS Recaudado_2025_USD,
+                    SUM(CASE WHEN di.Fecha_Pago IS NULL THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS Pendiente_2025_USD,
+                    SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS VencidoMora_2025_USD
                 FROM AP_LECTURAS L
                 INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
                 LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
@@ -659,7 +920,11 @@ export class LegacyAnalyticsSQLServer2022Persistence
                     SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS Facturado_2026_USD,
                     SUM(ISNULL(di.Valor_Titulo, 0)) AS Titulo_2026_USD,
                     SUM(ISNULL(int.interes_calculado, 0)) AS Interes_2026_USD,
-                    SUM(ISNULL(di.Recargo, 0)) AS Recargo_2026_USD
+                    SUM(ISNULL(di.Recargo, 0)) AS Recargo_2026_USD,
+                    SUM(ISNULL(di.interes_mejoras, 0)) AS InteresMejoras_2026_USD,
+                    SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS Recaudado_2026_USD,
+                    SUM(CASE WHEN di.Fecha_Pago IS NULL THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS Pendiente_2026_USD,
+                    SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS VencidoMora_2026_USD
                 FROM AP_LECTURAS L
                 INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
                 LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso

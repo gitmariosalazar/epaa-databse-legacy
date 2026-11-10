@@ -22,4 +22,10 @@ export class LegacyTopConsumerResponse {
   interestBilledUsd?: number;
   surchargesBilledUsd?: number;
   totalBilledEpaaUsd?: number;
+  paymentDate?: string | null;
+  expirationDate?: string | null;
+  paymentStatus?: string;
+  interestImprovementsUsd?: number;
+  totalPaidAmountUsd?: number;
+  totalPendingAmountUsd?: number;
 }

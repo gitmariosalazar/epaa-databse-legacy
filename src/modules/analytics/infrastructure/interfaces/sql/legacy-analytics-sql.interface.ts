@@ -21,6 +21,21 @@ export interface LegacyExecutiveDashboardSqlResult {
   TarifaEfectivaMedia_USD_M3: string | number;
   TotalLecturasConNovedad: string | number;
   PorcentajeNovedadOperativa: string | number;
+  TotalInteresMejoras?: string | number;
+  TotalAguaPagada_USD?: string | number;
+  TotalAguaImpaga_USD?: string | number;
+  TotalFacturasGeneradas?: string | number;
+  TotalFacturasPagadas?: string | number;
+  TotalFacturasImpagas?: string | number;
+  TotalFacturasVencidas?: string | number;
+  TotalFacturasPorVencer?: string | number;
+  TotalFacturasAnuladas?: string | number;
+  TotalGeneralEmision_USD?: string | number;
+  TotalRecaudado_USD?: string | number;
+  TotalPendiente_USD?: string | number;
+  TotalVencidoMora_USD?: string | number;
+  TotalPorVencer_USD?: string | number;
+  TotalAnulado_USD?: string | number;
 }
 
 export interface LegacySectorPerformanceSqlResult {
@@ -44,6 +59,15 @@ export interface LegacySectorPerformanceSqlResult {
   PctIncidencias?: string | number;
   RankRecaudacion?: string | number;
   RankConsumoM3?: string | number;
+  TotalInteresMejoras_USD?: string | number;
+  TotalRecaudado_USD?: string | number;
+  TotalPendiente_USD?: string | number;
+  TotalVencidoMora_USD?: string | number;
+  TotalPorVencer_USD?: string | number;
+  TotalAnulado_USD?: string | number;
+  FacturasPagadas?: string | number;
+  FacturasPendientes?: string | number;
+  FacturasVencidas?: string | number;
 }
 
 export interface LegacyMonthlyTrendSqlResult {
@@ -65,6 +89,15 @@ export interface LegacyMonthlyTrendSqlResult {
   IngresoTotal_USD: string | number;
   DeltaIngresos_USD?: string | number | null;
   PctCrecimiento_Ingresos?: string | number | null;
+  TotalInteresMejoras_USD?: string | number;
+  TotalRecaudado_USD?: string | number;
+  TotalPendiente_USD?: string | number;
+  TotalVencidoMora_USD?: string | number;
+  TotalPorVencer_USD?: string | number;
+  TotalAnulado_USD?: string | number;
+  FacturasPagadas?: string | number;
+  FacturasPendientes?: string | number;
+  FacturasVencidas?: string | number;
 }
 
 export interface LegacyNoveltyEconomicImpactSqlResult {
@@ -82,6 +115,12 @@ export interface LegacyNoveltyEconomicImpactSqlResult {
   TotalRecargo_USD?: string | number;
   FacturacionTotalEpaa_USD?: string | number;
   TotalRecaudado_USD: string | number;
+  TotalInteresMejoras_USD?: string | number;
+  TotalCobrado_USD?: string | number;
+  TotalPendiente_USD?: string | number;
+  TotalVencidoMora_USD?: string | number;
+  CasosPagados?: string | number;
+  CasosPendientes?: string | number;
 }
 
 export interface LegacyTopConsumerSqlResult {
@@ -108,6 +147,12 @@ export interface LegacyTopConsumerSqlResult {
   FechaCaptura: string | Date | null;
   Latitud?: string | number | null;
   Longitud?: string | number | null;
+  FechaPago?: string | Date | null;
+  FechaVencimiento?: string | Date | null;
+  EstadoPago?: string;
+  InteresMejoras_USD?: string | number;
+  ValorTotalPagado_USD?: string | number;
+  ValorTotalPendiente_USD?: string | number;
 }
 
 export interface LegacyInterannualComparisonSqlResult {
@@ -131,6 +176,16 @@ export interface LegacyInterannualComparisonSqlResult {
   Delta_USD: string | number;
   Pct_Var_USD: string | number;
   Diagnostico_Gestion: string;
+  Recaudado_2025_USD?: string | number;
+  Recaudado_2026_USD?: string | number;
+  Delta_Recaudado_USD?: string | number;
+  Pendiente_2025_USD?: string | number;
+  Pendiente_2026_USD?: string | number;
+  Delta_Pendiente_USD?: string | number;
+  VencidoMora_2025_USD?: string | number;
+  VencidoMora_2026_USD?: string | number;
+  InteresMejoras_2025_USD?: string | number;
+  InteresMejoras_2026_USD?: string | number;
 }
 
 export interface LegacyMonthlyConnectionGrowthSqlResult {

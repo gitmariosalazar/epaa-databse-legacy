@@ -20,5 +20,15 @@ export class LegacyInterannualComparisonModel {
     public readonly interestTargetYearUsd?: number,
     public readonly surchargesBaseYearUsd?: number,
     public readonly surchargesTargetYearUsd?: number,
+    public readonly collectedBaseYearUsd?: number,
+    public readonly collectedTargetYearUsd?: number,
+    public readonly deltaCollectedUsd?: number,
+    public readonly pendingBaseYearUsd?: number,
+    public readonly pendingTargetYearUsd?: number,
+    public readonly deltaPendingUsd?: number,
+    public readonly overdueBaseYearUsd?: number,
+    public readonly overdueTargetYearUsd?: number,
+    public readonly interestImprovementsBaseYearUsd?: number,
+    public readonly interestImprovementsTargetYearUsd?: number,
   ) {}
 }

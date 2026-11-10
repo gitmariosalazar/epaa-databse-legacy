@@ -23,5 +23,11 @@ export class LegacyTopConsumerModel {
     public readonly interestBilledUsd?: number,
     public readonly surchargesBilledUsd?: number,
     public readonly totalBilledEpaaUsd?: number,
+    public readonly paymentDate?: string | null,
+    public readonly expirationDate?: string | null,
+    public readonly paymentStatus?: string,
+    public readonly interestImprovementsUsd?: number,
+    public readonly totalPaidAmountUsd?: number,
+    public readonly totalPendingAmountUsd?: number,
   ) {}
 }

@@ -21,4 +21,19 @@ export class LegacyExecutiveDashboardResponse {
   totalInterestUsd?: number;
   totalSurchargesUsd?: number;
   totalBilledEpaaUsd?: number;
+  totalInterestImprovementsUsd?: number;
+  totalPaidWaterUsd?: number;
+  totalUnpaidWaterUsd?: number;
+  totalBillsGenerated?: number;
+  paidBillsCount?: number;
+  unpaidBillsCount?: number;
+  overdueBillsCount?: number;
+  upcomingBillsCount?: number;
+  canceledBillsCount?: number;
+  totalGeneralEmissionUsd?: number;
+  totalCollectedUsd?: number;
+  totalPendingDebtUsd?: number;
+  totalOverdueDebtUsd?: number;
+  totalUpcomingDebtUsd?: number;
+  totalCanceledUsd?: number;
 }

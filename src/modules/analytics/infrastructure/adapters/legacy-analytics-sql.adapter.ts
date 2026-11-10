@@ -62,6 +62,21 @@ export class LegacyAnalyticsSQLAdapter {
       parseNullableNumber(sqlResult.TotalInteres) ?? undefined,
       parseNullableNumber(sqlResult.TotalRecargos) ?? undefined,
       parseNullableNumber(sqlResult.FacturacionTotalEpaa_USD ?? sqlResult.FacturacionTotal_USD) ?? undefined,
+      parseNullableNumber(sqlResult.TotalInteresMejoras) ?? undefined,
+      parseNullableNumber(sqlResult.TotalAguaPagada_USD) ?? undefined,
+      parseNullableNumber(sqlResult.TotalAguaImpaga_USD) ?? undefined,
+      parseNullableNumber(sqlResult.TotalFacturasGeneradas) ?? undefined,
+      parseNullableNumber(sqlResult.TotalFacturasPagadas) ?? undefined,
+      parseNullableNumber(sqlResult.TotalFacturasImpagas) ?? undefined,
+      parseNullableNumber(sqlResult.TotalFacturasVencidas) ?? undefined,
+      parseNullableNumber(sqlResult.TotalFacturasPorVencer) ?? undefined,
+      parseNullableNumber(sqlResult.TotalFacturasAnuladas) ?? undefined,
+      parseNullableNumber(sqlResult.TotalGeneralEmision_USD) ?? undefined,
+      parseNullableNumber(sqlResult.TotalRecaudado_USD) ?? undefined,
+      parseNullableNumber(sqlResult.TotalPendiente_USD) ?? undefined,
+      parseNullableNumber(sqlResult.TotalVencidoMora_USD) ?? undefined,
+      parseNullableNumber(sqlResult.TotalPorVencer_USD) ?? undefined,
+      parseNullableNumber(sqlResult.TotalAnulado_USD) ?? undefined,
     );
   }
 
@@ -156,6 +171,15 @@ export class LegacyAnalyticsSQLAdapter {
         parseNullableNumber(r.TotalInteres_USD) ?? undefined,
         parseNullableNumber(r.TotalRecargo_USD) ?? undefined,
         parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.TotalFacturado_USD) ?? undefined,
+        parseNullableNumber(r.TotalInteresMejoras_USD) ?? undefined,
+        parseNullableNumber(r.TotalRecaudado_USD) ?? undefined,
+        parseNullableNumber(r.TotalPendiente_USD) ?? undefined,
+        parseNullableNumber(r.TotalVencidoMora_USD) ?? undefined,
+        parseNullableNumber(r.TotalPorVencer_USD) ?? undefined,
+        parseNullableNumber(r.TotalAnulado_USD) ?? undefined,
+        parseNullableNumber(r.FacturasPagadas) ?? undefined,
+        parseNullableNumber(r.FacturasPendientes) ?? undefined,
+        parseNullableNumber(r.FacturasVencidas) ?? undefined,
       );
     });
   }
@@ -218,6 +242,15 @@ export class LegacyAnalyticsSQLAdapter {
         parseNullableNumber(r.TotalInteres_USD) ?? undefined,
         parseNullableNumber(r.TotalRecargo_USD) ?? undefined,
         parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.IngresoTotal_USD) ?? undefined,
+        parseNullableNumber(r.TotalInteresMejoras_USD) ?? undefined,
+        parseNullableNumber(r.TotalRecaudado_USD) ?? undefined,
+        parseNullableNumber(r.TotalPendiente_USD) ?? undefined,
+        parseNullableNumber(r.TotalVencidoMora_USD) ?? undefined,
+        parseNullableNumber(r.TotalPorVencer_USD) ?? undefined,
+        parseNullableNumber(r.TotalAnulado_USD) ?? undefined,
+        parseNullableNumber(r.FacturasPagadas) ?? undefined,
+        parseNullableNumber(r.FacturasPendientes) ?? undefined,
+        parseNullableNumber(r.FacturasVencidas) ?? undefined,
       );
     });
   }
@@ -254,6 +287,12 @@ export class LegacyAnalyticsSQLAdapter {
         parseNullableNumber(r.TotalInteres_USD) ?? undefined,
         parseNullableNumber(r.TotalRecargo_USD) ?? undefined,
         parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.TotalRecaudado_USD) ?? undefined,
+        parseNullableNumber(r.TotalInteresMejoras_USD) ?? undefined,
+        parseNullableNumber(r.TotalCobrado_USD ?? r.TotalRecaudado_USD) ?? undefined,
+        parseNullableNumber(r.TotalPendiente_USD) ?? undefined,
+        parseNullableNumber(r.TotalVencidoMora_USD) ?? undefined,
+        parseNullableNumber(r.CasosPagados) ?? undefined,
+        parseNullableNumber(r.CasosPendientes) ?? undefined,
       );
     });
   }
@@ -265,6 +304,20 @@ export class LegacyAnalyticsSQLAdapter {
       r.FechaCaptura instanceof Date
         ? r.FechaCaptura.toISOString()
         : String(r.FechaCaptura ?? '');
+
+    const paymentDateStr =
+      r.FechaPago instanceof Date
+        ? r.FechaPago.toISOString()
+        : r.FechaPago
+          ? String(r.FechaPago)
+          : null;
+
+    const expirationDateStr =
+      r.FechaVencimiento instanceof Date
+        ? r.FechaVencimiento.toISOString()
+        : r.FechaVencimiento
+          ? String(r.FechaVencimiento)
+          : null;
 
     return new LegacyTopConsumerModel(
       String(r.LecturaId ?? ''),
@@ -290,6 +343,12 @@ export class LegacyAnalyticsSQLAdapter {
       parseNullableNumber(r.Interes_USD) ?? undefined,
       parseNullableNumber(r.Recargo_USD) ?? undefined,
       parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.TotalFacturado_USD) ?? undefined,
+      paymentDateStr,
+      expirationDateStr,
+      r.EstadoPago ?? (r.FechaPago ? 'PAGADO' : 'PENDIENTE'),
+      parseNullableNumber(r.InteresMejoras_USD) ?? undefined,
+      parseNullableNumber(r.ValorTotalPagado_USD) ?? undefined,
+      parseNullableNumber(r.ValorTotalPendiente_USD) ?? undefined,
     );
   }
 
@@ -323,6 +382,16 @@ export class LegacyAnalyticsSQLAdapter {
       parseNullableNumber(r.Interes_2026_USD) ?? undefined,
       parseNullableNumber(r.Recargo_2025_USD) ?? undefined,
       parseNullableNumber(r.Recargo_2026_USD) ?? undefined,
+      parseNullableNumber(r.Recaudado_2025_USD) ?? undefined,
+      parseNullableNumber(r.Recaudado_2026_USD) ?? undefined,
+      parseNullableNumber(r.Delta_Recaudado_USD) ?? undefined,
+      parseNullableNumber(r.Pendiente_2025_USD) ?? undefined,
+      parseNullableNumber(r.Pendiente_2026_USD) ?? undefined,
+      parseNullableNumber(r.Delta_Pendiente_USD) ?? undefined,
+      parseNullableNumber(r.VencidoMora_2025_USD) ?? undefined,
+      parseNullableNumber(r.VencidoMora_2026_USD) ?? undefined,
+      parseNullableNumber(r.InteresMejoras_2025_USD) ?? undefined,
+      parseNullableNumber(r.InteresMejoras_2026_USD) ?? undefined,
     );
   }
 

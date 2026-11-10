@@ -19,4 +19,13 @@ export class LegacySectorPerformanceResponse {
   totalInterestUsd?: number;
   totalSurchargesUsd?: number;
   totalBilledEpaaUsd?: number;
+  totalInterestImprovementsUsd?: number;
+  totalCollectedUsd?: number;
+  totalPendingDebtUsd?: number;
+  totalOverdueDebtUsd?: number;
+  totalUpcomingDebtUsd?: number;
+  totalCanceledUsd?: number;
+  paidBillsCount?: number;
+  unpaidBillsCount?: number;
+  overdueBillsCount?: number;
 }

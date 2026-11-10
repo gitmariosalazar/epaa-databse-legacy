@@ -19,4 +19,14 @@ export class LegacyInterannualComparisonResponse {
   interestTargetYearUsd?: number;
   surchargesBaseYearUsd?: number;
   surchargesTargetYearUsd?: number;
+  collectedBaseYearUsd?: number;
+  collectedTargetYearUsd?: number;
+  deltaCollectedUsd?: number;
+  pendingBaseYearUsd?: number;
+  pendingTargetYearUsd?: number;
+  deltaPendingUsd?: number;
+  overdueBaseYearUsd?: number;
+  overdueTargetYearUsd?: number;
+  interestImprovementsBaseYearUsd?: number;
+  interestImprovementsTargetYearUsd?: number;
 }

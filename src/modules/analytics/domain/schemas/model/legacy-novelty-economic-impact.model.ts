@@ -14,5 +14,11 @@ export class LegacyNoveltyEconomicImpactModel {
     public readonly totalInterestUsd?: number,
     public readonly totalSurchargesUsd?: number,
     public readonly totalBilledEpaaUsd?: number,
+    public readonly totalInterestImprovementsUsd?: number,
+    public readonly totalCollectedUsd?: number,
+    public readonly totalPendingDebtUsd?: number,
+    public readonly totalOverdueDebtUsd?: number,
+    public readonly paidCasesCount?: number,
+    public readonly unpaidCasesCount?: number,
   ) {}
 }

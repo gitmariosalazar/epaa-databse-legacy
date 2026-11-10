@@ -18,5 +18,14 @@ export class LegacyMonthlyTrendModel {
     public readonly totalInterestUsd?: number,
     public readonly totalSurchargesUsd?: number,
     public readonly totalBilledEpaaUsd?: number,
+    public readonly totalInterestImprovementsUsd?: number,
+    public readonly totalCollectedUsd?: number,
+    public readonly totalPendingDebtUsd?: number,
+    public readonly totalOverdueDebtUsd?: number,
+    public readonly totalUpcomingDebtUsd?: number,
+    public readonly totalCanceledUsd?: number,
+    public readonly paidBillsCount?: number,
+    public readonly unpaidBillsCount?: number,
+    public readonly overdueBillsCount?: number,
   ) {}
 }

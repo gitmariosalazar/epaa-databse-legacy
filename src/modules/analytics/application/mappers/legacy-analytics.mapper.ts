@@ -41,6 +41,21 @@ export class LegacyAnalyticsMapper {
       totalInterestUsd: model.totalInterestUsd,
       totalSurchargesUsd: model.totalSurchargesUsd,
       totalBilledEpaaUsd: model.totalBilledEpaaUsd,
+      totalInterestImprovementsUsd: model.totalInterestImprovementsUsd,
+      totalPaidWaterUsd: model.totalPaidWaterUsd,
+      totalUnpaidWaterUsd: model.totalUnpaidWaterUsd,
+      totalBillsGenerated: model.totalBillsGenerated,
+      paidBillsCount: model.paidBillsCount,
+      unpaidBillsCount: model.unpaidBillsCount,
+      overdueBillsCount: model.overdueBillsCount,
+      upcomingBillsCount: model.upcomingBillsCount,
+      canceledBillsCount: model.canceledBillsCount,
+      totalGeneralEmissionUsd: model.totalGeneralEmissionUsd,
+      totalCollectedUsd: model.totalCollectedUsd,
+      totalPendingDebtUsd: model.totalPendingDebtUsd,
+      totalOverdueDebtUsd: model.totalOverdueDebtUsd,
+      totalUpcomingDebtUsd: model.totalUpcomingDebtUsd,
+      totalCanceledUsd: model.totalCanceledUsd,
     };
   }
 
@@ -68,6 +83,15 @@ export class LegacyAnalyticsMapper {
       totalInterestUsd: model.totalInterestUsd,
       totalSurchargesUsd: model.totalSurchargesUsd,
       totalBilledEpaaUsd: model.totalBilledEpaaUsd,
+      totalInterestImprovementsUsd: model.totalInterestImprovementsUsd,
+      totalCollectedUsd: model.totalCollectedUsd,
+      totalPendingDebtUsd: model.totalPendingDebtUsd,
+      totalOverdueDebtUsd: model.totalOverdueDebtUsd,
+      totalUpcomingDebtUsd: model.totalUpcomingDebtUsd,
+      totalCanceledUsd: model.totalCanceledUsd,
+      paidBillsCount: model.paidBillsCount,
+      unpaidBillsCount: model.unpaidBillsCount,
+      overdueBillsCount: model.overdueBillsCount,
     }));
   }
 
@@ -93,6 +117,15 @@ export class LegacyAnalyticsMapper {
       totalInterestUsd: model.totalInterestUsd,
       totalSurchargesUsd: model.totalSurchargesUsd,
       totalBilledEpaaUsd: model.totalBilledEpaaUsd,
+      totalInterestImprovementsUsd: model.totalInterestImprovementsUsd,
+      totalCollectedUsd: model.totalCollectedUsd,
+      totalPendingDebtUsd: model.totalPendingDebtUsd,
+      totalOverdueDebtUsd: model.totalOverdueDebtUsd,
+      totalUpcomingDebtUsd: model.totalUpcomingDebtUsd,
+      totalCanceledUsd: model.totalCanceledUsd,
+      paidBillsCount: model.paidBillsCount,
+      unpaidBillsCount: model.unpaidBillsCount,
+      overdueBillsCount: model.overdueBillsCount,
     }));
   }
 
@@ -114,6 +147,12 @@ export class LegacyAnalyticsMapper {
       totalInterestUsd: model.totalInterestUsd,
       totalSurchargesUsd: model.totalSurchargesUsd,
       totalBilledEpaaUsd: model.totalBilledEpaaUsd,
+      totalInterestImprovementsUsd: model.totalInterestImprovementsUsd,
+      totalCollectedUsd: model.totalCollectedUsd,
+      totalPendingDebtUsd: model.totalPendingDebtUsd,
+      totalOverdueDebtUsd: model.totalOverdueDebtUsd,
+      paidCasesCount: model.paidCasesCount,
+      unpaidCasesCount: model.unpaidCasesCount,
     }));
   }
 
@@ -144,6 +183,12 @@ export class LegacyAnalyticsMapper {
       interestBilledUsd: model.interestBilledUsd,
       surchargesBilledUsd: model.surchargesBilledUsd,
       totalBilledEpaaUsd: model.totalBilledEpaaUsd,
+      paymentDate: model.paymentDate,
+      expirationDate: model.expirationDate,
+      paymentStatus: model.paymentStatus,
+      interestImprovementsUsd: model.interestImprovementsUsd,
+      totalPaidAmountUsd: model.totalPaidAmountUsd,
+      totalPendingAmountUsd: model.totalPendingAmountUsd,
     }));
   }
 
@@ -171,6 +216,16 @@ export class LegacyAnalyticsMapper {
       interestTargetYearUsd: model.interestTargetYearUsd,
       surchargesBaseYearUsd: model.surchargesBaseYearUsd,
       surchargesTargetYearUsd: model.surchargesTargetYearUsd,
+      collectedBaseYearUsd: model.collectedBaseYearUsd,
+      collectedTargetYearUsd: model.collectedTargetYearUsd,
+      deltaCollectedUsd: model.deltaCollectedUsd,
+      pendingBaseYearUsd: model.pendingBaseYearUsd,
+      pendingTargetYearUsd: model.pendingTargetYearUsd,
+      deltaPendingUsd: model.deltaPendingUsd,
+      overdueBaseYearUsd: model.overdueBaseYearUsd,
+      overdueTargetYearUsd: model.overdueTargetYearUsd,
+      interestImprovementsBaseYearUsd: model.interestImprovementsBaseYearUsd,
+      interestImprovementsTargetYearUsd: model.interestImprovementsTargetYearUsd,
     }));
   }
 

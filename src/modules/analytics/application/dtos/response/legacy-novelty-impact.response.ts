@@ -13,4 +13,10 @@ export class LegacyNoveltyEconomicImpactResponse {
   totalInterestUsd?: number;
   totalSurchargesUsd?: number;
   totalBilledEpaaUsd?: number;
+  totalInterestImprovementsUsd?: number;
+  totalCollectedUsd?: number;
+  totalPendingDebtUsd?: number;
+  totalOverdueDebtUsd?: number;
+  paidCasesCount?: number;
+  unpaidCasesCount?: number;
 }
