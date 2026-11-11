@@ -7,6 +7,7 @@ import { GetLegacyNoveltyEconomicImpactAnalyticsUseCase } from '../../applicatio
 import { GetLegacyTopConsumersAnalyticsUseCase } from '../../application/usecases/GetLegacyTopConsumersAnalyticsUseCase';
 import { GetLegacyInterannualComparisonAnalyticsUseCase } from '../../application/usecases/GetLegacyInterannualComparisonAnalyticsUseCase';
 import { GetLegacyMonthlyConnectionGrowthAnalyticsUseCase } from '../../application/usecases/GetLegacyMonthlyConnectionGrowthAnalyticsUseCase';
+import { GetLegacyAnnualTrendAnalyticsUseCase } from '../../application/usecases/GetLegacyAnnualTrendAnalyticsUseCase';
 
 import { LegacyExecutiveDashboardFilterRequest } from '../../application/dtos/request/legacy-executive-dashboard-filter.request';
 import { LegacySectorPerformanceFilterRequest } from '../../application/dtos/request/legacy-sector-performance-filter.request';
@@ -15,6 +16,7 @@ import { LegacyNoveltyImpactFilterRequest } from '../../application/dtos/request
 import { LegacyTopConsumersFilterRequest } from '../../application/dtos/request/legacy-top-consumers-filter.request';
 import { LegacyInterannualComparisonFilterRequest } from '../../application/dtos/request/legacy-interannual-comparison-filter.request';
 import { LegacyMonthlyConnectionGrowthFilterRequest } from '../../application/dtos/request/legacy-monthly-connection-growth-filter.request';
+import { LegacyAnnualTrendFilterRequest } from '../../application/dtos/request/legacy-annual-trend-filter.request';
 
 import { LegacyExecutiveDashboardResponse } from '../../application/dtos/response/legacy-executive-dashboard.response';
 import { LegacySectorPerformanceResponse } from '../../application/dtos/response/legacy-sector-performance.response';
@@ -23,6 +25,7 @@ import { LegacyNoveltyEconomicImpactResponse } from '../../application/dtos/resp
 import { LegacyTopConsumerResponse } from '../../application/dtos/response/legacy-top-consumer.response';
 import { LegacyInterannualComparisonResponse } from '../../application/dtos/response/legacy-interannual-comparison.response';
 import { LegacyMonthlyConnectionGrowthResponse } from '../../application/dtos/response/legacy-monthly-connection-growth.response';
+import { LegacyAnnualTrendResponse } from '../../application/dtos/response/legacy-annual-trend.response';
 
 @Controller('legacy-analytics')
 export class LegacyAnalyticsController {
@@ -34,6 +37,7 @@ export class LegacyAnalyticsController {
     private readonly getTopConsumersUseCase: GetLegacyTopConsumersAnalyticsUseCase,
     private readonly getInterannualComparisonUseCase: GetLegacyInterannualComparisonAnalyticsUseCase,
     private readonly getMonthlyConnectionGrowthUseCase: GetLegacyMonthlyConnectionGrowthAnalyticsUseCase,
+    private readonly getAnnualTrendUseCase: GetLegacyAnnualTrendAnalyticsUseCase,
   ) {}
 
   @MessagePattern('epaa-legacy.analytics.executive-dashboard')
@@ -103,5 +107,12 @@ export class LegacyAnalyticsController {
     @Payload() payload: LegacyMonthlyConnectionGrowthFilterRequest,
   ): Promise<LegacyMonthlyConnectionGrowthResponse[]> {
     return this.getMonthlyConnectionGrowthUseCase.execute(payload ?? {});
+  }
+
+  @MessagePattern('epaa-legacy.analytics.annual-trend')
+  async getAnnualTrend(
+    @Payload() payload: LegacyAnnualTrendFilterRequest,
+  ): Promise<LegacyAnnualTrendResponse[]> {
+    return this.getAnnualTrendUseCase.execute(payload ?? {});
   }
 }

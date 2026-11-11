@@ -6,6 +6,7 @@ import { GetLegacyNoveltyEconomicImpactAnalyticsUseCase } from './GetLegacyNovel
 import { GetLegacyTopConsumersAnalyticsUseCase } from './GetLegacyTopConsumersAnalyticsUseCase';
 import { GetLegacyInterannualComparisonAnalyticsUseCase } from './GetLegacyInterannualComparisonAnalyticsUseCase';
 import { GetLegacyMonthlyConnectionGrowthAnalyticsUseCase } from './GetLegacyMonthlyConnectionGrowthAnalyticsUseCase';
+import { GetLegacyAnnualTrendAnalyticsUseCase } from './GetLegacyAnnualTrendAnalyticsUseCase';
 
 import { InterfaceLegacyAnalyticsRepository } from '../../domain/contracts/legacy-analytics.interface.repository';
 import { LegacyExecutiveDashboardModel } from '../../domain/schemas/model/legacy-executive-dashboard.model';
@@ -15,6 +16,7 @@ import { LegacyNoveltyEconomicImpactModel } from '../../domain/schemas/model/leg
 import { LegacyTopConsumerModel } from '../../domain/schemas/model/legacy-top-consumer.model';
 import { LegacyInterannualComparisonModel } from '../../domain/schemas/model/legacy-interannual-comparison.model';
 import { LegacyMonthlyConnectionGrowthModel } from '../../domain/schemas/model/legacy-monthly-connection-growth.model';
+import { LegacyAnnualTrendModel } from '../../domain/schemas/model/legacy-annual-trend.model';
 import { LegacyAnalyticsSQLAdapter } from '../../infrastructure/adapters/legacy-analytics-sql.adapter';
 
 describe('Legacy Analytics UseCases (SQL Server 2000 & 2022)', () => {
@@ -25,6 +27,7 @@ describe('Legacy Analytics UseCases (SQL Server 2000 & 2022)', () => {
   let topConsumersUseCase: GetLegacyTopConsumersAnalyticsUseCase;
   let interannualComparisonUseCase: GetLegacyInterannualComparisonAnalyticsUseCase;
   let monthlyConnectionGrowthUseCase: GetLegacyMonthlyConnectionGrowthAnalyticsUseCase;
+  let annualTrendUseCase: GetLegacyAnnualTrendAnalyticsUseCase;
 
   const mockExecutiveDashboardModel = new LegacyExecutiveDashboardModel(
     2026,
@@ -137,6 +140,38 @@ describe('Legacy Analytics UseCases (SQL Server 2000 & 2022)', () => {
     'CERRADO / FACTURADO',
   );
 
+  const mockAnnualTrendModel = new LegacyAnnualTrendModel(
+    2026,
+    188400,
+    15703,
+    3845000.0,
+    244.86,
+    125000.0,
+    3.36,
+    1950000.0,
+    780000.0,
+    2730000.0,
+    95000.0,
+    3.61,
+    0.5072,
+    2200000.0,
+    150000.0,
+    20000.0,
+    35000.0,
+    18000.0,
+    2253000.0,
+    12000.0,
+    2400000.0,
+    330000.0,
+    210000.0,
+    120000.0,
+    15000.0,
+    165000,
+    23400,
+    14000,
+    87.91,
+  );
+
   const mockRepository: InterfaceLegacyAnalyticsRepository = {
     getExecutiveDashboard: jest.fn().mockResolvedValue(mockExecutiveDashboardModel),
     getSectorPerformance: jest.fn().mockResolvedValue([mockSectorPerformanceModel]),
@@ -145,6 +180,7 @@ describe('Legacy Analytics UseCases (SQL Server 2000 & 2022)', () => {
     getTopConsumers: jest.fn().mockResolvedValue([mockTopConsumerModel]),
     getInterannualComparison: jest.fn().mockResolvedValue([mockInterannualModel]),
     getMonthlyConnectionGrowth: jest.fn().mockResolvedValue([mockMonthlyGrowthModel]),
+    getAnnualTrend: jest.fn().mockResolvedValue([mockAnnualTrendModel]),
   };
 
   beforeEach(async () => {
@@ -157,6 +193,7 @@ describe('Legacy Analytics UseCases (SQL Server 2000 & 2022)', () => {
         GetLegacyTopConsumersAnalyticsUseCase,
         GetLegacyInterannualComparisonAnalyticsUseCase,
         GetLegacyMonthlyConnectionGrowthAnalyticsUseCase,
+        GetLegacyAnnualTrendAnalyticsUseCase,
         {
           provide: 'LegacyAnalyticsRepository',
           useValue: mockRepository,
@@ -184,6 +221,9 @@ describe('Legacy Analytics UseCases (SQL Server 2000 & 2022)', () => {
     );
     monthlyConnectionGrowthUseCase = module.get<GetLegacyMonthlyConnectionGrowthAnalyticsUseCase>(
       GetLegacyMonthlyConnectionGrowthAnalyticsUseCase,
+    );
+    annualTrendUseCase = module.get<GetLegacyAnnualTrendAnalyticsUseCase>(
+      GetLegacyAnnualTrendAnalyticsUseCase,
     );
   });
 
@@ -267,6 +307,33 @@ describe('Legacy Analytics UseCases (SQL Server 2000 & 2022)', () => {
     expect(result[0].connectionsTargetYear).toBe(15703);
     expect(result[0].differenceTargetVsBase).toBe(448);
     expect(result[0].statusTargetYear).toBe('CERRADO / FACTURADO');
+  });
+
+  it('GetLegacyAnnualTrendAnalyticsUseCase should return mapped multiannual trend list', async () => {
+    const result = await annualTrendUseCase.execute({
+      endYear: 2026,
+      limitYears: 5,
+    });
+
+    expect(mockRepository.getAnnualTrend).toHaveBeenCalledWith({
+      endYear: 2026,
+      limitYears: 5,
+      sector: undefined,
+      startYear: undefined,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].year).toBe(2026);
+    expect(result[0].totalReadings).toBe(188400);
+    expect(result[0].totalActiveConnections).toBe(15703);
+    expect(result[0].totalVolumeM3).toBe(3845000.0);
+    expect(result[0].deltaVolumeM3).toBe(125000.0);
+    expect(result[0].growthVolumePercentage).toBe(3.36);
+    expect(result[0].waterBilledUsd).toBe(1950000.0);
+    expect(result[0].sewerBilledUsd).toBe(780000.0);
+    expect(result[0].totalBilledUsd).toBe(2730000.0);
+    expect(result[0].deltaRevenueUsd).toBe(95000.0);
+    expect(result[0].growthRevenuePercentage).toBe(3.61);
+    expect(result[0].collectionEfficiencyPercentage).toBe(87.91);
   });
 
   it('should map SQL results correctly via LegacyAnalyticsSQLAdapter without context binding issues', () => {

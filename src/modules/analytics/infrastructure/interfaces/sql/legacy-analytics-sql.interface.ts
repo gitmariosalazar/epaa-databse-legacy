@@ -199,3 +199,34 @@ export interface LegacyMonthlyConnectionGrowthSqlResult {
   Pct_Var_Interanual: string | number;
   Estado_2026: string;
 }
+
+export interface LegacyAnnualTrendSqlResult {
+  Anio: string | number;
+  TotalLecturas: string | number;
+  TotalAcometidasActivas?: string | number;
+  VolumenTotal_M3: string | number;
+  ConsumoPromedioPorCuenta_M3?: string | number;
+  DeltaVolumen_M3?: string | number | null;
+  PctCrecimiento_M3?: string | number | null;
+  IngresoAgua_USD: string | number;
+  IngresoAlcantarillado_USD: string | number;
+  TotalTitulo_USD?: string | number;
+  TotalTasaBasura_USD?: string | number;
+  TotalTerceros_USD?: string | number;
+  TotalInteres_USD?: string | number;
+  TotalRecargo_USD?: string | number;
+  FacturacionTotalEpaa_USD?: string | number;
+  IngresoTotal_USD: string | number;
+  DeltaIngresos_USD?: string | number | null;
+  PctCrecimiento_Ingresos?: string | number | null;
+  TarifaEfectivaMedia_USD_M3?: string | number;
+  TotalInteresMejoras_USD?: string | number;
+  TotalRecaudado_USD?: string | number;
+  TotalPendiente_USD?: string | number;
+  TotalVencidoMora_USD?: string | number;
+  TotalPorVencer_USD?: string | number;
+  TotalAnulado_USD?: string | number;
+  FacturasPagadas?: string | number;
+  FacturasPendientes?: string | number;
+  FacturasVencidas?: string | number;
+}

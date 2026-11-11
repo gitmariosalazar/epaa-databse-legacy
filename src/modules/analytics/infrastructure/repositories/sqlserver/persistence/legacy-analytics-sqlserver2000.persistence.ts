@@ -8,6 +8,7 @@ import {
   LegacyTopConsumersFilter,
   LegacyInterannualComparisonFilter,
   LegacyMonthlyConnectionGrowthFilter,
+  LegacyAnnualTrendFilter,
 } from '../../../../domain/contracts/legacy-analytics.interface.repository';
 import { LegacyExecutiveDashboardModel } from '../../../../domain/schemas/model/legacy-executive-dashboard.model';
 import { LegacySectorPerformanceModel } from '../../../../domain/schemas/model/legacy-sector-performance.model';
@@ -16,6 +17,7 @@ import { LegacyNoveltyEconomicImpactModel } from '../../../../domain/schemas/mod
 import { LegacyTopConsumerModel } from '../../../../domain/schemas/model/legacy-top-consumer.model';
 import { LegacyInterannualComparisonModel } from '../../../../domain/schemas/model/legacy-interannual-comparison.model';
 import { LegacyMonthlyConnectionGrowthModel } from '../../../../domain/schemas/model/legacy-monthly-connection-growth.model';
+import { LegacyAnnualTrendModel } from '../../../../domain/schemas/model/legacy-annual-trend.model';
 
 import {
   LegacyExecutiveDashboardSqlResult,
@@ -25,6 +27,7 @@ import {
   LegacyTopConsumerSqlResult,
   LegacyInterannualComparisonSqlResult,
   LegacyMonthlyConnectionGrowthSqlResult,
+  LegacyAnnualTrendSqlResult,
 } from '../../../interfaces/sql/legacy-analytics-sql.interface';
 import { LegacyAnalyticsSQLAdapter } from '../../../adapters/legacy-analytics-sql.adapter';
 import { DatabaseAbstract } from '../../../../../../shared/connections/database/abstract/abstract.database';
@@ -1144,5 +1147,110 @@ export class LegacyAnalyticsSQLServer2000Persistence implements InterfaceLegacyA
       );
 
     return LegacyAnalyticsSQLAdapter.toMonthlyConnectionGrowthModelList(results);
+  }
+
+  async getAnnualTrend(
+    filter: LegacyAnnualTrendFilter,
+  ): Promise<LegacyAnnualTrendModel[]> {
+    const endYear = filter.endYear ?? 2026;
+    const limitYears = filter.limitYears ?? 5;
+    const startYear = filter.startYear ?? endYear - limitYears + 1;
+
+    const sectorFilter =
+      filter.sector !== undefined && filter.sector !== null
+        ? `AND L.Sector = ${Number(filter.sector)}`
+        : '';
+
+    const query = /*sql*/ `
+      SELECT
+          L.Anio,
+          COUNT(*)                                                            AS TotalLecturas,
+          COUNT(DISTINCT L.ClaveCatastral)                                    AS TotalAcometidasActivas,
+          SUM(CASE WHEN L.LecturaActual >= L.LecturaAnterior THEN (L.LecturaActual - L.LecturaAnterior) ELSE 0 END) AS VolumenTotal_M3,
+          CAST(AVG(CASE WHEN L.LecturaActual >= L.LecturaAnterior THEN CAST((L.LecturaActual - L.LecturaAnterior) AS DECIMAL(18,2)) ELSE 0 END) AS DECIMAL(18,2)) AS ConsumoPromedioPorCuenta_M3,
+          CAST(SUM(ISNULL(L.ValorAPagar, 0)) AS DECIMAL(18,2))                AS IngresoAgua_USD,
+          CAST(SUM(ISNULL(L.TasaAlcantarillado, 0)) AS DECIMAL(18,2))        AS IngresoAlcantarillado_USD,
+          CAST(SUM(ISNULL(di.Valor_Titulo, 0)) AS DECIMAL(18,2))              AS TotalTitulo_USD,
+          CAST(SUM(ISNULL(di.tasa_basura, 0)) AS DECIMAL(18,2))               AS TotalTasaBasura_USD,
+          CAST(SUM(ISNULL(di.ValorTerceros, 0)) AS DECIMAL(18,2))             AS TotalTerceros_USD,
+          CAST(SUM(ISNULL(int.interes_calculado, 0)) AS DECIMAL(18,2))        AS TotalInteres_USD,
+          CAST(SUM(ISNULL(di.Recargo, 0)) AS DECIMAL(18,2))                   AS TotalRecargo_USD,
+          CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS FacturacionTotalEpaa_USD,
+          CAST(SUM(ISNULL(di.Valor_Titulo, 0) + ISNULL(int.interes_calculado, 0) + ISNULL(di.Recargo, 0)) AS DECIMAL(18,2)) AS IngresoTotal_USD,
+          CAST(
+              CASE 
+                  WHEN SUM(CASE WHEN L.LecturaActual >= L.LecturaAnterior THEN (L.LecturaActual - L.LecturaAnterior) ELSE 0 END) > 0
+                  THEN SUM(ISNULL(L.ValorAPagar, 0)) / 
+                       SUM(CASE WHEN L.LecturaActual >= L.LecturaAnterior THEN CAST((L.LecturaActual - L.LecturaAnterior) AS DECIMAL(18,2)) ELSE 0 END)
+                  ELSE 0 
+              END AS DECIMAL(10,4)
+          )                                                                   AS TarifaEfectivaMedia_USD_M3,
+          CAST(SUM(ISNULL(di.interes_mejoras, 0)) AS DECIMAL(18,2))          AS TotalInteresMejoras_USD,
+          CAST(SUM(
+              CASE WHEN di.Fecha_Pago IS NOT NULL THEN
+                  ISNULL(di.Valor_Titulo, 0) +
+                  ISNULL(di.tasa_basura, 0) +
+                  ISNULL(di.ValorTerceros, 0) +
+                  ISNULL(di.interes_mejoras, 0) +
+                  ISNULL(di.Recargo, 0) +
+                  ISNULL(int.interes_calculado, 0)
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalRecaudado_USD,
+          CAST(SUM(
+              CASE WHEN di.Fecha_Pago IS NULL THEN
+                  ISNULL(di.Valor_Titulo, 0) +
+                  ISNULL(di.tasa_basura, 0) +
+                  ISNULL(di.ValorTerceros, 0) +
+                  ISNULL(di.interes_mejoras, 0) +
+                  ISNULL(di.Recargo, 0) +
+                  ISNULL(int.interes_calculado, 0)
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalPendiente_USD,
+          CAST(SUM(
+              CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN
+                  ISNULL(di.Valor_Titulo, 0) +
+                  ISNULL(di.tasa_basura, 0) +
+                  ISNULL(di.ValorTerceros, 0) +
+                  ISNULL(di.interes_mejoras, 0) +
+                  ISNULL(di.Recargo, 0) +
+                  ISNULL(int.interes_calculado, 0)
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalVencidoMora_USD,
+          CAST(SUM(
+              CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento >= GETDATE() THEN
+                  ISNULL(di.Valor_Titulo, 0) +
+                  ISNULL(di.tasa_basura, 0) +
+                  ISNULL(di.ValorTerceros, 0) +
+                  ISNULL(di.interes_mejoras, 0) +
+                  ISNULL(di.Recargo, 0) +
+                  ISNULL(int.interes_calculado, 0)
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalPorVencer_USD,
+          CAST(SUM(
+              CASE WHEN di.Fecha_Pago IS NULL AND di.Estado_Ingreso IN ('A', 'B', '0') THEN
+                  ISNULL(di.Valor_Titulo, 0) +
+                  ISNULL(di.tasa_basura, 0) +
+                  ISNULL(di.ValorTerceros, 0) +
+                  ISNULL(di.interes_mejoras, 0) +
+                  ISNULL(di.Recargo, 0) +
+                  ISNULL(int.interes_calculado, 0)
+              ELSE 0 END
+          ) AS DECIMAL(18,2))                                                 AS TotalAnulado_USD,
+          SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS FacturasPagadas,
+          SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS FacturasPendientes,
+          SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN 1 ELSE 0 END) AS FacturasVencidas
+      FROM AP_LECTURAS L
+      INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
+      LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
+      WHERE L.Anio BETWEEN ${startYear} AND ${endYear}
+        ${sectorFilter}
+      GROUP BY L.Anio
+      ORDER BY L.Anio ASC;
+    `;
+
+    const results =
+      await this.databaseService.query<LegacyAnnualTrendSqlResult>(query);
+
+    return LegacyAnalyticsSQLAdapter.toAnnualTrendModelList(results);
   }
 }

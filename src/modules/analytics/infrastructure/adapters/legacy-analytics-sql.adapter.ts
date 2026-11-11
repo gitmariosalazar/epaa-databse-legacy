@@ -5,6 +5,7 @@ import { LegacyNoveltyEconomicImpactModel } from '../../domain/schemas/model/leg
 import { LegacyTopConsumerModel } from '../../domain/schemas/model/legacy-top-consumer.model';
 import { LegacyInterannualComparisonModel } from '../../domain/schemas/model/legacy-interannual-comparison.model';
 import { LegacyMonthlyConnectionGrowthModel } from '../../domain/schemas/model/legacy-monthly-connection-growth.model';
+import { LegacyAnnualTrendModel } from '../../domain/schemas/model/legacy-annual-trend.model';
 
 import {
   LegacyExecutiveDashboardSqlResult,
@@ -14,6 +15,7 @@ import {
   LegacyTopConsumerSqlResult,
   LegacyInterannualComparisonSqlResult,
   LegacyMonthlyConnectionGrowthSqlResult,
+  LegacyAnnualTrendSqlResult,
 } from '../interfaces/sql/legacy-analytics-sql.interface';
 
 function parseNumber(value: string | number | null | undefined, defaultValue = 0): number {
@@ -421,5 +423,106 @@ export class LegacyAnalyticsSQLAdapter {
     rows: LegacyMonthlyConnectionGrowthSqlResult[],
   ): LegacyMonthlyConnectionGrowthModel[] {
     return rows.map((r) => LegacyAnalyticsSQLAdapter.toMonthlyConnectionGrowthModel(r));
+  }
+
+  static toAnnualTrendModelList(
+    rows: LegacyAnnualTrendSqlResult[],
+  ): LegacyAnnualTrendModel[] {
+    let previousVolume: number | null = null;
+    let previousRevenue: number | null = null;
+
+    return rows.map((r) => {
+      const year = parseNumber(r.Anio, 2026);
+      const totalReadings = parseNumber(r.TotalLecturas);
+      const totalActiveConnections = parseNumber(r.TotalAcometidasActivas ?? totalReadings);
+      const totalVolume = parseNumber(r.VolumenTotal_M3);
+      const waterBilled = parseNumber(r.IngresoAgua_USD);
+      const sewerBilled = parseNumber(r.IngresoAlcantarillado_USD);
+      const totalBilled = parseNumber(r.IngresoTotal_USD);
+
+      let deltaVol = parseNullableNumber(r.DeltaVolumen_M3);
+      let pctGrowthVol = parseNullableNumber(r.PctCrecimiento_M3);
+      let deltaRev = parseNullableNumber(r.DeltaIngresos_USD);
+      let pctGrowthRev = parseNullableNumber(r.PctCrecimiento_Ingresos);
+
+      if (deltaVol === null && previousVolume !== null) {
+        deltaVol = totalVolume - previousVolume;
+        pctGrowthVol =
+          previousVolume > 0
+            ? Math.round(((totalVolume - previousVolume) / previousVolume) * 10000) / 100
+            : 0;
+      }
+
+      if (deltaRev === null && previousRevenue !== null) {
+        deltaRev = Math.round((totalBilled - previousRevenue) * 100) / 100;
+        pctGrowthRev =
+          previousRevenue > 0
+            ? Math.round(((totalBilled - previousRevenue) / previousRevenue) * 10000) / 100
+            : 0;
+      }
+
+      previousVolume = totalVolume;
+      previousRevenue = totalBilled;
+
+      const avgConsumption =
+        parseNullableNumber(r.ConsumoPromedioPorCuenta_M3) ??
+        (totalActiveConnections > 0
+          ? Math.round((totalVolume / totalActiveConnections) * 100) / 100
+          : 0);
+
+      const avgTariff =
+        parseNullableNumber(r.TarifaEfectivaMedia_USD_M3) ??
+        (totalVolume > 0
+          ? Math.round((waterBilled / totalVolume) * 10000) / 10000
+          : 0);
+
+      const totalCollected = parseNullableNumber(r.TotalRecaudado_USD) ?? undefined;
+      const totalPending = parseNullableNumber(r.TotalPendiente_USD) ?? undefined;
+      const totalOverdue = parseNullableNumber(r.TotalVencidoMora_USD) ?? undefined;
+      const totalUpcoming = parseNullableNumber(r.TotalPorVencer_USD) ?? undefined;
+      const totalCanceled = parseNullableNumber(r.TotalAnulado_USD) ?? undefined;
+      const paidBills = parseNullableNumber(r.FacturasPagadas) ?? undefined;
+      const unpaidBills = parseNullableNumber(r.FacturasPendientes) ?? undefined;
+      const overdueBills = parseNullableNumber(r.FacturasVencidas) ?? undefined;
+
+      let collectionEfficiency: number | null = null;
+      if (totalCollected !== undefined && totalPending !== undefined && (totalCollected + totalPending) > 0) {
+        collectionEfficiency = Math.round((totalCollected / (totalCollected + totalPending)) * 10000) / 100;
+      } else if (paidBills !== undefined && unpaidBills !== undefined && (paidBills + unpaidBills) > 0) {
+        collectionEfficiency = Math.round((paidBills / (paidBills + unpaidBills)) * 10000) / 100;
+      }
+
+      return new LegacyAnnualTrendModel(
+        year,
+        totalReadings,
+        totalActiveConnections,
+        totalVolume,
+        avgConsumption,
+        deltaVol,
+        pctGrowthVol,
+        waterBilled,
+        sewerBilled,
+        totalBilled,
+        deltaRev,
+        pctGrowthRev,
+        avgTariff,
+        parseNullableNumber(r.TotalTitulo_USD) ?? undefined,
+        parseNullableNumber(r.TotalTasaBasura_USD) ?? undefined,
+        parseNullableNumber(r.TotalTerceros_USD) ?? undefined,
+        parseNullableNumber(r.TotalInteres_USD) ?? undefined,
+        parseNullableNumber(r.TotalRecargo_USD) ?? undefined,
+        parseNullableNumber(r.FacturacionTotalEpaa_USD ?? r.IngresoTotal_USD) ?? undefined,
+        parseNullableNumber(r.TotalInteresMejoras_USD) ?? undefined,
+        totalCollected,
+        totalPending,
+        totalOverdue,
+        totalUpcoming,
+        totalCanceled,
+        paidBills,
+        unpaidBills,
+        overdueBills,
+        collectionEfficiency,
+      );
+    });
   }
 }

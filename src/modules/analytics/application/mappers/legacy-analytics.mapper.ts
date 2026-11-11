@@ -5,6 +5,7 @@ import { LegacyNoveltyEconomicImpactModel } from '../../domain/schemas/model/leg
 import { LegacyTopConsumerModel } from '../../domain/schemas/model/legacy-top-consumer.model';
 import { LegacyInterannualComparisonModel } from '../../domain/schemas/model/legacy-interannual-comparison.model';
 import { LegacyMonthlyConnectionGrowthModel } from '../../domain/schemas/model/legacy-monthly-connection-growth.model';
+import { LegacyAnnualTrendModel } from '../../domain/schemas/model/legacy-annual-trend.model';
 
 import { LegacyExecutiveDashboardResponse } from '../dtos/response/legacy-executive-dashboard.response';
 import { LegacySectorPerformanceResponse } from '../dtos/response/legacy-sector-performance.response';
@@ -13,6 +14,7 @@ import { LegacyNoveltyEconomicImpactResponse } from '../dtos/response/legacy-nov
 import { LegacyTopConsumerResponse } from '../dtos/response/legacy-top-consumer.response';
 import { LegacyInterannualComparisonResponse } from '../dtos/response/legacy-interannual-comparison.response';
 import { LegacyMonthlyConnectionGrowthResponse } from '../dtos/response/legacy-monthly-connection-growth.response';
+import { LegacyAnnualTrendResponse } from '../dtos/response/legacy-annual-trend.response';
 
 export class LegacyAnalyticsMapper {
   static toExecutiveDashboardResponse(
@@ -242,6 +244,42 @@ export class LegacyAnalyticsMapper {
       differenceTargetVsBase: model.differenceTargetVsBase,
       growthPercentage: model.growthPercentage,
       statusTargetYear: model.statusTargetYear,
+    }));
+  }
+
+  static toAnnualTrendResponseList(
+    models: LegacyAnnualTrendModel[],
+  ): LegacyAnnualTrendResponse[] {
+    return models.map((model) => ({
+      year: model.year,
+      totalReadings: model.totalReadings,
+      totalActiveConnections: model.totalActiveConnections,
+      totalVolumeM3: model.totalVolumeM3,
+      averageConsumptionPerAccountM3: model.averageConsumptionPerAccountM3,
+      deltaVolumeM3: model.deltaVolumeM3,
+      growthVolumePercentage: model.growthVolumePercentage,
+      waterBilledUsd: model.waterBilledUsd,
+      sewerBilledUsd: model.sewerBilledUsd,
+      totalBilledUsd: model.totalBilledUsd,
+      deltaRevenueUsd: model.deltaRevenueUsd,
+      growthRevenuePercentage: model.growthRevenuePercentage,
+      effectiveAverageTariffUsdPerM3: model.effectiveAverageTariffUsdPerM3,
+      totalTitleUsd: model.totalTitleUsd,
+      totalTrashTaxUsd: model.totalTrashTaxUsd,
+      totalThirdPartiesUsd: model.totalThirdPartiesUsd,
+      totalInterestUsd: model.totalInterestUsd,
+      totalSurchargesUsd: model.totalSurchargesUsd,
+      totalBilledEpaaUsd: model.totalBilledEpaaUsd,
+      totalInterestImprovementsUsd: model.totalInterestImprovementsUsd,
+      totalCollectedUsd: model.totalCollectedUsd,
+      totalPendingDebtUsd: model.totalPendingDebtUsd,
+      totalOverdueDebtUsd: model.totalOverdueDebtUsd,
+      totalUpcomingDebtUsd: model.totalUpcomingDebtUsd,
+      totalCanceledUsd: model.totalCanceledUsd,
+      paidBillsCount: model.paidBillsCount,
+      unpaidBillsCount: model.unpaidBillsCount,
+      overdueBillsCount: model.overdueBillsCount,
+      collectionEfficiencyPercentage: model.collectionEfficiencyPercentage,
     }));
   }
 }
