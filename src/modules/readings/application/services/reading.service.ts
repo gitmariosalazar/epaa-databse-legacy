@@ -31,6 +31,14 @@ export class ReadingService implements InterfaceReadingUseCase {
     request: CreateReadingLegacyRequest,
   ): Promise<ReadingResponse> {
     try {
+      if (request.username && request.username.length > 15) {
+        request.username = request.username.includes('-')
+          ? 'MOVIL'
+          : request.username.slice(0, 15);
+      }
+      if (request.readingId && String(request.readingId).length > 10) {
+        request.readingId = String(request.readingId).slice(0, 10);
+      }
       const requiredFields: string[] = [
         'previousReading',
         'currentReading',
@@ -51,7 +59,6 @@ export class ReadingService implements InterfaceReadingUseCase {
         Number(request.previousReading),
       );
       request.novelty = changeNovelty;
-      //console.log('CreateReadingLegacyRequest:', request);
 
       const valueConsumoAgua = await this.calculateReadingValue(
         request.cadastralKey,
