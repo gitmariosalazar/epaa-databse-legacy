@@ -36,8 +36,8 @@ export class ReadingService implements InterfaceReadingUseCase {
           ? 'MOVIL'
           : request.username.slice(0, 15);
       }
-      if (request.readingId && String(request.readingId).length > 10) {
-        request.readingId = String(request.readingId).slice(0, 10);
+      if (request.readingId && String(request.readingId).length > 30) {
+        request.readingId = String(request.readingId).slice(0, 30);
       }
       const requiredFields: string[] = [
         'previousReading',
