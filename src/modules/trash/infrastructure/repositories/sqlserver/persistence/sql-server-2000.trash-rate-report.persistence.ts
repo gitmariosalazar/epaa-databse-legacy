@@ -172,7 +172,7 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                     di.tasa_basura                                          AS rate_in_income,
                     V.Valor                                                 AS rate_in_valor_table,
                     di.descuento_tb                                         AS discount_applied,
-                    (SELECT SUM(ISNULL(Valor, 0)) FROM AP_NotasCredito WHERE Cuenta = di.ClaveCatastral)
+                    (SELECT SUM(ISNULL(Valor, 0)) FROM AP_NotasCredito WITH (NOLOCK) WHERE Cuenta = di.ClaveCatastral)
                                                                             AS credit_note_balance,
                     ROUND(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0), 2)
                                                                             AS difference,
@@ -186,8 +186,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                             THEN 'Correct Match'
                         ELSE 'Different Value - Review'
                     END                                                     AS diagnostic
-                FROM Datos_ingreso di
-                LEFT JOIN dbo.Valor V
+                FROM Datos_ingreso di WITH (NOLOCK)
+                LEFT JOIN dbo.Valor V WITH (NOLOCK)
                     ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
                 ${dateFilter}
                   ${extraFilter}
@@ -281,13 +281,13 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                         END)                                                AS total_trash_pendiente,
                         MAX(Fecha_Ingreso)                                  AS Max_Fecha_Ingreso,
                         MAX(Fecha_Pago)                                     AS Max_Fecha_Pago
-                    FROM Datos_ingreso
+                    FROM Datos_ingreso WITH (NOLOCK)
                     WHERE tasa_basura IS NOT NULL
                       AND Fecha_Pago >= @fechaInicio
                       AND Cod_Titulo_Datos = 'AGP'
                     GROUP BY ClaveCatastral, CodCliente_Ingreso, nombre
                 ) ia
-                INNER JOIN AP_NotasCredito nc
+                INNER JOIN AP_NotasCredito nc WITH (NOLOCK)
                     ON ia.ClaveCatastral = nc.Cuenta
                   AND ia.CodCliente_Ingreso = nc.CedulaCiudadano
                 GROUP BY
@@ -363,10 +363,10 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                                                                   THEN 'OK'
               ELSE 'Difference'
           END                                                     AS diagnostic
-      FROM Datos_ingreso di
-      LEFT JOIN dbo.Valor V
+      FROM Datos_ingreso di WITH (NOLOCK)
+      LEFT JOIN dbo.Valor V WITH (NOLOCK)
           ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
-      LEFT JOIN AP_NotasCredito nc
+      LEFT JOIN AP_NotasCredito nc WITH (NOLOCK)
           ON di.ClaveCatastral = nc.Cuenta
       WHERE
           (
@@ -462,24 +462,24 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
             SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)  AS missing_valor_records,
 
             -- Notas de crédito activas de clientes con facturas emitidas en el período
-            (SELECT COUNT(*) FROM AP_NotasCredito
+            (SELECT COUNT(*) FROM AP_NotasCredito WITH (NOLOCK)
             WHERE Cuenta IN (
-                SELECT ClaveCatastral FROM Datos_ingreso
+                SELECT ClaveCatastral FROM Datos_ingreso WITH (NOLOCK)
                 WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
                   AND tasa_basura IS NOT NULL
                   AND Cod_Titulo_Datos = 'AGP'
             )) AS count_notes,
 
-            (SELECT SUM(Valor) FROM AP_NotasCredito
+            (SELECT SUM(Valor) FROM AP_NotasCredito WITH (NOLOCK)
             WHERE Cuenta IN (
-                SELECT ClaveCatastral FROM Datos_ingreso
+                SELECT ClaveCatastral FROM Datos_ingreso WITH (NOLOCK)
                 WHERE Fecha_Ingreso >= @fechaInicioKPI AND Fecha_Ingreso <= @fechaFinKPI
                   AND tasa_basura IS NOT NULL
                   AND Cod_Titulo_Datos = 'AGP'
             )) AS total_notes_amount
 
-        FROM Datos_ingreso di
-        LEFT JOIN dbo.Valor V
+        FROM Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK)
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
         -- Universo correcto: facturas EMITIDAS en el período (no pagadas)
         WHERE di.Fecha_Ingreso >= @fechaInicioKPI
@@ -544,8 +544,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                 WHEN ABS(ISNULL(di.tasa_basura, 0) - ISNULL(V.Valor, 0)) > 0.01 THEN 'DISCREPANCY: Different amount charged'
                 ELSE 'OK'
             END AS final_diagnosis
-        FROM Datos_ingreso di
-        LEFT JOIN dbo.Valor V
+        FROM Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK)
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
         WHERE (
@@ -601,8 +601,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
             SUM(COALESCE(V.Valor, 0) - COALESCE(di.descuento_tb, 0))
                                                                     AS total_trash_net,
             SUM(CASE WHEN V.cod_Ingreso IS NULL THEN 1 ELSE 0 END)  AS missing_valor_records
-        FROM Datos_ingreso di
-        LEFT JOIN dbo.Valor V
+        FROM Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK)
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
         WHERE di.Fecha_Pago >= @fechaInicio2
           AND di.Fecha_Pago <= @fechaFin2
@@ -651,8 +651,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
             SUM(COALESCE(V.Valor, di.tasa_basura))                  AS total_trash_debt,
             MIN(di.Fecha_Ingreso)                                   AS oldest_debt_date,
             MAX(di.Fecha_Ingreso)                                   AS latest_pending_bill
-        FROM Datos_ingreso di
-        LEFT JOIN dbo.Valor V
+        FROM Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK)
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = 10
         WHERE di.Fecha_Pago IS NULL
           AND di.tasa_basura IS NOT NULL
@@ -701,8 +701,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
         SET @JSON_Global = '['
         SELECT @JSON_Global = @JSON_Global +
             '{"Estado": "' + COALESCE(di.Estado_Ingreso, 'S/E') + '", "Monto": ' + LTRIM(STR(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 18, 2)) + '}, '
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK) ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
           AND di.tasa_basura IS NOT NULL
           AND di.Cod_Titulo_Datos = 'AGP'
@@ -714,8 +714,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
         SET @JSON_Revenue = '['
         SELECT @JSON_Revenue = @JSON_Revenue +
             '{"Estado": "' + COALESCE(di.Estado_Ingreso, 'S/E') + '", "Monto": ' + LTRIM(STR(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 18, 2)) + '}, '
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK) ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
           AND di.Estado_Ingreso = 'P'
@@ -728,8 +728,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
         SET @JSON_Compliance = '['
         SELECT @JSON_Compliance = @JSON_Compliance +
             '{"Estado": "' + COALESCE(di.Estado_Ingreso, 'S/E') + '", "Monto": ' + LTRIM(STR(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 18, 2)) + '}, '
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK) ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
           AND di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
@@ -756,15 +756,15 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                  ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0) ELSE 0 END) AS NUMERIC(18,4)) 
                       / NULLIF(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 0) * 100, 2)
             END AS collection_rate,
-            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc 
-             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc WITH (NOLOCK)
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WITH (NOLOCK) WHERE di2.ClaveCatastral = nc.Cuenta 
                            AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_volume,
-            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc 
-             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc WITH (NOLOCK)
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WITH (NOLOCK) WHERE di2.ClaveCatastral = nc.Cuenta 
                            AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End AND di2.tasa_basura IS NOT NULL)) AS credit_notes_amount,
             @JSON_Global AS revenue_status_json
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK) ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
           AND di.tasa_basura IS NOT NULL
           AND di.Cod_Titulo_Datos = 'AGP'
@@ -788,15 +788,15 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                  ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0) ELSE 0 END) AS NUMERIC(18,4)) 
                       / NULLIF(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 0) * 100, 2)
             END AS collection_rate,
-            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc 
-             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc WITH (NOLOCK)
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WITH (NOLOCK) WHERE di2.ClaveCatastral = nc.Cuenta 
                            AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL AND di2.Estado_Ingreso = 'P')) AS credit_notes_volume,
-            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc 
-             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc WITH (NOLOCK)
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WITH (NOLOCK) WHERE di2.ClaveCatastral = nc.Cuenta 
                            AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL AND di2.Estado_Ingreso = 'P')) AS credit_notes_amount,
             @JSON_Revenue AS revenue_status_json
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK) ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
           AND di.Estado_Ingreso = 'P'
@@ -822,17 +822,17 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                  ELSE ROUND(CAST(SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0) ELSE 0 END) AS NUMERIC(18,4)) 
                       / NULLIF(SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0)), 0) * 100, 2)
             END AS collection_rate,
-            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc 
-             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+            (SELECT COUNT(*) FROM dbo.AP_NotasCredito nc WITH (NOLOCK)
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WITH (NOLOCK) WHERE di2.ClaveCatastral = nc.Cuenta 
                            AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End 
                            AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL AND di2.Estado_Ingreso = 'P')) AS credit_notes_volume,
-            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc 
-             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WHERE di2.ClaveCatastral = nc.Cuenta 
+            (SELECT SUM(ISNULL(nc.Valor, 0)) FROM dbo.AP_NotasCredito nc WITH (NOLOCK)
+             WHERE EXISTS (SELECT 1 FROM dbo.Datos_ingreso di2 WITH (NOLOCK) WHERE di2.ClaveCatastral = nc.Cuenta 
                            AND di2.Fecha_Ingreso >= @Date_Start AND di2.Fecha_Ingreso <= @Date_End 
                            AND di2.Fecha_Pago >= @Date_Start AND di2.Fecha_Pago <= @Date_End AND di2.tasa_basura IS NOT NULL AND di2.Estado_Ingreso = 'P')) AS credit_notes_amount,
             @JSON_Compliance AS revenue_status_json
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK) ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Ingreso >= @Date_Start AND di.Fecha_Ingreso <= @Date_End
           AND di.Fecha_Pago >= @Date_Start AND di.Fecha_Pago <= @Date_End
           AND di.tasa_basura IS NOT NULL
@@ -882,8 +882,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
 
         SELECT @Global_Total_Collection =
             SUM(COALESCE(V.Valor, di.tasa_basura) - COALESCE(di.descuento_tb, 0))
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK)
             ON di.Cod_Ingreso = V.cod_Ingreso AND V.orden = @Service_Order
         WHERE di.Fecha_Pago      >= @startDate
           AND di.Fecha_Pago      <= @endDate
@@ -934,8 +934,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
                 END)                                                    AS cancelled_bills_value
 
         INTO #CollectorKPIs
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK)
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
         WHERE di.Fecha_Pago       >= @startDate
@@ -1024,8 +1024,8 @@ export class SqlServerTrash2000RateReportPersistence implements InterfaceTrashRa
             -- Total value of cancelled bills (if any)
             SUM(CASE WHEN di.Estado_Ingreso = 'A' OR di.Estado_Ingreso = 'B' THEN COALESCE(V.Valor, di.tasa_basura) ELSE 0 END) AS cancelled_value_daily
 
-        FROM dbo.Datos_ingreso di
-        LEFT JOIN dbo.Valor V
+        FROM dbo.Datos_ingreso di WITH (NOLOCK)
+        LEFT JOIN dbo.Valor V WITH (NOLOCK)
             ON di.Cod_Ingreso = V.cod_Ingreso
             AND V.orden = @Service_Order
         WHERE di.Fecha_Pago >= @startDate

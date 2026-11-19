@@ -68,7 +68,7 @@ export class SQLServer2000EntryDataPersistence
                   SUM(COALESCE(Recargo,       0))              AS surcharge_value,
                   SUM(COALESCE(tasa_basura,   0))              AS trash_rate_value,
                   SUM(COALESCE(descuento_tb,  0))              AS discount_trash_rate_value
-              FROM Datos_ingreso
+              FROM Datos_ingreso WITH (NOLOCK)
               WHERE Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
                 AND Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
               GROUP BY
@@ -80,8 +80,8 @@ export class SQLServer2000EntryDataPersistence
                   CONVERT(VARCHAR(10), di.Fecha_Pago, 120)    AS date,
                   di.User_Cobro                               AS collector,
                   SUM(COALESCE(v.Valor, 0))                   AS detail_value
-              FROM Datos_ingreso di
-              INNER JOIN Valor v ON di.Cod_Ingreso = v.cod_Ingreso
+              FROM Datos_ingreso di WITH (NOLOCK)
+              INNER JOIN Valor v WITH (NOLOCK) ON di.Cod_Ingreso = v.cod_Ingreso
               WHERE di.Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
                 AND di.Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
               GROUP BY
@@ -162,7 +162,7 @@ export class SQLServer2000EntryDataPersistence
                       COALESCE(descuento_tb,  0)
                   )                                            AS total_value,
                   COUNT(Cod_Ingreso)                           AS record_count
-              FROM Datos_ingreso
+              FROM Datos_ingreso WITH (NOLOCK)
               WHERE Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
                 AND Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
               GROUP BY
@@ -178,8 +178,8 @@ export class SQLServer2000EntryDataPersistence
                   di.FormaDePago                              AS payment_method,
                   di.Estado_Ingreso                           AS status,
                   SUM(COALESCE(v.Valor, 0))                   AS detail_value
-              FROM Datos_ingreso di
-              INNER JOIN Valor v ON di.Cod_Ingreso = v.cod_Ingreso
+              FROM Datos_ingreso di WITH (NOLOCK)
+              INNER JOIN Valor v WITH (NOLOCK) ON di.Cod_Ingreso = v.cod_Ingreso
               WHERE di.Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
                 AND di.Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
               GROUP BY
@@ -257,7 +257,7 @@ export class SQLServer2000EntryDataPersistence
                   SUM(COALESCE(Recargo,       0))              AS surcharge_value,
                   SUM(COALESCE(tasa_basura,   0))              AS trash_rate_value,
                   SUM(COALESCE(descuento_tb,  0))              AS discount_trash_rate_value
-              FROM Datos_ingreso
+              FROM Datos_ingreso WITH (NOLOCK)
               WHERE Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
                 AND Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
               GROUP BY
@@ -270,8 +270,8 @@ export class SQLServer2000EntryDataPersistence
                   di.FormaDePago                              AS payment_method,
                   di.Estado_Ingreso                           AS status,
                   SUM(COALESCE(v.Valor, 0))                   AS detail_value
-              FROM Datos_ingreso di
-              INNER JOIN Valor v ON di.Cod_Ingreso = v.cod_Ingreso
+              FROM Datos_ingreso di WITH (NOLOCK)
+              INNER JOIN Valor v WITH (NOLOCK) ON di.Cod_Ingreso = v.cod_Ingreso
               WHERE di.Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
                 AND di.Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
               GROUP BY
@@ -351,7 +351,7 @@ export class SQLServer2000EntryDataPersistence
                       COALESCE(descuento_tb,  0)
                   )                                            AS grand_total,
                   COUNT(DISTINCT Cod_Ingreso)                  AS income_count
-              FROM Datos_ingreso
+              FROM Datos_ingreso WITH (NOLOCK)
               WHERE Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
                 AND Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
               GROUP BY
@@ -366,8 +366,8 @@ export class SQLServer2000EntryDataPersistence
                   di.FormaDePago                              AS payment_method,
                   di.Estado_Ingreso                           AS status,
                   SUM(COALESCE(v.Valor, 0))                   AS detail_value
-              FROM Datos_ingreso di
-              INNER JOIN Valor v ON di.Cod_Ingreso = v.cod_Ingreso
+              FROM Datos_ingreso di WITH (NOLOCK)
+              INNER JOIN Valor v WITH (NOLOCK) ON di.Cod_Ingreso = v.cod_Ingreso
               WHERE di.Fecha_Pago >= CONVERT(DATETIME, '${initDate}', 120)
                 AND di.Fecha_Pago <= CONVERT(DATETIME, '${endDate}',  120)
               GROUP BY

@@ -113,7 +113,7 @@ export class SqlServer2000AgreementsPersistence
 
             AVG(CASE WHEN estado_pago = 1 THEN DATEDIFF(day, fecha_emision, fecha_pago) END) AS avg_days_to_pay
 
-        FROM Datos_Ingreso_Convenio
+        FROM Datos_Ingreso_Convenio WITH (NOLOCK)
         WHERE fecha_emision BETWEEN @startDate AND @endDate
         GROUP BY
             YEAR(fecha_emision),
@@ -246,7 +246,7 @@ SELECT
     MIN(fecha_vencimiento) AS oldest_due_date,
     COUNT(DISTINCT id) AS total_agreements,        -- si tienes convenio_id
     SUM(CASE WHEN estado_pago = 0 AND fecha_vencimiento >= GETDATE() THEN 1 ELSE 0 END) AS pending_not_overdue
-FROM Datos_Ingreso_Convenio
+FROM Datos_Ingreso_Convenio WITH (NOLOCK)
 WHERE fecha_emision BETWEEN @startDate AND @endDate
 AND ciudadano_id = @Card_Id
 GROUP BY
@@ -369,8 +369,8 @@ ORDER BY year DESC, month DESC, day DESC;
                 ELSE NULL
             END AS days_to_payment
 
-        FROM Datos_Ingreso_Convenio di
-        INNER JOIN CIUDADANO c
+        FROM Datos_Ingreso_Convenio di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK)
             ON c.CED_IDENT_CIUDADANO = di.ciudadano_id
         WHERE ciudadano_id = @Card_Id
           AND fecha_emision BETWEEN @startDate AND @endDate
@@ -433,7 +433,7 @@ ORDER BY year DESC, month DESC, day DESC;
             COUNT(CASE WHEN estado_pago = 1 THEN 1 END) AS paid_installments,
             COUNT(CASE WHEN estado_pago = 0 THEN 1 END) AS pending_installments
 
-        FROM Datos_Ingreso_Convenio
+        FROM Datos_Ingreso_Convenio WITH (NOLOCK)
         WHERE fecha_emision >= DATEADD(MONTH, -@MonthsBack, GETDATE())
         GROUP BY CONVERT(VARCHAR(7), fecha_emision, 126)
         ORDER BY month_key DESC;
@@ -483,8 +483,8 @@ ORDER BY year DESC, month DESC, day DESC;
                 ELSE 'BAJO'
             END AS risk_level
 
-        FROM Datos_Ingreso_Convenio di
-        INNER JOIN CIUDADANO c 
+        FROM Datos_Ingreso_Convenio di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK) 
             ON c.CED_IDENT_CIUDADANO = di.ciudadano_id
         GROUP BY 
             c.CED_IDENT_CIUDADANO, 
@@ -521,7 +521,7 @@ ORDER BY year DESC, month DESC, day DESC;
           
         -- Calcular total global primero (necesario en SQL 2000)  
         SELECT @Total_Global = SUM(valor_capital + valor_interes + valor_recargo)  
-        FROM Datos_Ingreso_Convenio  
+        FROM Datos_Ingreso_Convenio WITH (NOLOCK)  
         WHERE estado_pago = 1  
           AND fecha_pago BETWEEN @Date_Start AND @Date_End  
           
@@ -540,7 +540,7 @@ ORDER BY year DESC, month DESC, day DESC;
                 )  
             END AS performance_pct  
           
-        FROM Datos_Ingreso_Convenio  
+        FROM Datos_Ingreso_Convenio WITH (NOLOCK)  
         WHERE estado_pago = 1  
           AND fecha_pago BETWEEN @Date_Start AND @Date_End  
         GROUP BY usuario_cobro  
@@ -576,7 +576,7 @@ ORDER BY year DESC, month DESC, day DESC;
         DECLARE @Total_Global DECIMAL(18,4)
 
         SELECT @Total_Global = SUM(valor_capital + valor_interes + valor_recargo)
-        FROM Datos_Ingreso_Convenio
+        FROM Datos_Ingreso_Convenio WITH (NOLOCK)
         WHERE estado_pago = 1
           AND fecha_pago BETWEEN @Date_Start AND @Date_End
 
@@ -591,7 +591,7 @@ ORDER BY year DESC, month DESC, day DESC;
                 ELSE CAST(SUM(valor_capital + valor_interes + valor_recargo) * 100.0 / @Total_Global AS DECIMAL(10,2))
             END AS contribution_pct
 
-        FROM Datos_Ingreso_Convenio
+        FROM Datos_Ingreso_Convenio WITH (NOLOCK)
         WHERE estado_pago = 1
           AND fecha_pago BETWEEN @Date_Start AND @Date_End
         GROUP BY forma_de_pago
@@ -649,8 +649,8 @@ ORDER BY year DESC, month DESC, day DESC;
             COUNT(CASE WHEN di.forma_de_pago = 'Efectivo' THEN 1 END) AS cash_count,
             COUNT(CASE WHEN di.forma_de_pago = 'NotaDeCredito' THEN 1 END) AS credit_note_count
 
-        FROM Datos_Ingreso_Convenio di
-        INNER JOIN CIUDADANO c ON c.CED_IDENT_CIUDADANO = di.ciudadano_id
+        FROM Datos_Ingreso_Convenio di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK) ON c.CED_IDENT_CIUDADANO = di.ciudadano_id
         WHERE di.fecha_emision BETWEEN @Date_Start AND @Date_End
         GROUP BY 
             c.CED_IDENT_CIUDADANO, 

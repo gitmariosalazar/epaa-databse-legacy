@@ -145,16 +145,11 @@ export const Queries = {
               di.Comentario AS comment,
               (COALESCE(di.Valor_Titulo,0) + COALESCE(di.ValorTerceros, 0) + COALESCE(di.Recargo, 0) + COALESCE(di.tasa_basura, 0)) AS total,
               di.User_Cobro AS payment_user,
-              v.value
-            FROM Datos_ingreso di
-            CROSS APPLY (
-                SELECT SUM(v2.Valor) AS value
-                FROM Valor v2
-                WHERE v2.cod_Ingreso = di.Cod_Ingreso
-                HAVING COUNT(v2.cod_Ingreso) > 0
-            ) v
+              (SELECT SUM(v2.Valor) FROM Valor v2 WITH (NOLOCK) WHERE v2.cod_Ingreso = di.Cod_Ingreso) AS value
+            FROM Datos_ingreso di WITH (NOLOCK)
             WHERE di.Fecha_Pago >= CONVERT(DATETIME, '${String(paymentDate)} 00:00:00.000', 120)
               AND di.Fecha_Pago <= CONVERT(DATETIME, '${String(paymentDate)} 23:59:59.997', 120)
+              AND EXISTS (SELECT 1 FROM Valor v2 WITH (NOLOCK) WHERE v2.cod_Ingreso = di.Cod_Ingreso)
             ORDER BY di.Fecha_Ingreso DESC;
         `,
   findAllPaymentByInitDateAndEndDate: (initDate: string, endDate: string) => /*sql*/`
@@ -179,16 +174,11 @@ export const Queries = {
           (COALESCE(di.Valor_Titulo,0) + COALESCE(di.ValorTerceros,0) +
            COALESCE(di.Recargo,0) + COALESCE(di.tasa_basura,0)) AS total,
           di.User_Cobro AS payment_user,
-          v.value
-        FROM Datos_ingreso di
-        CROSS APPLY (
-            SELECT SUM(v2.Valor) AS value
-            FROM Valor v2
-            WHERE v2.cod_Ingreso = di.Cod_Ingreso
-            HAVING COUNT(v2.cod_Ingreso) > 0
-        ) v
+          (SELECT SUM(v2.Valor) FROM Valor v2 WITH (NOLOCK) WHERE v2.cod_Ingreso = di.Cod_Ingreso) AS value
+        FROM Datos_ingreso di WITH (NOLOCK)
         WHERE di.Fecha_Pago >= CONVERT(DATETIME, '${String(initDate)} 00:00:00.000', 120)
           AND di.Fecha_Pago <= CONVERT(DATETIME, '${String(endDate)} 23:59:59.997', 120)
+          AND EXISTS (SELECT 1 FROM Valor v2 WITH (NOLOCK) WHERE v2.cod_Ingreso = di.Cod_Ingreso)
         ORDER BY di.Fecha_Ingreso DESC;
         `,
   findAllOverduePayments: (safeLimit: number, safeOffset: number) => /*sql*/`
