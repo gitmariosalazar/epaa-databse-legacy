@@ -13,6 +13,7 @@ import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import { ReadingNotFoundException } from '../../domain/exceptions/reading-not-found.exception';
 import { environments } from '../../../../settings/environments/environments';
+import { DisabledConnectionRequest } from '../../domain/schemas/dto/request/disabled-connection';
 
 @Controller('readings')
 export class ReadingController {
@@ -215,5 +216,22 @@ export class ReadingController {
       params.year,
       params.sector,
     );
+  }
+
+  @Get('find-latest-meter-reading')
+  @MessagePattern('epaa-legacy.reading.find-latest-meter-reading')
+  async findLatestMeterReading(@Payload() params: { cadastralKey: string }) {
+    return await this.readingService.findLatestMeterReading(
+      params.cadastralKey,
+    );
+  }
+
+  @Get('disable-connection')
+  @MessagePattern('epaa-legacy.reading.disable-connection')
+  async disableConnection(@Payload() params: DisabledConnectionRequest) {
+    console.log(
+      `📥 [KAFKA CONSUMER] Recibida solicitud de suspensión: Sector ${params.sector}, Cuenta ${params.account}`,
+    );
+    return await this.readingService.disableConnection(params);
   }
 }

@@ -18,6 +18,7 @@ import { FindCurrentReadingParams } from '../../../../domain/schemas/dto/request
 import { RpcException } from '@nestjs/microservices';
 import { statusCode } from '../../../../../../settings/environments/status-code';
 import { MONTHS_REVERSE } from '../../../../../../shared/consts/months';
+import { DisabledConnectionRequest } from '../../../../domain/schemas/dto/request/disabled-connection';
 
 @Injectable()
 export class ReadingSQLServer2022Persistence implements InterfaceReadingsRepository {
@@ -655,6 +656,98 @@ export class ReadingSQLServer2022Persistence implements InterfaceReadingsReposit
         'Error fetching annual dashboard KPIs by year and sector:',
         error,
       );
+      throw error;
+    }
+  }
+
+  async findLatestMeterReading(
+    cadastralKey: string,
+  ): Promise<ReadingResponse | null> {
+    try {
+      // cadastralKey: 14-293
+      const [sector, account] = cadastralKey.split('-');
+      const query = /*sql*/ `
+          SELECT TOP 1
+              l.CodigoIngresoARentas AS rentalIncomeCode,
+              l.Sector               AS sector,
+              l.Cuenta               AS account,
+              l.ClaveCatastral       AS cadastralKey,
+              l.LecturaActual        AS currentReading,
+              l.LecturaAnterior      AS previousReading,
+              l.Novedad              AS novelty,
+              l.observacion          AS observation,
+              l.ValorAPagar          AS readingValue,
+              l.TasaAlcantarillado   AS sewerRate,
+              l.FechaCaptura         AS readingDate,
+              l.HoraCaptura          AS captureTime,
+              l.Anio                 AS year,
+              LTRIM(RTRIM(l.Mes))    AS month,
+              l.Cod_ingreso          AS incomeCode,
+              l.id_lectura           AS readingId
+          FROM AP_LECTURAS l
+          WHERE (l.Sector = '${sector}'
+            AND l.Cuenta = '${account}')  
+            OR l.ClaveCatastral = '${cadastralKey}'
+          ORDER BY
+              l.Anio DESC,
+              CASE
+                  WHEN ISNUMERIC(LTRIM(RTRIM(CAST(l.mesnum AS VARCHAR(10))))) = 1
+                      AND CAST(LTRIM(RTRIM(CAST(l.mesnum AS VARCHAR(10)))) AS INT) BETWEEN 1 AND 12
+                  THEN CAST(LTRIM(RTRIM(CAST(l.mesnum AS VARCHAR(10)))) AS INT)
+                  ELSE
+                      CASE LTRIM(RTRIM(UPPER(l.Mes)))
+                          WHEN 'ENERO'      THEN 1
+                          WHEN 'FEBRERO'    THEN 2
+                          WHEN 'MARZO'      THEN 3
+                          WHEN 'ABRIL'      THEN 4
+                          WHEN 'MAYO'       THEN 5
+                          WHEN 'JUNIO'      THEN 6
+                          WHEN 'JULIO'      THEN 7
+                          WHEN 'AGOSTO'     THEN 8
+                          WHEN 'SEPTIEMBRE' THEN 9
+                          WHEN 'SETIEMBRE'  THEN 9
+                          WHEN 'OCTUBRE'    THEN 10
+                          WHEN 'NOVIEMBRE'  THEN 11
+                          WHEN 'DICIEMBRE'  THEN 12
+                          ELSE 0
+                      END
+              END DESC,
+              l.FechaCaptura DESC;
+      `;
+
+      const result = await this.sqlServerService.query<ReadingSQLResult>(query);
+
+      if (!result || result.length === 0) {
+        return null;
+      }
+
+      const reading: ReadingResponse = SQLServerReadingAdapter.toDomain(
+        result[0],
+      );
+
+      return reading;
+    } catch (error) {
+      console.error('Error fetching latest meter reading:', error);
+      throw error;
+    }
+  }
+
+  async disableConnection(params: DisabledConnectionRequest): Promise<boolean> {
+    try {
+      // // UPDATE AP_LECTURAS SET Novedad = 'SUSPENDIDO', observacion = 'TEST DE SUSPENSION' WHERE Cod_ingreso = 2579176 AND Sector = 14 AND Cuenta = 293 AND Anio = 2026 AND Mes = 'NOVIEMBRE';
+      console.log('Disabling connection with params:', params);
+      const safeState = params.state || 'SUSPENDIDO';
+      const safeDescription = (params.description || '').replace(/'/g, "''");
+      const query = /*sql */ `
+        UPDATE AP_LECTURAS SET Novedad = '${safeState}', observacion = '${safeDescription}' 
+        WHERE Cod_ingreso = ${params.incomeCode} AND Sector = ${params.sector} 
+        AND Cuenta = ${params.account} AND Anio = ${params.year} AND Mes = '${params.month}';
+      `;
+
+      const result = await this.sqlServerService.execute(query);
+      return result ? result.affectedRows > 0 : false;
+    } catch (error) {
+      console.error('Error disabling connection:', error);
       throw error;
     }
   }

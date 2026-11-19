@@ -11,6 +11,7 @@ async function bootstrap() {
   const logger: Logger = new Logger('Epaa-Database-Legacy-Main');
 
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
 
   app.use(morgan('dev'));
   await app.listen(environments.NODE_ENV === 'production' ? 3009 : 4009);
@@ -26,16 +27,17 @@ async function bootstrap() {
         client: {
           clientId: environments.EPAA_LEGACY_READINGS_KAFKA_CLIENT_ID,
           brokers: [environments.KAFKA_BROKER_URL],
-          retry: { retries: 25, initialRetryTime: 1000 },
+          retry: {
+            retries: 5,
+            initialRetryTime: 300,
+          },
         },
         consumer: {
           groupId: environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
           allowAutoTopicCreation: true,
-          // More tolerant settings for heavy handlers (SQL reports) to avoid
-          // transient coordinator membership loss during rebalances.
-          sessionTimeout: 300000, // 5 minutes
-          heartbeatInterval: 10000,
-          rebalanceTimeout: 300000,
+          sessionTimeout: 30000,
+          heartbeatInterval: 3000,
+          rebalanceTimeout: 60000,
           maxWaitTimeInMs: 5000,
         },
         run: {
@@ -48,6 +50,7 @@ async function bootstrap() {
     ),
   });
 
+  microservice.enableShutdownHooks();
   await microservice.listen();
   logger.log(`Nest application successfully started`);
 }

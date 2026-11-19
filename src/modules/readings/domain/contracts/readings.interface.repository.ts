@@ -1,3 +1,4 @@
+import { DisabledConnectionRequest } from '../schemas/dto/request/disabled-connection';
 import { FindCurrentReadingParams } from '../schemas/dto/request/find-current-reading.paramss';
 import {
   DashboardKpiResponse,
@@ -35,4 +36,7 @@ export interface InterfaceReadingsRepository {
     year: number,
     sector: string,
   ): Promise<DashboardKpiResponse[]>;
+
+  findLatestMeterReading(cadastralKey: string): Promise<ReadingResponse | null>;
+  disableConnection(params: DisabledConnectionRequest): Promise<boolean>;
 }

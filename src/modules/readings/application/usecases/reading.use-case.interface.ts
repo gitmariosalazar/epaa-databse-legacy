@@ -1,4 +1,5 @@
 import { CreateReadingLegacyRequest } from '../../domain/schemas/dto/request/create.reading.request';
+import { DisabledConnectionRequest } from '../../domain/schemas/dto/request/disabled-connection';
 import { FindCurrentReadingParams } from '../../domain/schemas/dto/request/find-current-reading.paramss';
 import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.reading.request';
 import {
@@ -37,4 +38,7 @@ export interface InterfaceReadingUseCase {
     year: number,
     sector: string,
   ): Promise<DashboardKpiResponse[]>;
+
+  findLatestMeterReading(cadastralKey: string): Promise<ReadingResponse | null>;
+  disableConnection(params: DisabledConnectionRequest): Promise<boolean>;
 }

@@ -19,6 +19,7 @@ import { UpdateReadingRequest } from '../../domain/schemas/dto/request/update.re
 import { ReadingNotFoundException } from '../../domain/exceptions/reading-not-found.exception';
 import { RpcException } from '@nestjs/microservices';
 import { Logger } from 'winston';
+import { DisabledConnectionRequest } from '../../domain/schemas/dto/request/disabled-connection';
 
 @Injectable()
 export class ReadingService implements InterfaceReadingUseCase {
@@ -458,6 +459,46 @@ export class ReadingService implements InterfaceReadingUseCase {
         return [];
       }
       return kpis;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findLatestMeterReading(
+    cadastralKey: string,
+  ): Promise<ReadingResponse | null> {
+    try {
+      const reading =
+        await this.readingsRepository.findLatestMeterReading(cadastralKey);
+      return reading;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async disableConnection(params: DisabledConnectionRequest): Promise<boolean> {
+    try {
+      const cadastralKey = `${params.sector}-${params.account}`;
+
+      const reading: ReadingResponse | null =
+        await this.readingsRepository.findLatestMeterReading(cadastralKey);
+
+      // Si no existe ninguna lectura registrada para esta cuenta, retorna false
+      if (!reading || !reading.incomeCode) {
+        return false;
+      }
+
+      // Creamos el objeto actualizado con la última lectura encontrada
+      const updateData: DisabledConnectionRequest = {
+        ...params,
+        incomeCode: reading.incomeCode,
+        sector: reading.sector,
+        account: reading.account,
+        year: reading.year,
+        month: String(reading.month).trim(),
+        state: params.state || 'SUSPENDIDO',
+      };
+
+      return await this.readingsRepository.disableConnection(updateData);
     } catch (error) {
       throw error;
     }
