@@ -879,7 +879,16 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
   ): Promise<ReadingResponse | null> {
     try {
       // cadastralKey: 14-293
-      const [sector, account] = cadastralKey.split('-');
+      const parts = (cadastralKey || '').trim().split('-');
+      const sectorNum = parseInt(parts[0], 10);
+      const accountNum = parseInt(parts[1], 10);
+      const hasValidSectorAccount = !isNaN(sectorNum) && !isNaN(accountNum);
+      const safeCadastralKey = (cadastralKey || '').trim().replace(/'/g, "''");
+
+      const whereClause = hasValidSectorAccount
+        ? `((l.Sector = ${sectorNum} AND l.Cuenta = ${accountNum}) OR l.ClaveCatastral = '${safeCadastralKey}')`
+        : `l.ClaveCatastral = '${safeCadastralKey}'`;
+
       const query = /*sql*/ `
           SELECT TOP 1
               l.CodigoIngresoARentas AS rentalIncomeCode,
@@ -898,10 +907,8 @@ export class ReadingSQLServer2000Persistence implements InterfaceReadingsReposit
               LTRIM(RTRIM(l.Mes))    AS month,
               l.Cod_ingreso          AS incomeCode,
               l.id_lectura           AS readingId
-          FROM AP_LECTURAS l
-          WHERE (l.Sector = CAST('${sector}' AS INT)
-            AND l.Cuenta = CAST('${account}' AS INT)  
-            OR l.ClaveCatastral = '${cadastralKey}'
+          FROM AP_LECTURAS l WITH (NOLOCK)
+          WHERE ${whereClause}
           ORDER BY
               l.Anio DESC,
               CASE
