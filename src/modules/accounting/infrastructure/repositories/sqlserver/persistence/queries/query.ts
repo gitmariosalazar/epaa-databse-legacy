@@ -594,6 +594,8 @@ export const Queries = {
         SET NOCOUNT ON;
         DECLARE @searchParam VARCHAR(50);
         SET @searchParam = '${String(cadastralKey).trim()}';
+        DECLARE @sectorParam INT;
+        DECLARE @cuentaParam INT;
 
         IF CHARINDEX('-', @searchParam) = 0
         BEGIN
@@ -653,11 +655,11 @@ export const Queries = {
             di.Estado_Ingreso               AS income_status,
             di.Fecha_Ingreso                AS income_date
 
-        FROM Datos_ingreso di
-        INNER JOIN CIUDADANO c 
+        FROM Datos_ingreso di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK)
             ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-        INNER JOIN AP_ACOMETIDAS a
+        INNER JOIN AP_ACOMETIDAS a WITH (NOLOCK)
             ON a.Sector = 
                 CASE 
                     WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
@@ -674,7 +676,7 @@ export const Queries = {
                     ELSE -1
                 END
 
-        LEFT JOIN AP_LECTURAS l
+        LEFT JOIN AP_LECTURAS l WITH (NOLOCK)
             ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
         
@@ -692,6 +694,21 @@ export const Queries = {
         END
         ELSE
         BEGIN
+
+        SET @sectorParam = CASE
+            WHEN CHARINDEX('-', @searchParam) > 1
+                AND ISNUMERIC(LEFT(@searchParam, CHARINDEX('-', @searchParam)-1)) = 1
+                AND LEN(LEFT(@searchParam, CHARINDEX('-', @searchParam)-1)) <= 2
+            THEN CONVERT(INT, LEFT(@searchParam, CHARINDEX('-', @searchParam)-1))
+            ELSE -1
+        END;
+
+        SET @cuentaParam = CASE
+            WHEN CHARINDEX('-', @searchParam) > 1
+                AND ISNUMERIC(SUBSTRING(@searchParam, CHARINDEX('-', @searchParam)+1, 30)) = 1
+            THEN CONVERT(INT, SUBSTRING(@searchParam, CHARINDEX('-', @searchParam)+1, 30))
+            ELSE -1
+        END;
 
         SELECT
             c.CED_IDENT_CIUDADANO           AS card_id,
@@ -748,28 +765,15 @@ export const Queries = {
             di.Estado_Ingreso               AS income_status,
             di.Fecha_Ingreso                AS income_date
 
-        FROM Datos_ingreso di
-        INNER JOIN CIUDADANO c 
+        FROM Datos_ingreso di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK)
             ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-        INNER JOIN AP_ACOMETIDAS a
-            ON a.Sector = 
-                CASE 
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
-                        AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
-                        AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
-                    THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
-                    ELSE -1
-                END
-            AND a.Cuenta = 
-                CASE 
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
-                        AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
-                    THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
-                    ELSE -1
-                END
+        INNER JOIN AP_ACOMETIDAS a WITH (NOLOCK)
+            ON a.Sector = @sectorParam
+            AND a.Cuenta = @cuentaParam
 
-        LEFT JOIN AP_LECTURAS l
+        LEFT JOIN AP_LECTURAS l WITH (NOLOCK)
             ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
         
@@ -790,6 +794,8 @@ export const Queries = {
         SET NOCOUNT ON;
         DECLARE @searchParam VARCHAR(50);
         SET @searchParam = '${String(cardId).trim()}';
+        DECLARE @sectorParam INT;
+        DECLARE @cuentaParam INT;
 
         IF CHARINDEX('-', @searchParam) = 0
         BEGIN
@@ -849,11 +855,11 @@ export const Queries = {
           di.Estado_Ingreso               AS income_status,
           di.Fecha_Ingreso                AS income_date
 
-      FROM Datos_ingreso di
-      INNER JOIN CIUDADANO c 
+      FROM Datos_ingreso di WITH (NOLOCK)
+      INNER JOIN CIUDADANO c WITH (NOLOCK)
           ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-      INNER JOIN AP_ACOMETIDAS a
+      INNER JOIN AP_ACOMETIDAS a WITH (NOLOCK)
           ON a.Sector = 
               CASE 
                   WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
@@ -870,7 +876,7 @@ export const Queries = {
                   ELSE -1
               END
 
-      LEFT JOIN AP_LECTURAS l
+      LEFT JOIN AP_LECTURAS l WITH (NOLOCK)
           ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
       
@@ -888,6 +894,21 @@ export const Queries = {
         END
         ELSE
         BEGIN
+
+        SET @sectorParam = CASE
+            WHEN CHARINDEX('-', @searchParam) > 1
+                AND ISNUMERIC(LEFT(@searchParam, CHARINDEX('-', @searchParam)-1)) = 1
+                AND LEN(LEFT(@searchParam, CHARINDEX('-', @searchParam)-1)) <= 2
+            THEN CONVERT(INT, LEFT(@searchParam, CHARINDEX('-', @searchParam)-1))
+            ELSE -1
+        END;
+
+        SET @cuentaParam = CASE
+            WHEN CHARINDEX('-', @searchParam) > 1
+                AND ISNUMERIC(SUBSTRING(@searchParam, CHARINDEX('-', @searchParam)+1, 30)) = 1
+            THEN CONVERT(INT, SUBSTRING(@searchParam, CHARINDEX('-', @searchParam)+1, 30))
+            ELSE -1
+        END;
 
       SELECT
           c.CED_IDENT_CIUDADANO           AS card_id,
@@ -944,28 +965,15 @@ export const Queries = {
           di.Estado_Ingreso               AS income_status,
           di.Fecha_Ingreso                AS income_date
 
-      FROM Datos_ingreso di
-      INNER JOIN CIUDADANO c 
+      FROM Datos_ingreso di WITH (NOLOCK)
+      INNER JOIN CIUDADANO c WITH (NOLOCK)
           ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-      INNER JOIN AP_ACOMETIDAS a
-          ON a.Sector = 
-              CASE 
-                  WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
-                      AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
-                      AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
-                  THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
-                  ELSE -1
-              END
-          AND a.Cuenta = 
-              CASE 
-                  WHEN CHARINDEX('-', di.ClaveCatastral) > 1 
-                      AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
-                  THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
-                  ELSE -1
-              END
+      INNER JOIN AP_ACOMETIDAS a WITH (NOLOCK)
+          ON a.Sector = @sectorParam
+          AND a.Cuenta = @cuentaParam
 
-      LEFT JOIN AP_LECTURAS l
+      LEFT JOIN AP_LECTURAS l WITH (NOLOCK)
           ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
       
@@ -986,6 +994,8 @@ export const Queries = {
         SET NOCOUNT ON;
         DECLARE @searchParam VARCHAR(50);
         SET @searchParam = '${String(searchValue).trim()}';
+        DECLARE @sectorParam INT;
+        DECLARE @cuentaParam INT;
 
         IF CHARINDEX('-', @searchParam) = 0
         BEGIN
@@ -1142,11 +1152,11 @@ export const Queries = {
                 ELSE 'No Vencido' 
             END AS due_date_status
 
-        FROM Datos_ingreso di
-        INNER JOIN CIUDADANO c
+        FROM Datos_ingreso di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK)
             ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-        INNER JOIN AP_ACOMETIDAS a
+        INNER JOIN AP_ACOMETIDAS a WITH (NOLOCK)
             ON a.Sector =
                 CASE
                     WHEN CHARINDEX('-', di.ClaveCatastral) > 1
@@ -1163,13 +1173,13 @@ export const Queries = {
                     ELSE -1
                 END
 
-        LEFT JOIN AP_LECTURAS l
+        LEFT JOIN AP_LECTURAS l WITH (NOLOCK)
             ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
-        LEFT JOIN AP_NotasCredito anc
+        LEFT JOIN AP_NotasCredito anc WITH (NOLOCK)
             ON di.ClaveCatastral = anc.Cuenta
 
-        LEFT JOIN Valor v
+        LEFT JOIN Valor v WITH (NOLOCK)
             ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
 
         
@@ -1187,6 +1197,21 @@ export const Queries = {
         END
         ELSE
         BEGIN
+
+        SET @sectorParam = CASE
+            WHEN CHARINDEX('-', @searchParam) > 1
+                AND ISNUMERIC(LEFT(@searchParam, CHARINDEX('-', @searchParam)-1)) = 1
+                AND LEN(LEFT(@searchParam, CHARINDEX('-', @searchParam)-1)) <= 2
+            THEN CONVERT(INT, LEFT(@searchParam, CHARINDEX('-', @searchParam)-1))
+            ELSE -1
+        END;
+
+        SET @cuentaParam = CASE
+            WHEN CHARINDEX('-', @searchParam) > 1
+                AND ISNUMERIC(SUBSTRING(@searchParam, CHARINDEX('-', @searchParam)+1, 30)) = 1
+            THEN CONVERT(INT, SUBSTRING(@searchParam, CHARINDEX('-', @searchParam)+1, 30))
+            ELSE -1
+        END;
 
         SELECT
             -- ── Identificación del cliente y suministro ──────────────────────────────────
@@ -1340,34 +1365,21 @@ export const Queries = {
                 ELSE 'No Vencido' 
             END AS due_date_status
 
-        FROM Datos_ingreso di
-        INNER JOIN CIUDADANO c
+        FROM Datos_ingreso di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK)
             ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-        INNER JOIN AP_ACOMETIDAS a
-            ON a.Sector =
-                CASE
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
-                        AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
-                        AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
-                    THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
-                    ELSE -1
-                END
-            AND a.Cuenta =
-                CASE
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
-                        AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
-                    THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
-                    ELSE -1
-                END
+        INNER JOIN AP_ACOMETIDAS a WITH (NOLOCK)
+            ON a.Sector = @sectorParam
+            AND a.Cuenta = @cuentaParam
 
-        LEFT JOIN AP_LECTURAS l
+        LEFT JOIN AP_LECTURAS l WITH (NOLOCK)
             ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
-        LEFT JOIN AP_NotasCredito anc
+        LEFT JOIN AP_NotasCredito anc WITH (NOLOCK)
             ON di.ClaveCatastral = anc.Cuenta
 
-        LEFT JOIN Valor v
+        LEFT JOIN Valor v WITH (NOLOCK)
             ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
 
         
@@ -1394,8 +1406,10 @@ export const Queries = {
         SET NOCOUNT ON;
 
         -- Parámetro de búsqueda original
-        DECLARE @searchParam VARCHAR(50)
-        SET @searchParam = '${String(searchValue.trim())}'
+        DECLARE @searchParam VARCHAR(50);
+        SET @searchParam = '${String(searchValue.trim())}';
+        DECLARE @sectorParam INT;
+        DECLARE @cuentaParam INT;
 
         -- NUEVO: Parámetros para rango de fechas (Desde - Hasta)
         -- Puedes inyectar las fechas desde tu código (ej. '2023-01-01') o dejarlas como NULL para omitir el filtro
@@ -1564,11 +1578,11 @@ export const Queries = {
                 ELSE 'No Vencido'
             END AS due_date_status
 
-        FROM Datos_ingreso di
-        INNER JOIN CIUDADANO c
+        FROM Datos_ingreso di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK)
             ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-        INNER JOIN AP_ACOMETIDAS a
+        INNER JOIN AP_ACOMETIDAS a WITH (NOLOCK)
             ON a.Sector =
                 CASE
                     WHEN CHARINDEX('-', di.ClaveCatastral) > 1
@@ -1585,13 +1599,13 @@ export const Queries = {
                     ELSE -1
                 END
 
-        LEFT JOIN AP_LECTURAS l
+        LEFT JOIN AP_LECTURAS l WITH (NOLOCK)
             ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
-        LEFT JOIN AP_NotasCredito anc
+        LEFT JOIN AP_NotasCredito anc WITH (NOLOCK)
             ON di.ClaveCatastral = anc.Cuenta
 
-        LEFT JOIN Valor v
+        LEFT JOIN Valor v WITH (NOLOCK)
             ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
 
         WHERE
@@ -1609,6 +1623,21 @@ export const Queries = {
         ELSE
         BEGIN
             -- BÚSQUEDA POR CLAVE CATASTRAL
+            SET @sectorParam = CASE
+                WHEN CHARINDEX('-', @searchParam) > 1
+                    AND ISNUMERIC(LEFT(@searchParam, CHARINDEX('-', @searchParam)-1)) = 1
+                    AND LEN(LEFT(@searchParam, CHARINDEX('-', @searchParam)-1)) <= 2
+                THEN CONVERT(INT, LEFT(@searchParam, CHARINDEX('-', @searchParam)-1))
+                ELSE -1
+            END;
+
+            SET @cuentaParam = CASE
+                WHEN CHARINDEX('-', @searchParam) > 1
+                    AND ISNUMERIC(SUBSTRING(@searchParam, CHARINDEX('-', @searchParam)+1, 30)) = 1
+                THEN CONVERT(INT, SUBSTRING(@searchParam, CHARINDEX('-', @searchParam)+1, 30))
+                ELSE -1
+            END;
+
             SELECT
                             -- ── Identificación del cliente y suministro ──────────────────────────────────
             di.Cod_Ingreso                  AS income_code,
@@ -1766,34 +1795,21 @@ export const Queries = {
                 ELSE 'No Vencido'
             END AS due_date_status
 
-        FROM Datos_ingreso di
-        INNER JOIN CIUDADANO c
+        FROM Datos_ingreso di WITH (NOLOCK)
+        INNER JOIN CIUDADANO c WITH (NOLOCK)
             ON di.CodCliente_Ingreso = c.CED_IDENT_CIUDADANO
 
-        INNER JOIN AP_ACOMETIDAS a
-            ON a.Sector =
-                CASE
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
-                        AND ISNUMERIC(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) = 1
-                        AND LEN(LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1)) <= 2
-                    THEN CONVERT(INT, LEFT(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)-1))
-                    ELSE -1
-                END
-            AND a.Cuenta =
-                CASE
-                    WHEN CHARINDEX('-', di.ClaveCatastral) > 1
-                        AND ISNUMERIC(SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30)) = 1
-                    THEN CONVERT(INT, SUBSTRING(di.ClaveCatastral, CHARINDEX('-', di.ClaveCatastral)+1, 30))
-                    ELSE -1
-                END
+        INNER JOIN AP_ACOMETIDAS a WITH (NOLOCK)
+            ON a.Sector = @sectorParam
+            AND a.Cuenta = @cuentaParam
 
-        LEFT JOIN AP_LECTURAS l
+        LEFT JOIN AP_LECTURAS l WITH (NOLOCK)
             ON l.CodigoIngresoARentas = di.Cod_Ingreso
 
-        LEFT JOIN AP_NotasCredito anc
+        LEFT JOIN AP_NotasCredito anc WITH (NOLOCK)
             ON di.ClaveCatastral = anc.Cuenta
 
-        LEFT JOIN Valor v
+        LEFT JOIN Valor v WITH (NOLOCK)
             ON di.Cod_Ingreso = v.cod_Ingreso AND v.orden = 10
 
             WHERE

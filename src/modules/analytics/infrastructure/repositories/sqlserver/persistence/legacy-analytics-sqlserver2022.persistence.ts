@@ -103,9 +103,9 @@ export class LegacyAnalyticsSQLServer2022Persistence
               di.Fecha_Vencimiento,
               di.Estado_Ingreso,
               ISNULL(L.Novedad, 'NORMAL') AS Novedad
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
-          LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          LEFT JOIN Datos_ingreso_interes_cache int WITH (NOLOCK) ON int.Cod_Ingreso = di.Cod_Ingreso
           WHERE L.Anio = ${year}
             AND ((L.mesnum = ${monthNum}) OR (UPPER(RTRIM(L.Mes)) = '${monthName}'))
             ${sectorFilter}
@@ -290,9 +290,9 @@ export class LegacyAnalyticsSQLServer2022Persistence
               SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS FacturasPagadas,
               SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS FacturasPendientes,
               SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN 1 ELSE 0 END) AS FacturasVencidas
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
-          LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          LEFT JOIN Datos_ingreso_interes_cache int WITH (NOLOCK) ON int.Cod_Ingreso = di.Cod_Ingreso
           WHERE L.Anio = ${year} 
             AND ((L.mesnum = ${monthNum}) OR (UPPER(RTRIM(L.Mes)) = '${monthName}'))
             ${sectorFilter}
@@ -442,9 +442,9 @@ export class LegacyAnalyticsSQLServer2022Persistence
           SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS FacturasPagadas,
           SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS FacturasPendientes,
           SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN 1 ELSE 0 END) AS FacturasVencidas
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
-          LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          LEFT JOIN Datos_ingreso_interes_cache int WITH (NOLOCK) ON int.Cod_Ingreso = di.Cod_Ingreso
           WHERE L.Anio = ${year}
             ${sectorFilter}
           GROUP BY L.Anio, 
@@ -567,9 +567,9 @@ export class LegacyAnalyticsSQLServer2022Persistence
               ) AS DECIMAL(18,2)) AS TotalVencidoMora_USD,
               SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS CasosPagados,
               SUM(CASE WHEN di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS CasosPendientes
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
-          LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          LEFT JOIN Datos_ingreso_interes_cache int WITH (NOLOCK) ON int.Cod_Ingreso = di.Cod_Ingreso
           WHERE L.Anio = ${year} 
             AND ((L.mesnum = ${monthNum}) OR (UPPER(RTRIM(L.Mes)) = '${monthName}'))
             ${sectorFilter}
@@ -683,12 +683,12 @@ export class LegacyAnalyticsSQLServer2022Persistence
                   ISNULL(int.interes_calculado, 0)
               ELSE 0 END
           AS DECIMAL(18,2))                                                   AS ValorTotalPendiente_USD
-      FROM AP_LECTURAS L
-      INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
-      LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
-      LEFT JOIN AP_ACOMETIDAS A 
+      FROM AP_LECTURAS L WITH (NOLOCK)
+      INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
+      LEFT JOIN Datos_ingreso_interes_cache int WITH (NOLOCK) ON int.Cod_Ingreso = di.Cod_Ingreso
+      LEFT JOIN AP_ACOMETIDAS A WITH (NOLOCK)
           ON L.Sector = A.Sector AND L.Cuenta = A.Cuenta
-      LEFT JOIN CIUDADANO C 
+      LEFT JOIN CIUDADANO C WITH (NOLOCK)
           ON A.CedulaCiudadano = C.CED_IDENT_CIUDADANO
       WHERE L.Anio = ${year} 
         AND ((L.mesnum = ${monthNum}) OR (UPPER(RTRIM(L.Mes)) = '${monthName}'))
@@ -786,10 +786,10 @@ export class LegacyAnalyticsSQLServer2022Persistence
                     END AS DECIMAL(6,2)) < -10.0 THEN 'CAIDA RECAUDACION (<-10%)'
                 ELSE 'ESTABLE / CRECIMIENTO MODERADO'
             END AS Diagnostico_Gestion
-        FROM AP_LECTURAS l25
-        INNER JOIN Datos_ingreso di25 ON di25.Cod_Ingreso = l25.CodigoIngresoARentas
-        LEFT JOIN Datos_ingreso_interes_cache int25 ON int25.Cod_Ingreso = di25.Cod_Ingreso
-        INNER JOIN AP_LECTURAS l26
+        FROM AP_LECTURAS l25 WITH (NOLOCK)
+        INNER JOIN Datos_ingreso di25 WITH (NOLOCK) ON di25.Cod_Ingreso = l25.CodigoIngresoARentas
+        LEFT JOIN Datos_ingreso_interes_cache int25 WITH (NOLOCK) ON int25.Cod_Ingreso = di25.Cod_Ingreso
+        INNER JOIN AP_LECTURAS l26 WITH (NOLOCK)
             ON l25.Sector = l26.Sector
             AND l25.Cuenta = l26.Cuenta
             AND l25.ClaveCatastral = l26.ClaveCatastral
@@ -797,8 +797,8 @@ export class LegacyAnalyticsSQLServer2022Persistence
                 (l25.mesnum IS NOT NULL AND l26.mesnum IS NOT NULL AND l25.mesnum = l26.mesnum)
                 OR (UPPER(RTRIM(l25.Mes)) = UPPER(RTRIM(l26.Mes)))
             )
-        INNER JOIN Datos_ingreso di26 ON di26.Cod_Ingreso = l26.CodigoIngresoARentas
-        LEFT JOIN Datos_ingreso_interes_cache int26 ON int26.Cod_Ingreso = di26.Cod_Ingreso
+        INNER JOIN Datos_ingreso di26 WITH (NOLOCK) ON di26.Cod_Ingreso = l26.CodigoIngresoARentas
+        LEFT JOIN Datos_ingreso_interes_cache int26 WITH (NOLOCK) ON int26.Cod_Ingreso = di26.Cod_Ingreso
         WHERE l25.Anio = ${baseYear} AND l26.Anio = ${targetYear}
           AND CASE 
                 WHEN l25.mesnum IS NOT NULL THEN l25.mesnum
@@ -893,9 +893,9 @@ export class LegacyAnalyticsSQLServer2022Persistence
                     SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS Recaudado_2025_USD,
                     SUM(CASE WHEN di.Fecha_Pago IS NULL THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS Pendiente_2025_USD,
                     SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS VencidoMora_2025_USD
-                FROM AP_LECTURAS L
-                INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
-                LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
+                FROM AP_LECTURAS L WITH (NOLOCK)
+                INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
+                LEFT JOIN Datos_ingreso_interes_cache int WITH (NOLOCK) ON int.Cod_Ingreso = di.Cod_Ingreso
                 WHERE L.Anio = ${baseYear} 
                   AND CASE 
                         WHEN L.mesnum IS NOT NULL THEN L.mesnum
@@ -928,9 +928,9 @@ export class LegacyAnalyticsSQLServer2022Persistence
                     SUM(CASE WHEN di.Fecha_Pago IS NOT NULL THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS Recaudado_2026_USD,
                     SUM(CASE WHEN di.Fecha_Pago IS NULL THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS Pendiente_2026_USD,
                     SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN (ISNULL(di.Valor_Titulo, 0) + ISNULL(di.tasa_basura, 0) + ISNULL(di.ValorTerceros, 0) + ISNULL(di.interes_mejoras, 0) + ISNULL(di.Recargo, 0) + ISNULL(int.interes_calculado, 0)) ELSE 0 END) AS VencidoMora_2026_USD
-                FROM AP_LECTURAS L
-                INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
-                LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
+                FROM AP_LECTURAS L WITH (NOLOCK)
+                INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
+                LEFT JOIN Datos_ingreso_interes_cache int WITH (NOLOCK) ON int.Cod_Ingreso = di.Cod_Ingreso
                 WHERE L.Anio = ${targetYear} 
                   AND CASE 
                         WHEN L.mesnum IS NOT NULL THEN L.mesnum
@@ -1037,8 +1037,8 @@ export class LegacyAnalyticsSQLServer2022Persistence
                   ELSE 0 
               END AS MesNum,
               COUNT(DISTINCT L.ClaveCatastral) AS Total
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
           WHERE L.Anio = ${baseYear}
           GROUP BY 
               CASE 
@@ -1077,8 +1077,8 @@ export class LegacyAnalyticsSQLServer2022Persistence
                   ELSE 0 
               END AS MesNum,
               COUNT(DISTINCT L.ClaveCatastral) AS Total
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
           WHERE L.Anio = ${baseYear}
           GROUP BY 
               CASE 
@@ -1117,8 +1117,8 @@ export class LegacyAnalyticsSQLServer2022Persistence
                   ELSE 0 
               END AS MesNum,
               COUNT(DISTINCT L.ClaveCatastral) AS Total
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
           WHERE L.Anio = ${targetYear}
           GROUP BY 
               CASE 
@@ -1157,8 +1157,8 @@ export class LegacyAnalyticsSQLServer2022Persistence
                   ELSE 0 
               END AS MesNum,
               COUNT(DISTINCT L.ClaveCatastral) AS Total
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
           WHERE L.Anio = ${targetYear}
           GROUP BY 
               CASE 
@@ -1280,9 +1280,9 @@ export class LegacyAnalyticsSQLServer2022Persistence
               SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NOT NULL THEN 1 ELSE 0 END) AS FacturasPagadas,
               SUM(CASE WHEN di.Cod_Ingreso IS NOT NULL AND di.Fecha_Pago IS NULL THEN 1 ELSE 0 END) AS FacturasPendientes,
               SUM(CASE WHEN di.Fecha_Pago IS NULL AND di.Fecha_Vencimiento < GETDATE() THEN 1 ELSE 0 END) AS FacturasVencidas
-          FROM AP_LECTURAS L
-          INNER JOIN Datos_ingreso di ON di.Cod_Ingreso = L.CodigoIngresoARentas
-          LEFT JOIN Datos_ingreso_interes_cache int ON int.Cod_Ingreso = di.Cod_Ingreso
+          FROM AP_LECTURAS L WITH (NOLOCK)
+          INNER JOIN Datos_ingreso di WITH (NOLOCK) ON di.Cod_Ingreso = L.CodigoIngresoARentas
+          LEFT JOIN Datos_ingreso_interes_cache int WITH (NOLOCK) ON int.Cod_Ingreso = di.Cod_Ingreso
           WHERE L.Anio BETWEEN ${startYear} AND ${endYear}
             ${sectorFilter}
           GROUP BY L.Anio

@@ -35,9 +35,9 @@ async function bootstrap() {
         consumer: {
           groupId: environments.EPAA_LEGACY_READINGS_KAFKA_GROUP_ID,
           allowAutoTopicCreation: true,
-          sessionTimeout: 30000,
+          sessionTimeout: 120000,
           heartbeatInterval: 3000,
-          rebalanceTimeout: 60000,
+          rebalanceTimeout: 180000,
           maxWaitTimeInMs: 5000,
         },
         run: {
